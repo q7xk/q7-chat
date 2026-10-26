@@ -1,6 +1,6 @@
 "use client";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import type { Attachment, Conversation, LinkMeta, Message, Settings } from "./types";
+import type { Attachment, Conversation, LinkMeta, Message, Settings, Space } from "./types";
 import { LIFETIME_MS } from "./time";
 import { applyAccent } from "./theme";
 import * as db from "./db";
@@ -22,8 +22,15 @@ interface Store {
   exportLocal: () => Promise<string>;
   importLocal: (text: string) => Promise<{ conversations: number; messages: number; skipped: number }>;
   setSettings: (patch: Partial<Settings>) => void;
+  spaces: Space[];
+  createSpace: (name: string) => string;
+  deleteSpace: (id: string) => void;
+  renameSpace: (id: string, name: string) => void;
+  spaceAdd: (id: string, contactId: string) => void;
+  spaceRemove: (id: string, contactId: string) => void;
 }
 const Ctx = createContext<Store | null>(null);
+const SPACE_HUES = [4, 26, 45, 90, 145, 172, 200, 255, 285, 320];
 export const useStore = () => { const s = useContext(Ctx); if (!s) throw new Error("StoreProvider missing"); return s; };
 
 // crypto.randomUUID needs a secure context; fall back so http://<lan-ip> still works on a phone.
@@ -47,6 +54,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [settings, setSettingsState] = useState<Settings>({ theme: "dark", previews: "ask", accent: "blue", presence: "online", textScale: "m" });
+  const [spaces, setSpaces] = useState<Space[]>([]);
   const convRef = useRef(conversations); convRef.current = conversations;
   const msgRef = useRef(messages); msgRef.current = messages;
   const started = useRef(false);
@@ -71,6 +79,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           await db.putConversation(c); await db.putMessage(mk(c.id, tRef.current("welcome.text"))); await db.setFlag("seeded", true);
         }
         await reload();
+        const raw = await db.getFlag("spaces");
+        if (Array.isArray(raw)) {
+          const list = raw.filter((s): s is Space => !!s && typeof s === "object" && typeof (s as Space).id === "string" && typeof (s as Space).name === "string" && Array.isArray((s as Space).members));
+          setSpaces(list.slice(0, 50));
+        }
       } catch {
         setStorageError(true);
         const c: Conversation = { id: uid(), mode: "local", title: tRef.current("welcome.title"), pinned: false, muted: false, archived: false, unread: 0 };
@@ -162,7 +175,25 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (patch.accent !== undefined) try { localStorage.setItem("q7.accent", patch.accent); } catch {}
   }, []);
 
+  /* Spaces ("Alanlar"): local-only contact groups, persisted as a flag. */
+  const mutateSpaces = useCallback((fn: (list: Space[]) => Space[]) => {
+    setSpaces((prev) => {
+      const n = fn(prev);
+      void db.setFlag("spaces", n).catch(() => {});
+      return n;
+    });
+  }, []);
+  const createSpace = useCallback((name: string) => {
+    const id = uid();
+    mutateSpaces((l) => [...l, { id, name: name.trim().slice(0, 40) || "Space", hue: SPACE_HUES[Math.floor(Math.random() * SPACE_HUES.length)], members: [] }]);
+    return id;
+  }, [mutateSpaces]);
+  const deleteSpace = useCallback((id: string) => mutateSpaces((l) => l.filter((s) => s.id !== id)), [mutateSpaces]);
+  const renameSpace = useCallback((id: string, name: string) => mutateSpaces((l) => l.map((s) => (s.id === id ? { ...s, name: name.trim().slice(0, 40) || s.name } : s))), [mutateSpaces]);
+  const spaceAdd = useCallback((id: string, contactId: string) => mutateSpaces((l) => l.map((s) => (s.id === id && !s.members.includes(contactId) ? { ...s, members: [...s.members, contactId].slice(0, 100) } : s))), [mutateSpaces]);
+  const spaceRemove = useCallback((id: string, contactId: string) => mutateSpaces((l) => l.map((s) => (s.id === id ? { ...s, members: s.members.filter((m) => m !== contactId) } : s))), [mutateSpaces]);
+
   const live = useMemo(() => messages.filter((m) => m.expiresAt > now), [messages, now]);
-  const value: Store = { ready, now, storageError, blobTick, bumpBlobs, conversations, messages: live, settings, createLocal, update, send, remove, createP2P, addMessage, updateMessage, removeConversation, clearConversation, wipeLocal, exportLocal, importLocal, setSettings };
+  const value: Store = { ready, now, storageError, blobTick, bumpBlobs, conversations, messages: live, settings, createLocal, update, send, remove, createP2P, addMessage, updateMessage, removeConversation, clearConversation, wipeLocal, exportLocal, importLocal, setSettings, spaces, createSpace, deleteSpace, renameSpace, spaceAdd, spaceRemove };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

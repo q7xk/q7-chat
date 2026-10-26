@@ -1,14 +1,18 @@
 export type Mode = "local" | "p2p";
-export type View = "chats" | "contacts" | "connect" | "calls" | "settings";
+export type View = "chats" | "contacts" | "connect" | "calls" | "settings" | "mentions" | "starred" | "spaces";
 export type PreviewPolicy = "ask" | "block" | "allow";
 export type Presence = "online" | "dnd" | "away";
 export type SettingsSection = "general" | "notifications" | "media" | "look" | "a11y" | "restrict" | "privacy";
+
+/** A user-made group of contacts ("Alan") — local organisation, no network. */
+export interface Space { id: string; name: string; hue: number; members: string[] }
 
 export interface LinkMeta { url: string; title?: string; description?: string; isImage?: boolean }
 
 export interface Conversation {
   id: string; mode: Mode; title: string;
   pinned: boolean; muted: boolean; archived: boolean; unread: number;
+  starred?: boolean; // collected under the "Yıldızlı" rail shortcut
   contactId?: string; // set for p2p conversations
   wall?: string; // chat wallpaper (gradient id)
 }

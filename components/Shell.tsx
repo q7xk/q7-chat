@@ -1,23 +1,31 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { MessageSquare, Phone, ScanLine, Settings as Cog, Users, type LucideIcon } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AtSign, Home, MessageSquare, Phone, Plus, ScanLine, Settings as Cog, Star, Users, type LucideIcon } from "lucide-react";
 import type { SettingsSection, View } from "@/lib/types";
 import { cn } from "@/lib/cn";
 import { useI18n, type K } from "@/lib/i18n";
 import { useP2P } from "@/lib/p2p/context";
 import { useStore } from "@/lib/store";
-import { ShapeDefs } from "./Badges";
+import { Avatar, clipShape, ShapeDefs } from "./Badges";
 import { CallOverlay } from "./Call";
 import { CallsPanel } from "./Calls";
 import { ChatList } from "./ChatList";
 import { ConnectPanel } from "./Connect";
 import { ContactsPanel } from "./Contacts";
-import { Logo, LogoMark } from "./Logo";
+import { MentionsPanel, SpacesPanel, StarredPanel } from "./Shortcuts";
 import { SettingsPanel } from "./Settings";
 import { Thread } from "./Thread";
 import { TopBar } from "./TopBar";
 
-const NAV: { id: View; label: K; icon: LucideIcon }[] = [
+/** Rail order, used for the direction-aware view transition. */
+const ORDER: View[] = ["chats", "mentions", "starred", "spaces", "contacts", "connect", "calls", "settings"];
+const SHORTCUTS: { id: View; label: K; icon: LucideIcon }[] = [
+  { id: "chats", label: "rail.home", icon: Home }, { id: "mentions", label: "rail.mentions", icon: AtSign }, { id: "starred", label: "rail.starred", icon: Star },
+];
+const BOTTOM: { id: View; label: K; icon: LucideIcon }[] = [
+  { id: "settings", label: "nav.settings", icon: Cog }, { id: "calls", label: "nav.calls", icon: Phone }, { id: "contacts", label: "nav.contacts", icon: Users },
+];
+const MOBILE_NAV: { id: View; label: K; icon: LucideIcon }[] = [
   { id: "chats", label: "nav.chats", icon: MessageSquare }, { id: "contacts", label: "nav.contacts", icon: Users }, { id: "connect", label: "nav.connect", icon: ScanLine },
   { id: "calls", label: "nav.calls", icon: Phone }, { id: "settings", label: "nav.settings", icon: Cog },
 ];
@@ -48,47 +56,117 @@ function useNotifier() {
 
 export function Shell() {
   const { t } = useI18n(); const { snap } = useP2P();
+  const { conversations, messages, spaces } = useStore();
   const [view, setView] = useState<View>("chats"); const [activeId, setActiveId] = useState<string | null>(null);
-  const [railOpen, setRailOpen] = useState(true); // desktop rail: labels ↔ icons
+  const [pin, setPin] = useState(false); // hamburger: keep the rail expanded
+  const [hover, setHover] = useState(false); // rail grows when the mouse approaches
   const [query, setQuery] = useState(""); // top-bar "search in chats"
   const [section, setSection] = useState<SettingsSection | null>(null); // settings category to scroll to
-  const go = (v: View) => { setView(v); setActiveId(null); };
-  const openChat = (id: string) => { setView("chats"); setActiveId(id); };
-  const openSection = (s: SettingsSection) => { setSection(s); go("settings"); };
+  const [spaceId, setSpaceId] = useState<string | null>(null);
+  const expanded = pin || hover;
+  const go = useCallback((v: View) => { setView(v); setActiveId(null); }, []);
+  const openChat = useCallback((id: string) => { setView("chats"); setActiveId(id); }, []);
+  const openSection = useCallback((s: SettingsSection) => { setSection(s); go("settings"); }, []);
   const clearSection = useCallback(() => setSection(null), []);
   useNotifier();
   const chat = view === "chats"; const pane = "md:rounded-[28px] md:overflow-hidden"; const paneScroll = "md:rounded-[28px]";
   const badge = (id: View) => (id === "connect" ? snap.requests.length : 0);
   /* direction-aware shared-axis transition when switching categories */
-  const idx = NAV.findIndex((n) => n.id === view);
+  const idx = ORDER.indexOf(view);
   const lastIdx = useRef(idx);
   const viewAnim = idx === lastIdx.current ? "" : idx > lastIdx.current ? "m3-view-next" : "m3-view-prev";
   useEffect(() => { lastIdx.current = idx; });
 
+  const totalUnread = useMemo(() => conversations.reduce((a, c) => a + (c.archived ? 0 : c.unread), 0), [conversations]);
+  const dms = useMemo(() => conversations
+    .filter((c) => c.mode === "p2p" && c.contactId && !c.archived)
+    .map((c) => { const contact = snap.contacts.find((x) => x.id === c.contactId); const last = messages.reduce((a, m) => (m.conversationId === c.id ? Math.max(a, m.createdAt) : a), 0); return { c, contact, last }; })
+    .filter((x) => x.contact && !x.contact.blocked)
+    .sort((a, b) => Number(b.c.pinned) - Number(a.c.pinned) || b.last - a.last)
+    .slice(0, 12), [conversations, messages, snap.contacts]);
+
+  const rowBase = "m3-press relative flex h-11 w-full items-center gap-3 rounded-full text-start text-sm font-medium";
+  const onRow = "bg-sc text-onsc"; const offRow = "text-muted hover:bg-container hover:text-ink";
+  const cap = "mb-1 mt-4 px-3 text-[11px] font-semibold uppercase tracking-wider text-muted";
+
   return (
     <div className="flex h-dvh flex-col bg-bg">
       <ShapeDefs />
-      <TopBar railOpen={railOpen} onRail={() => setRailOpen((v) => !v)} query={query} onQuery={setQuery} onSection={openSection} view={view} goChats={() => go("chats")} />
+      <TopBar railOpen={pin} onRail={() => setPin((v) => !v)} query={query} onQuery={setQuery} onSection={openSection} view={view} goChats={() => go("chats")} />
 
       <div className="flex min-h-0 flex-1">
-        <nav aria-label="Q7 Chat" className={cn("hidden shrink-0 flex-col p-3 transition-[width] duration-300 ease-spring md:flex", railOpen ? "w-64" : "w-[84px]")}>
-          <div className={cn("mb-4 mt-1 flex", railOpen ? "px-1" : "justify-center")}>
-            {railOpen ? <Logo /> : <span title="Q7 Chat" className="flex h-11 w-11 items-center justify-center rounded-2xl bg-pc text-onpc"><LogoMark size={24} /></span>}
-          </div>
-          <ul className="flex flex-1 flex-col gap-1">
-            {NAV.map(({ id, label, icon: Icon }) => (
-              <li key={id}>
-                <button onClick={() => go(id)} aria-current={view === id ? "page" : undefined} title={railOpen ? undefined : t(label)}
-                  className={cn("m3-press relative flex h-14 w-full items-center gap-3 text-start text-[15px] font-medium", railOpen ? "rounded-full px-5" : "justify-center rounded-full",
-                    view === id ? "bg-sc text-onsc" : "text-muted hover:bg-container hover:text-ink")}>
-                  <span key={view === id ? "on" : "off"} className={cn("flex shrink-0", view === id && "m3-bounce")}><Icon size={21} /></span>
-                  {railOpen && <span className="truncate">{t(label)}</span>}
-                  {railOpen && badge(id) > 0 && <span key={badge(id)} className="m3-bounce ms-auto rounded-full bg-accent px-2 text-xs font-semibold text-bg">{badge(id)}</span>}
-                  {!railOpen && badge(id) > 0 && <span key={badge(id)} className="m3-bounce absolute end-4 top-3 h-2.5 w-2.5 rounded-full bg-accent" />}
-                </button>
-              </li>
+        {/* Rail: same tonal surface as the top bar — reads as one continuous frame. Grows on hover. */}
+        <nav aria-label="Q7 Chat" onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
+          className={cn("hidden shrink-0 select-none flex-col bg-panel p-3 pb-4 transition-[width] duration-300 ease-spring md:flex", expanded ? "w-[260px]" : "w-[84px]")}>
+          {/* Yeni sohbet → Bağlan */}
+          <button onClick={() => go("connect")} title={t("rail.newChat")} aria-label={t("rail.newChat")}
+            className={cn("m3-press flex shrink-0 items-center gap-3 bg-pc text-onpc transition-[filter,transform] duration-200 ease-spring hover:brightness-110 active:scale-95",
+              expanded ? "h-12 rounded-full px-5 text-[15px] font-semibold" : "mx-auto h-12 w-12 justify-center")}
+            style={!expanded ? clipShape("cookie9") : undefined}>
+            <Plus size={20} className="shrink-0" />
+            {expanded && <span className="truncate">{t("rail.newChat")}</span>}
+          </button>
+
+          <div className="scroll-thin min-h-0 flex-1 overflow-y-auto overflow-x-clip pb-2">
+            <p aria-hidden={!expanded} className={cn(cap, !expanded && "sr-only")}>{t("rail.shortcuts")}</p>
+            {SHORTCUTS.map(({ id, label, icon: Icon }) => (
+              <button key={id} onClick={() => go(id)} aria-current={view === id ? "page" : undefined} title={t(label)}
+                className={cn(rowBase, view === id ? onRow : offRow)}>
+                <span key={view === id ? "on" : "off"} className={cn("flex shrink-0", view === id && "m3-bounce")}><Icon size={19} className={cn(id === "starred" && view === id && "fill-current")} /></span>
+                {expanded && <span className="truncate">{t(label)}</span>}
+                {expanded && id === "chats" && totalUnread > 0 && <span key={totalUnread} className="m3-bounce ms-auto rounded-full bg-accent px-1.5 text-center text-xs font-semibold text-bg">{totalUnread}</span>}
+                {!expanded && id === "chats" && totalUnread > 0 && <span key={totalUnread} className="m3-bounce absolute end-4 top-2 h-2 w-2 rounded-full bg-accent" />}
+              </button>
             ))}
-          </ul>
+
+            <p aria-hidden={!expanded} className={cn(cap, !expanded && "sr-only")}>{t("rail.dms")}</p>
+            {dms.map(({ c, contact }) => (
+              <button key={c.id} onClick={() => openChat(c.id)} title={contact!.name} aria-current={chat && activeId === c.id ? "true" : undefined}
+                className={cn(rowBase, chat && activeId === c.id ? onRow : offRow)}>
+                <span className="relative shrink-0">
+                  <Avatar title={contact!.name} mode="p2p" photo={contact!.photo} size={30} shape="clover4" />
+                  <span className={cn("absolute -bottom-0.5 -end-0.5 h-2.5 w-2.5 rounded-full border-2 border-panel", snap.status[contact!.id] === "online" ? "bg-accent" : "bg-line")} />
+                </span>
+                {expanded && <span className="min-w-0 flex-1 truncate">{contact!.name}</span>}
+                {expanded && c.unread > 0 && <span key={c.unread} className="m3-bounce rounded-full bg-accent px-1.5 text-center text-xs font-semibold text-bg">{c.unread}</span>}
+                {!expanded && c.unread > 0 && <span key={c.unread} className="m3-bounce absolute end-4 top-2 h-2 w-2 rounded-full bg-accent" />}
+              </button>
+            ))}
+            {expanded && dms.length === 0 && <p className="px-3 pb-1 text-xs leading-relaxed text-muted">{t("rail.dmNone")}</p>}
+
+            <p aria-hidden={!expanded} className={cn(cap, !expanded && "sr-only")}>{t("rail.spaces")}</p>
+            {spaces.map((s) => {
+              const n = s.members.filter((id) => snap.contacts.some((c) => c.id === id)).length;
+              const on = view === "spaces" && spaceId === s.id;
+              return (
+                <button key={s.id} onClick={() => { setSpaceId(s.id); go("spaces"); }} title={s.name} aria-current={on ? "true" : undefined}
+                  className={cn(rowBase, on ? onRow : offRow)}>
+                  <span className="h-6 w-6 shrink-0 transition-transform duration-200 ease-spring hover:rotate-12" style={{ ...clipShape("cookie12"), backgroundColor: `hsl(${s.hue} 65% 55%)` }} />
+                  {expanded && <>
+                    <span className="min-w-0 flex-1 truncate">{s.name}</span>
+                    <span className="shrink-0 text-xs text-muted">{n}</span>
+                  </>}
+                </button>
+              );
+            })}
+            <button onClick={() => { setSpaceId(null); go("spaces"); }} title={t("spaces.create")} aria-label={t("spaces.create")} className={cn(rowBase, offRow)}>
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center border-2 border-dashed border-line"><Plus size={13} /></span>
+              {expanded && <span className="truncate">{t("spaces.create")}</span>}
+            </button>
+          </div>
+
+          {/* bottom: settings · calls · contacts */}
+          <div className="shrink-0 space-y-1 border-t border-line/60 pt-2">
+            {BOTTOM.map(({ id, label, icon: Icon }) => (
+              <button key={id} onClick={() => go(id)} aria-current={view === id ? "page" : undefined} title={t(label)}
+                className={cn(rowBase, view === id ? onRow : offRow)}>
+                <span key={view === id ? "on" : "off"} className={cn("flex shrink-0", view === id && "m3-bounce")}><Icon size={19} /></span>
+                {expanded && <span className="truncate">{t(label)}</span>}
+                {!expanded && badge(id) > 0 && <span key={badge(id)} className="m3-bounce absolute end-4 top-2 h-2 w-2 rounded-full bg-accent" />}
+                {expanded && badge(id) > 0 && <span key={badge(id)} className="m3-bounce ms-auto rounded-full bg-accent px-1.5 text-center text-xs font-semibold text-bg">{badge(id)}</span>}
+              </button>
+            ))}
+          </div>
         </nav>
 
         <main className="flex min-h-0 min-w-0 flex-1 gap-2 md:p-2 md:ps-0">
@@ -100,6 +178,9 @@ export function Shell() {
           ) : (
             <section className={cn("min-w-0 flex-1 overflow-y-auto overflow-x-clip bg-panel scroll-thin", paneScroll)}>
               <div key={view} className={cn("min-h-full", viewAnim)}>
+                {view === "mentions" && <MentionsPanel onOpenChat={openChat} />}
+                {view === "starred" && <StarredPanel onOpenChat={openChat} />}
+                {view === "spaces" && <SpacesPanel spaceId={spaceId} onPick={setSpaceId} onOpenChat={openChat} />}
                 {view === "contacts" && <ContactsPanel onOpenChat={openChat} onAdd={() => go("connect")} />}
                 {view === "connect" && <ConnectPanel onOpenChat={openChat} />}
                 {view === "calls" && <CallsPanel onOpenChat={openChat} />}
@@ -114,7 +195,7 @@ export function Shell() {
 
       <nav aria-label="Q7 Chat" className={cn("bg-container pb-[env(safe-area-inset-bottom)] md:hidden", chat && activeId && "hidden")}>
         <ul className="grid grid-cols-5 px-1 pb-2 pt-3">
-          {NAV.map(({ id, label, icon: Icon }) => (
+          {MOBILE_NAV.map(({ id, label, icon: Icon }) => (
             <li key={id}>
               <button onClick={() => go(id)} aria-label={t(label)} aria-current={view === id ? "page" : undefined} className="m3-press flex w-full flex-col items-center gap-1 text-xs font-medium">
                 <span key={view === id ? "on" : "off"} className={cn("relative flex h-8 w-16 items-center justify-center rounded-full transition-[background-color] duration-300 ease-spring", view === id ? "m3-bounce bg-sc text-onsc" : "text-muted")}><Icon size={20} />{badge(id) > 0 && <span key={badge(id)} className="m3-bounce absolute end-2 top-0 h-2.5 w-2.5 rounded-full bg-accent" />}</span>

@@ -9,13 +9,15 @@ import { formatCode } from "@/lib/p2p/crypto";
 import { cn } from "@/lib/cn";
 import { EmojiPicker } from "./Emoji";
 import { GifPicker } from "./Gif";
-import { clipShape, type M3Shape } from "./Badges";
+import { Avatar, clipShape, type M3Shape } from "./Badges";
 
 const MAX = 4000;
 const field = "w-full rounded-2xl bg-container px-4 py-3 text-sm";
 const btn = "rounded-full px-5 py-2 text-sm font-medium";
 type Panel = null | "emoji" | "gif" | "attach" | "location" | "contact" | "poll" | "event";
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+const MENTION_OPEN = /(?:^|\s)@([\p{L}\d_]{0,30})$/u;   // trailing "@frag" opens the people picker
+const MENTION_CLOSE = /@[\p{L}\d_]*$/u;                  // replaced with the picked name
 /* M3 Expressive: attach chips cycle through the shape set instead of repeating one. */
 const CHIP_SHAPES: M3Shape[] = ["cookie9", "clover4", "cookie12", "clover8", "sunny", "clover4", "cookie12", "clover8"];
 
@@ -30,7 +32,14 @@ export function Composer({ replyTo, onCancelReply, onSend, onAttach }: {
   const [q, setQ] = useState(""); const [opts, setOpts] = useState(["", ""]); const [multi, setMulti] = useState(false);
   const [evT, setEvT] = useState(""); const [evW, setEvW] = useState(""); const [evP, setEvP] = useState(""); const [evN, setEvN] = useState("");
   const [rec, setRec] = useState<Rec | null>(null); const [elapsed, setElapsed] = useState(0);
+  const [mention, setMention] = useState<string | null>(null);
   const ref = useRef<HTMLTextAreaElement>(null); const gal = useRef<HTMLInputElement>(null), cam = useRef<HTMLInputElement>(null), doc = useRef<HTMLInputElement>(null);
+
+  const mentionList = mention !== null
+    ? snap.contacts.filter((c) => !c.blocked && c.name.toLowerCase().startsWith(mention.toLowerCase())).slice(0, 6)
+    : [];
+  const onText = (v: string) => { setText(v); setMention(MENTION_OPEN.exec(v)?.[1] ?? null); };
+  const pickMention = (name: string) => { setText((x) => x.replace(MENTION_CLOSE, `@${name} `)); setMention(null); ref.current?.focus(); };
 
   useEffect(() => {
     if (!rec) return;
@@ -140,6 +149,16 @@ export function Composer({ replyTo, onCancelReply, onSend, onAttach }: {
         </div>
       )}
       {err && <p role="alert" className="mb-2 px-2 text-sm text-danger">{err}</p>}
+      {!rec && mentionList.length > 0 && (
+        <div className="m3-pop mb-2 rounded-3xl bg-highest p-1.5" role="listbox" aria-label="@">
+          {mentionList.map((c) => (
+            <button key={c.id} role="option" aria-selected={false} onClick={() => pickMention(c.name)} className="m3-press flex w-full items-center gap-2.5 rounded-2xl px-3 py-2 text-start text-sm hover:bg-container">
+              <Avatar title={c.name} mode="p2p" photo={c.photo} size={28} shape="clover4" />
+              <span><span className="text-accent">@</span>{c.name}</span>
+            </button>
+          ))}
+        </div>
+      )}
       <input ref={gal} type="file" accept="image/*" multiple hidden onChange={(e) => { void files(e.target.files, "image"); e.target.value = ""; }} />
       <input ref={cam} type="file" accept="image/*" capture="environment" hidden onChange={(e) => { void files(e.target.files, "image"); e.target.value = ""; }} />
       <input ref={doc} type="file" multiple hidden onChange={(e) => { void files(e.target.files, "document"); e.target.value = ""; }} />
@@ -155,7 +174,7 @@ export function Composer({ replyTo, onCancelReply, onSend, onAttach }: {
           <button onClick={() => tgl("attach")} aria-label={t("composer.attach")} aria-pressed={panel === "attach"} className="m3-press rounded-full p-2.5 text-muted hover:bg-container hover:text-ink"><Paperclip size={19} /></button>
           <button onClick={() => tgl("emoji")} aria-label={t("composer.emoji")} aria-pressed={panel === "emoji"} className="m3-press rounded-full p-2.5 text-muted hover:bg-container hover:text-ink"><Smile size={19} /></button>
           <button onClick={() => tgl("gif")} aria-label={t("composer.gif")} aria-pressed={panel === "gif"} className="m3-press rounded-full px-2 py-2.5 text-xs font-bold text-muted hover:bg-container hover:text-ink">GIF</button>
-          <textarea ref={ref} value={text} onChange={(e) => setText(e.target.value)} rows={1} maxLength={MAX} aria-label={t("composer.ph")} placeholder={t("composer.ph")}
+          <textarea ref={ref} value={text} onChange={(e) => onText(e.target.value)} rows={1} maxLength={MAX} aria-label={t("composer.ph")} placeholder={t("composer.ph")}
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); send(); } }}
             className="max-h-40 min-h-[42px] flex-1 resize-none bg-transparent px-2 py-3 text-sm focus-visible:outline-none" />
           {text.trim() ? (

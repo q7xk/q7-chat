@@ -22,7 +22,9 @@ function Body({ m }: { m: Message }) {
         <p className="whitespace-pre-wrap break-words text-[15px] leading-relaxed">
           {splitBody(m.body).map((s, i) => s.type === "url"
             ? <a key={i} href={s.value} target="_blank" rel="noopener noreferrer nofollow" className="underline underline-offset-2">{s.value}</a>
-            : <span key={i}>{s.value}</span>)}
+            : <span key={i}>{s.value.split(/(@[\p{L}\d_]+)/u).map((part, j) => part.startsWith("@")
+              ? <span key={j} className="font-semibold text-accent">{part}</span>
+              : <span key={j}>{part}</span>)}</span>)}
         </p>
       )}
       {cards.map((l) => <LinkCard key={l.url} link={l} />)}

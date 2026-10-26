@@ -9,7 +9,7 @@ const config: Config = {
         line: c("line"), ink: c("text"), muted: c("muted"), accent: c("accent"), local: c("local"), danger: c("danger"),
         pc: c("pc"), onpc: c("onpc"), sc: c("sc"), onsc: c("onsc"), tc: c("tc"), ontc: c("ontc"),
       },
-      fontFamily: { sans: ['"Google Sans Flex"', '"Google Sans"', '"Roboto Flex"', "Roboto", '"Avenir Next"', '"Segoe UI Variable"', "system-ui", "-apple-system", "sans-serif"] },
+      fontFamily: { sans: ["var(--font-roboto-flex)", '"Google Sans Flex"', '"Google Sans"', '"Roboto Flex"', "Roboto", '"Avenir Next"', '"Segoe UI Variable"', "system-ui", "-apple-system", "sans-serif"] },
       // Material 3 shape scale
       borderRadius: { sm: "8px", md: "12px", lg: "16px", xl: "20px", "2xl": "24px", "3xl": "28px" },
       transitionTimingFunction: { spring: "cubic-bezier(0.34, 1.56, 0.64, 1)" },

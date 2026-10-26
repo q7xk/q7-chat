@@ -56,14 +56,14 @@ export function TopBar({ railOpen, onRail, query, onQuery, onSection, view, goCh
   const name = snap.settings.name || "Q7";
 
   return (
-    <header ref={bar} className="relative z-40 hidden h-16 shrink-0 items-center gap-2 border-b border-line/60 bg-panel px-4 md:flex">
+    <header ref={bar} className="relative z-40 hidden h-16 shrink-0 items-center gap-2 bg-panel px-4 md:flex">
       {/* rail toggle + brand */}
       <button onClick={onRail} aria-expanded={railOpen} aria-label={t(railOpen ? "top.railClose" : "top.railOpen")} title={t(railOpen ? "top.railClose" : "top.railOpen")} className={iconBtn}>
         <MenuIcon size={20} />
       </button>
       <div className="flex items-center gap-2.5 pe-2">
-        <span className="text-lg font-semibold tracking-tight text-ink">Q7 Chat</span>
         <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-pc text-onpc"><LogoMark size={22} /></span>
+        <span className="text-lg font-semibold tracking-tight text-ink">Chat</span>
       </div>
 
       {/* search across the chats */}

@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   Archive, ArrowLeftRight, Ban, Bell, BellOff, ChevronRight, Eraser, FileText, FolderOpen, Link2, Mic,
-  MoreVertical, Palette, Phone, Pin, PinOff, Trash2, User as UserIcon, Video, Download,
+  MoreVertical, Palette, Phone, Pin, PinOff, Star, StarOff, Trash2, User as UserIcon, Video, Download,
 } from "lucide-react";
 import type { Conversation, Contact, LinkMeta, Message } from "@/lib/types";
 import { useStore } from "@/lib/store";
@@ -79,6 +79,7 @@ export function ChatMenu({ conv, contact, p2p }: { conv: Conversation; contact?:
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
   const togglePin = () => update(conv.id, { pinned: !conv.pinned });
+  const toggleStar = () => update(conv.id, { starred: !conv.starred });
   const toggleArchive = () => { update(conv.id, { archived: !conv.archived }); setOpen(false); };
   const toggleMute = () => update(conv.id, { muted: !conv.muted });
 
@@ -110,6 +111,7 @@ export function ChatMenu({ conv, contact, p2p }: { conv: Conversation; contact?:
               <button role="menuitem" onClick={() => { setOpen(false); setPanel("clear"); }} className={item}><Eraser size={18} />{t("menu.clear")}</button>
               <button role="menuitem" onClick={() => { exportChat(); setOpen(false); }} className={item}><Download size={18} />{t("menu.export")}</button>
               <button role="menuitem" onClick={togglePin} className={item}>{conv.pinned ? <PinOff size={18} /> : <Pin size={18} />}{conv.pinned ? t("menu.unpin") : t("menu.pin")}</button>
+              <button role="menuitem" onClick={toggleStar} className={item}>{conv.starred ? <StarOff size={18} /> : <Star size={18} />}{conv.starred ? t("menu.unstar") : t("menu.star")}</button>
               <button role="menuitem" onClick={toggleArchive} className={item}><Archive size={18} />{conv.archived ? t("menu.unarchive") : t("menu.archive")}</button>
             </div>
           )}

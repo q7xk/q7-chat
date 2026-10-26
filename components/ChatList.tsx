@@ -1,6 +1,6 @@
 "use client";
 import { useMemo, useState } from "react";
-import { BellOff, Clock, Pin, Plus, Search, UserPlus, MessageSquarePlus } from "lucide-react";
+import { BellOff, Clock, Pin, Plus, Search, Star, UserPlus, MessageSquarePlus } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { useI18n } from "@/lib/i18n";
 import { useP2P } from "@/lib/p2p/context";
@@ -70,6 +70,7 @@ export function ChatList({ activeId, onOpen, onAdd, query }: { activeId: string 
                 <span className="flex items-center gap-2">
                   <span className="truncate text-base font-medium">{name}</span>
                   {c.pinned && <Pin size={12} className="shrink-0 text-muted" />}{c.muted && <BellOff size={12} className="shrink-0 text-muted" />}
+                  {c.starred && <Star size={12} className="shrink-0 fill-current text-accent" />}
                   <span className="ms-auto shrink-0 text-xs text-muted">{last ? clock(last.createdAt, now) : ""}</span>
                 </span>
                 <span className="mt-0.5 block truncate text-sm text-muted">{preview(last, last?.direction === "out" && c.mode === "p2p")}</span>
