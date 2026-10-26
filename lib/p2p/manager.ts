@@ -35,7 +35,7 @@ export interface Host {
 }
 interface Link {
   pc: PeerLink; expectPub?: string; name?: string; ek?: string; contactId?: string; hs?: HandshakeState; sess?: Session; silent: boolean; last: number;
-  hsReady: Promise<void>; resolveHs: () => void; tx: Promise<void>; rx: Promise<void>; timer?: ReturnType<typeof setTimeout>; hb?: ReturnType<typeof setInterval>;
+  hsReady: Promise<void>; resolveHs: () => void; tx: Promise<void>; rx: Promise<void>; timer?: ReturnType<typeof setTimeout>;
 }
 interface OutboxEntry { cid: string; kind: string; obj: unknown; file?: { att: Extract<Attachment, { t: "file" }> }; next: number; tries: number }
 interface Knock { link: Link; targetCode: string; expectPub?: string; done: ReturnType<typeof setTimeout>; iv: ReturnType<typeof setInterval>; topicR: string }
@@ -48,6 +48,9 @@ export class P2PManager {
   private id?: Identity; private relay?: RelayClient; private started = false;
   private links = new Map<string, Link>(); private knocks = new Map<string, Knock>(); private manualOffers = new Map<string, Link>();
   private seen = new Set<string>(); private lastTry = new Map<string, number>(); private declined = new Map<string, number>();
+  private lastSeen = new Map<string, number>();                   // last live inbound frame per contact: presence follows proof, not attempts
+  private lastPing = new Map<string, number>();                   // last heartbeat send per contact
+  private hbTimer?: ReturnType<typeof setInterval>;
   private incoming = new Map<string, { att: Extract<Attachment, { t: "file" }>; parts: Uint8Array[]; got: number; n: number; cid: string }>(); private pendingBlobs = new Map<string, Blob>();
   private pairs = new Map<string, Promise<CryptoKey | null>>();   // pairwise ECDH AES key per contact
   private rxWin = new Map<string, SeqWindow>();                   // replay window per contact for relay frames
@@ -68,6 +71,11 @@ export class P2PManager {
   private setStatus(id: string, s: LinkState) { this.set({ status: { ...this.snap.status, [id]: s } }); }
   private setMode(id: string, m: P2PMode) { if (this.snap.modes[id] !== m) this.set({ modes: { ...this.snap.modes, [id]: m } }); }
   private dropMode(id: string) { if (this.snap.modes[id]) { const { [id]: _out, ...modes } = this.snap.modes; void _out; this.set({ modes }); } }
+  /** Any live inbound frame (direct channel or relay push) is proof of life: presence follows proof, never an attempt. */
+  private noteSeen(cid: string) {
+    this.lastSeen.set(cid, Date.now());
+    if (this.snap.status[cid] !== "online") this.setStatus(cid, "online");
+  }
   setActive(convId: string | null) { this.active = convId; }
 
   /* ---------- lifecycle ---------- */
@@ -86,13 +94,15 @@ export class P2PManager {
       this.set({ ready: true, code: this.id.code, pub: this.id.pubB64, fp: hex(this.id.fp), settings, contacts: await db.getContacts() });
       await this.startRelay();
       this.tick = setInterval(() => this.reconnectAll(), 45_000);
+      this.hbTimer = setInterval(() => this.hbTick(), 10_000); // heartbeats are checked every 10 s, sent every 30 s per contact
       document.addEventListener("visibilitychange", this.vis);
-      setTimeout(() => { this.reconnectAll(); this.relayBroadcastProfile(); }, 3000);
+      setTimeout(() => { this.reconnectAll(); this.relayBroadcastProfile(); this.hbTick(); }, 3000);
     } catch { this.set({ ready: true, error: "err.generic" }); }
   }
   shutdown() {
     this.links.forEach((l) => l.pc.close()); this.manualOffers.forEach((l) => l.pc.close()); [...this.knocks.keys()].forEach((r) => { this.knocks.get(r)?.link.pc.close(); this.finishKnock(r); });
-    this.links.clear(); this.manualOffers.clear(); this.relay?.stop(); this.relay = undefined; clearInterval(this.tick); clearInterval(this.outTickTimer);
+    this.links.clear(); this.manualOffers.clear(); this.relay?.stop(); this.relay = undefined; clearInterval(this.tick); clearInterval(this.outTickTimer); clearInterval(this.hbTimer);
+    this.lastSeen.clear(); this.lastPing.clear();
     this.endLive("silent", false);
     document.removeEventListener("visibilitychange", this.vis);
     this.started = false; this.id = undefined;
@@ -109,7 +119,8 @@ export class P2PManager {
     this.relay = r; this.set({ relay: { enabled: true, connected: 0, total: urls.length } });
     const my = hex(this.id.fp);
     r.subscribe(await topicFor("k", this.id.code), (p) => void this.onKnock(p));
-    r.subscribe(`${mailRoot(my)}/#`, (p, topic) => void this.onRelayFrame(topic, p));  // live frames + retained mailbox copies
+    r.subscribe(liveTopic(my), (p, topic) => void this.onRelayFrame(topic, p));        // live push: pings, pongs and chat frames for peers that are online right now
+    r.subscribe(`${mailRoot(my)}/#`, (p, topic) => void this.onRelayFrame(topic, p));  // retained mailbox copies (offline delivery)
     r.subscribe(`${ackRoot(my)}/#`, (p) => void this.onRelayAck(p));                   // signed receipts for frames we sent by relay
     r.start();
     this.outTickTimer = setInterval(() => void this.outTick(), 4_000);
@@ -139,7 +150,7 @@ export class P2PManager {
     let resolveHs = () => {}; const hsReady = new Promise<void>((r) => { resolveHs = r; });
     const link: Link = { pc, silent, hsReady, resolveHs, tx: Promise.resolve(), rx: Promise.resolve(), last: 0 };
     pc.onOpen = () => void this.onOpen(link);
-    pc.onData = (d) => { link.last = Date.now(); void (link.rx = link.rx.then(() => this.onData(link, d)).catch(() => link.pc.close())); };
+    pc.onData = (d) => { link.last = Date.now(); if (link.contactId) this.noteSeen(link.contactId); void (link.rx = link.rx.then(() => this.onData(link, d)).catch(() => link.pc.close())); };
     pc.onClose = () => this.onClose(link);
     link.timer = setTimeout(() => { if (!link.sess) link.pc.close(); }, 90_000);
     return link;
@@ -148,7 +159,7 @@ export class P2PManager {
     try { link.hs = await startHandshake(this.id!); link.resolveHs(); link.pc.send(JSON.stringify(link.hs.hello)); } catch { link.pc.close(); }
   }
   private onClose(link: Link) {
-    clearTimeout(link.timer); clearInterval(link.hb); link.hb = undefined;
+    clearTimeout(link.timer);
     for (const [rid, k] of this.knocks) if (k.link === link && !link.sess) { this.finishKnock(rid); if (!link.silent && this.snap.pairing.kind !== "done") this.setPairing({ kind: "error", message: "err.link" }); }
     for (const [rid, l] of this.manualOffers) if (l === link) this.manualOffers.delete(rid);
     if (link.contactId && this.links.get(link.contactId) === link) {
@@ -156,7 +167,7 @@ export class P2PManager {
       if (this.live?.cid === link.contactId) this.endLive("failed"); // a call cannot survive its transport
       setTimeout(() => { if (!this.links.has(link.contactId!)) this.ensureConnected(link.contactId!, false); }, 5_000);
     }
-    else if (!link.sess && link.expectPub) void sha256(fromB64(link.expectPub)).then((fp) => { if (!this.links.has(hex(fp))) this.setStatus(hex(fp), "offline"); });
+    else if (!link.sess && link.expectPub) void sha256(fromB64(link.expectPub)).then((fp) => { if (this.snap.status[hex(fp)] === "connecting") this.setStatus(hex(fp), "offline"); }); // only clean up the "connecting" a manual pairing set
   }
   private async onData(link: Link, d: string | ArrayBuffer) {
     if (typeof d === "string") {
@@ -168,7 +179,7 @@ export class P2PManager {
       link.sess = sess; await this.onReady(link, sess); return;
     }
     if (!link.sess || !link.contactId) { link.pc.close(); return; }
-    this.apply(link.contactId, await link.sess.decrypt(d));
+    this.apply(link.contactId, await link.sess.decrypt(d), "direct");
   }
   private async onReady(link: Link, sess: Session) {
     clearTimeout(link.timer);
@@ -181,13 +192,9 @@ export class P2PManager {
     const convId = this.host.ensureConversation(cid, contact.name);
     const old = this.links.get(cid); link.contactId = cid; this.links.set(cid, link); if (old && old !== link) old.pc.close();
     this.setStatus(cid, "online"); this.setMode(cid, "direct");
+    this.noteSeen(cid); // the completed handshake itself is proof of life
     if (this.snap.pairing.kind !== "idle") this.setPairing({ kind: "done", name: contact.name, convId });
     this.flush(cid); this.sendProfile(link);
-    clearInterval(link.hb); link.hb = setInterval(() => {
-      if (Date.now() - link.last > 45_000) return link.pc.close(); // dead peer frees the slot for a fresh attempt
-      const cur = this.links.get(cid!);
-      if (cur?.sess) this.sendFrame(cid, { k: "ping" });
-    }, 15_000);
   }
 
   /* ---------- relay pairing (by code) ---------- */
@@ -237,7 +244,8 @@ export class P2PManager {
     const reply = await signEnvelope(this.id, { t: "answer", rid: env.rid, name: this.snap.settings.name, sdp, ts: Date.now() });
     if (env.to) this.relay?.publish(await topicFor("r", env.rid), await seal(env.rid, reply));
     else if (!silent) this.setPairing({ kind: "manual-answer", text: await packEnvelope(reply) });
-    this.setStatus(hex(await sha256(fromB64(env.pub))), "connecting");
+    const fp = hex(await sha256(fromB64(env.pub)));
+    if (!silent && this.snap.status[fp] !== "online") this.setStatus(fp, "connecting"); // only the manual pairing UI shows the attempt; silent reconnects never fake "connecting"
   }
   async acceptRequest(rid: string) {
     const r = this.snap.requests.find((x) => x.rid === rid); if (!r) return;
@@ -310,18 +318,56 @@ export class P2PManager {
     this.links.get(id)?.pc.close(); this.links.delete(id); await db.deleteContact(id); this.host.removeConversationFor(id);
     const { [id]: _gone, ...status } = this.snap.status; void _gone; this.set({ contacts: this.snap.contacts.filter((c) => c.id !== id), status });
     this.dropMode(id); this.pairs.delete(id); this.rxWin.delete(id); this.lastSeq.delete(id);
+    this.lastSeen.delete(id); this.lastPing.delete(id);
     this.outbox.forEach((e, k) => e.cid === id && this.outbox.delete(k)); this.orphans.clear();
   }
   connectNow(id: string) { this.ensureConnected(id, true); }
   private ensureConnected(id: string, force = false) {
     const c = this.snap.contacts.find((x) => x.id === id); if (!c || c.blocked || !this.relay || this.relay.connected === 0) return;
     if (this.snap.status[id] === "online" || this.snap.status[id] === "connecting") return;
-    if (!force && Date.now() - (this.lastTry.get(id) ?? 0) < 20_000) return;
-    this.lastTry.set(id, Date.now()); this.setStatus(id, "connecting");
-    this.startKnock(c.code, true).catch(() => this.setStatus(id, "offline"));
-    setTimeout(() => { if (this.snap.status[id] === "connecting" && !this.links.has(id)) this.setStatus(id, "offline"); }, 58_000);
+    const quiet = !!c.ek && !force; // relay-capable contacts reconnect silently: the 30 s heartbeat decides presence, attempts stay invisible
+    if (Date.now() - (this.lastTry.get(id) ?? 0) < (quiet ? 120_000 : force ? 6_000 : 20_000)) return;
+    this.lastTry.set(id, Date.now());
+    if (!quiet) {
+      this.setStatus(id, "connecting");
+      setTimeout(() => { if (this.snap.status[id] === "connecting" && !this.links.has(id)) this.setStatus(id, "offline"); }, 58_000);
+    }
+    this.startKnock(c.code, true).catch(() => { if (!quiet) this.setStatus(id, "offline"); });
   }
   private reconnectAll() { if (document.visibilityState === "visible") this.snap.contacts.forEach((c) => this.ensureConnected(c.id)); }
+
+  /* ---------- heartbeat: a tiny "ben burdayım" every 30 s, answered by an equally tiny pong ---------- */
+  /** Every 30 s each contact gets one sealed {k:"ping"} over the best path (DataChannel first, live relay topic otherwise).
+      Any pong — or any live frame at all — proves the peer is alive; three missed heartbeats close a zombie link. */
+  private hbTick() {
+    const now = Date.now();
+    for (const c of this.snap.contacts) {
+      if (c.blocked) continue;
+      if (this.snap.status[c.id] === "online" && now - (this.lastSeen.get(c.id) ?? 0) > 90_000) {
+        this.links.get(c.id)?.pc.close(); // three missed heartbeats: the direct link is a zombie, free the slot
+        this.setStatus(c.id, "offline");
+      }
+      if (now - (this.lastPing.get(c.id) ?? 0) < 30_000) continue;
+      this.lastPing.set(c.id, now);
+      const link = this.links.get(c.id);
+      if (link?.sess) { this.sendFrame(c.id, { k: "ping" }); continue; }
+      void this.relayPing(c.id);
+      if (this.snap.status[c.id] === "online" && now - (this.lastTry.get(c.id) ?? 0) > 120_000) {
+        this.lastTry.set(c.id, now); // relay-only presence still deserves a direct link (calls, bulk files): knock quietly now and then
+        this.startKnock(c.code, true).catch(() => {});
+      }
+    }
+  }
+  /** One sealed frame on the peer's live topic — nothing retained, no mailbox copy, ~100 bytes of application payload. */
+  private async relayPing(cid: string, kind: "ping" | "pong" = "ping") {
+    const relay = this.relay;
+    if (!relay || !relay.connected || !this.id) return;
+    const key = await this.pairKeyFor(cid); if (!key) return;
+    const seq = Math.max(Date.now(), (this.lastSeq.get(cid) ?? 0) + 1); this.lastSeq.set(cid, seq);
+    const { iv, ct } = await sealTo(key, { k: kind });
+    const bytes = await makeRFrame({ to: cid, seq, iv, ct, id: this.id });
+    if (bytes) relay.publish(liveTopic(cid), bytes);
+  }
 
   /* ---------- Q7RP v2: pairwise keys, relay frames, mailbox, receipts ---------- */
   /** AES key shared with a contact: ECDH(our static, their static). Works offline once both sides know each other's keys. */
@@ -384,8 +430,8 @@ export class P2PManager {
     if (m && m.status !== "delivered") this.host.updateMessage(m.id, { status: "delivered" });
     this.pendingBlobs.delete(id); this.outbox.delete(this.outKey(cid, "msg", id)); this.outbox.delete(this.outKey(cid, "vote", id));
   }
-  /** A frame that travelled through the relays, live or from the mailbox. */
-  private async onRelayFrame(_topic: string, payload: Uint8Array) {
+  /** A frame that travelled through the relays: a live push, or an offline mailbox copy replayed by a broker. */
+  private async onRelayFrame(topic: string, payload: Uint8Array) {
     if (!this.id) return;
     let raw: unknown; try { raw = JSON.parse(new TextDecoder().decode(payload)); } catch { return; }
     const opened = await openRFrame(raw);
@@ -404,7 +450,8 @@ export class P2PManager {
     const pt = await openFrom(key, opened.iv, opened.ct);
     if (!pt) return;
     this.setMode(cid, "relay");
-    this.apply(cid, pt);
+    if (topic === liveTopic(hex(this.id.fp))) this.noteSeen(cid); // live pushes prove presence; retained mailbox copies may be days old
+    this.apply(cid, pt, "relay");
   }
 
   /* ---------- the outbox: frames that must survive until the peer is back ---------- */
@@ -637,12 +684,17 @@ export class P2PManager {
 
   /* ---------- frame handling, shared by the direct link and the relays ----------
      direct frames arrive with their owning link; relayed frames come from onRelayFrame */
-  private async apply(cid: string, f: unknown) {
+  private async apply(cid: string, f: unknown, via: "direct" | "relay") {
     if (!f || typeof f !== "object") return; const o = f as Record<string, unknown>;
     if (this.snap.contacts.find((c) => c.id === cid)?.blocked) return; // blocked contacts are fully silenced
     if (o.k === "call") { this.onCallFrame(cid, o); return; }
     const conv = this.host.getConversations().find((c) => c.contactId === cid); if (!conv) return;
-    if (o.k === "ping") { const link = this.links.get(cid); if (link?.sess) this.sendFrame(cid, { k: "pong" }); return; } // heartbeat is a direct-link-only affair
+    if (o.k === "ping") { // "burda mısın?" — answered at once, on the very path the question came from
+      if (via === "direct") { const link = this.links.get(cid); if (link?.sess) this.sendFrame(cid, { k: "pong" }); }
+      else void this.relayPing(cid, "pong");
+      return;
+    }
+    if (o.k === "pong") return; // heartbeat reply: the transport layer already noted the proof of life
     const ack = (id: string) => {
       if (this.links.get(cid)?.sess) this.sendFrame(cid, { k: "ack", id }); else void this.sendRelayAck(cid, id);
     };
