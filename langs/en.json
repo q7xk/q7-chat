@@ -178,5 +178,6 @@
  "set.wipeAsk": "Delete all chats, contacts, files and your Q7 code? This cannot be undone.",
  "set.expiry": "Messages are removed after 72 hours. Screenshots and copies on other devices are not affected.",
  "welcome.title": "Notes to self",
- "welcome.text": "A local chat, stored in this browser only. Messages are deleted after 72 hours."
+ "welcome.text": "A local chat, stored in this browser only. Messages are deleted after 72 hours.",
+ "thread.relay": "relay"
 }

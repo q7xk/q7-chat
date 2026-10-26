@@ -46,6 +46,7 @@ export function Thread({ conversationId, onBack }: { conversationId: string | nu
   const p2p = conv.mode === "p2p" && !!conv.contactId;
   const contact = p2p ? snap.contacts.find((c) => c.id === conv.contactId) : undefined;
   const state = conv.contactId ? snap.status[conv.contactId] ?? "offline" : "offline";
+  const viaRelay = p2p && snap.modes[conv.contactId!] === "relay" ? " · " + t("thread.relay") : "";
   const replyTo = list.find((m) => m.id === replyId);
   const icon = (on: boolean) => cn("rounded-full p-2.5 transition-colors", on ? "bg-pc text-onpc" : "text-muted hover:bg-raised");
   const statusText = { queued: t("thread.queued"), sent: t("thread.sent"), delivered: t("thread.delivered") } as const;
@@ -64,7 +65,7 @@ export function Thread({ conversationId, onBack }: { conversationId: string | nu
           <h2 className="flex items-center gap-1.5 truncate text-lg font-semibold tracking-tight">{contact?.name ?? conv.title}{contact?.verified && <ShieldCheck size={15} className="shrink-0 text-accent" aria-label={t("thread.verified")} />}</h2>
           <div className="flex items-center gap-2">
             <ModeBadge mode={conv.mode} long />
-            {p2p && <span className={cn("inline-flex items-center gap-1.5 text-xs", state === "online" ? "text-accent" : "text-muted")}><span className={cn("h-2 w-2 rounded-full", state === "online" ? "bg-accent" : state === "connecting" ? "animate-pulse bg-local" : "bg-line")} />{state === "online" ? t("thread.online") : state === "connecting" ? t("thread.connecting") : t("thread.offline")}</span>}
+            {p2p && <span className={cn("inline-flex items-center gap-1.5 text-xs", state === "online" ? "text-accent" : "text-muted")}><span className={cn("h-2 w-2 rounded-full", state === "online" ? "bg-accent" : state === "connecting" ? "animate-pulse bg-local" : "bg-line")} />{state === "online" ? t("thread.online") + viaRelay : state === "connecting" ? t("thread.connecting") : t("thread.offline") + viaRelay}</span>}
           </div>
         </div>
         {p2p && state === "offline" && <button onClick={() => mgr.connectNow(conv.contactId!)} className="inline-flex items-center gap-2 rounded-full bg-sc px-4 py-2 text-sm font-medium text-onsc"><Wifi size={14} />{t("thread.connect")}</button>}

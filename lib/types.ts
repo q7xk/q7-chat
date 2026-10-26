@@ -24,5 +24,5 @@ export interface Message {
   direction?: "in" | "out"; // missing means out
   status?: "queued" | "sent" | "delivered"; // p2p outgoing only
 }
-export interface Contact { id: string; pub: string; name: string; code: string; addedAt: number; verified: boolean; photo?: string; renamed?: boolean }
+export interface Contact { id: string; pub: string; name: string; code: string; addedAt: number; verified: boolean; photo?: string; renamed?: boolean; ek?: string }
 export interface Settings { theme: "dark" | "light"; previews: PreviewPolicy }

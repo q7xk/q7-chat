@@ -178,5 +178,6 @@
  "set.wipeAsk": "Supprimer toutes les discussions, contacts, fichiers et votre code Q7 ? Cette action est irréversible.",
  "set.expiry": "Les messages sont supprimés après 72 heures. Les captures d’écran et copies sur d’autres appareils ne sont pas concernées.",
  "welcome.title": "Notes personnelles",
- "welcome.text": "Une discussion locale, stockée uniquement dans ce navigateur. Les messages sont supprimés après 72 heures."
+ "welcome.text": "Une discussion locale, stockée uniquement dans ce navigateur. Les messages sont supprimés après 72 heures.",
+ "thread.relay": "relais"
 }

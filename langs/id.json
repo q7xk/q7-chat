@@ -178,5 +178,6 @@
  "set.wipeAsk": "Hapus semua obrolan, kontak, berkas, dan kode Q7 Anda? Tindakan ini tidak dapat dibatalkan.",
  "set.expiry": "Pesan dihapus setelah 72 jam. Tangkapan layar dan salinan di perangkat lain tidak terpengaruh.",
  "welcome.title": "Catatan pribadi",
- "welcome.text": "Obrolan lokal, hanya disimpan di browser ini. Pesan dihapus setelah 72 jam."
+ "welcome.text": "Obrolan lokal, hanya disimpan di browser ini. Pesan dihapus setelah 72 jam.",
+ "thread.relay": "relai"
 }

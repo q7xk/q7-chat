@@ -178,5 +178,6 @@
  "set.wipeAsk": "Eliminare tutte le chat, i contatti, i file e il tuo codice Q7? L’operazione non è reversibile.",
  "set.expiry": "I messaggi vengono rimossi dopo 72 ore. Screenshot e copie su altri dispositivi non sono interessati.",
  "welcome.title": "Note personali",
- "welcome.text": "Una chat locale, salvata solo in questo browser. I messaggi vengono eliminati dopo 72 ore."
+ "welcome.text": "Una chat locale, salvata solo in questo browser. I messaggi vengono eliminati dopo 72 ore.",
+ "thread.relay": "relè"
 }

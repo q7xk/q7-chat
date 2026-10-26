@@ -178,5 +178,6 @@
  "set.wipeAsk": "Alle Chats, Kontakte, Dateien und deinen Q7-Code löschen? Das lässt sich nicht rückgängig machen.",
  "set.expiry": "Nachrichten werden nach 72 Stunden entfernt. Screenshots und Kopien auf anderen Geräten bleiben unberührt.",
  "welcome.title": "Notizen an mich",
- "welcome.text": "Ein lokaler Chat, nur in diesem Browser gespeichert. Nachrichten werden nach 72 Stunden gelöscht."
+ "welcome.text": "Ein lokaler Chat, nur in diesem Browser gespeichert. Nachrichten werden nach 72 Stunden gelöscht.",
+ "thread.relay": "Relais"
 }

@@ -178,5 +178,6 @@
  "set.wipeAsk": "Tüm sohbetler, kişiler, dosyalar ve Q7 kodun silinsin mi? Bu geri alınamaz.",
  "set.expiry": "Mesajlar 72 saat sonra kaldırılır. Ekran görüntüleri ve diğer cihazlardaki kopyalar etkilenmez.",
  "welcome.title": "Kendime notlar",
- "welcome.text": "Yalnızca bu tarayıcıda saklanan yerel bir sohbet. Mesajlar 72 saat sonra silinir."
+ "welcome.text": "Yalnızca bu tarayıcıda saklanan yerel bir sohbet. Mesajlar 72 saat sonra silinir.",
+ "thread.relay": "röle"
 }

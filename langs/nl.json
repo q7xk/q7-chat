@@ -178,5 +178,6 @@
  "set.wipeAsk": "Alle chats, contacten, bestanden en je Q7-code verwijderen? Dit kan niet ongedaan worden gemaakt.",
  "set.expiry": "Berichten worden na 72 uur verwijderd. Screenshots en kopieën op andere apparaten blijven ongemoeid.",
  "welcome.title": "Notities aan mezelf",
- "welcome.text": "Een lokale chat, alleen in deze browser opgeslagen. Berichten worden na 72 uur verwijderd."
+ "welcome.text": "Een lokale chat, alleen in deze browser opgeslagen. Berichten worden na 72 uur verwijderd.",
+ "thread.relay": "relay"
 }

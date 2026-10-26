@@ -178,5 +178,6 @@
  "set.wipeAsk": "Eliminar todas as conversas, contactos, ficheiros e o seu código Q7? Esta ação não pode ser anulada.",
  "set.expiry": "As mensagens são removidas após 72 horas. Capturas de ecrã e cópias noutros dispositivos não são afetadas.",
  "welcome.title": "Notas pessoais",
- "welcome.text": "Uma conversa local, guardada apenas neste navegador. As mensagens são eliminadas após 72 horas."
+ "welcome.text": "Uma conversa local, guardada apenas neste navegador. As mensagens são eliminadas após 72 horas.",
+ "thread.relay": "retransmissão"
 }

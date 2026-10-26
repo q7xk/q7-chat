@@ -178,5 +178,6 @@
  "set.wipeAsk": "¿Eliminar todos los chats, contactos, archivos y tu código Q7? No se puede deshacer.",
  "set.expiry": "Los mensajes se eliminan tras 72 horas. Las capturas y las copias en otros dispositivos no se ven afectadas.",
  "welcome.title": "Notas personales",
- "welcome.text": "Un chat local, guardado solo en este navegador. Los mensajes se eliminan tras 72 horas."
+ "welcome.text": "Un chat local, guardado solo en este navegador. Los mensajes se eliminan tras 72 horas.",
+ "thread.relay": "relé"
 }

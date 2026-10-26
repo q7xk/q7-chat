@@ -178,5 +178,6 @@
  "set.wipeAsk": "Usunąć wszystkie czaty, kontakty, pliki i Twój kod Q7? Tego nie można cofnąć.",
  "set.expiry": "Wiadomości są usuwane po 72 godzinach. Zrzuty ekranu i kopie na innych urządzeniach nie są objęte.",
  "welcome.title": "Notatki dla siebie",
- "welcome.text": "Czat lokalny, zapisany tylko w tej przeglądarce. Wiadomości są usuwane po 72 godzinach."
+ "welcome.text": "Czat lokalny, zapisany tylko w tej przeglądarce. Wiadomości są usuwane po 72 godzinach.",
+ "thread.relay": "przekaźnik"
 }
