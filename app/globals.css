@@ -81,3 +81,12 @@ body { background: rgb(var(--bg)); color: rgb(var(--text)); -webkit-font-smoothi
 .stagger > *:nth-child(7) { animation-delay: 180ms; }
 .stagger > *:nth-child(8) { animation-delay: 210ms; }
 .stagger > *:nth-child(n + 9) { animation-delay: 240ms; }
+
+/* Accessibility: [data-motion="calm"] (Settings ▸ Erişilebilirlik) minimises movement. */
+[data-motion="calm"] *,
+[data-motion="calm"] *::before,
+[data-motion="calm"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}

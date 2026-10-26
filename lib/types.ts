@@ -1,6 +1,8 @@
 export type Mode = "local" | "p2p";
 export type View = "chats" | "contacts" | "connect" | "calls" | "settings";
 export type PreviewPolicy = "ask" | "block" | "allow";
+export type Presence = "online" | "dnd" | "away";
+export type SettingsSection = "general" | "notifications" | "media" | "look" | "a11y" | "restrict" | "privacy";
 
 export interface LinkMeta { url: string; title?: string; description?: string; isImage?: boolean }
 
@@ -27,4 +29,9 @@ export interface Message {
   status?: "queued" | "sent" | "delivered"; // p2p outgoing only
 }
 export interface Contact { id: string; pub: string; name: string; code: string; addedAt: number; verified: boolean; photo?: string; renamed?: boolean; ek?: string; blocked?: boolean }
-export interface Settings { theme: "dark" | "light"; previews: PreviewPolicy; accent: string }
+export interface Settings {
+  theme: "dark" | "light"; previews: PreviewPolicy; accent: string;
+  presence: Presence; // capsule status: online / do-not-disturb / away
+  notify?: boolean; notifySound?: boolean; notifyPreview?: boolean;
+  reduceMotion?: boolean; textScale?: "s" | "m" | "l";
+}

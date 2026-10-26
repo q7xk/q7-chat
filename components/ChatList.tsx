@@ -10,20 +10,20 @@ import { Avatar, ModeBadge } from "./Badges";
 
 type Filter = "all" | "unread" | "archived";
 
-export function ChatList({ activeId, onOpen, onAdd }: { activeId: string | null; onOpen: (id: string) => void; onAdd: () => void }) {
+export function ChatList({ activeId, onOpen, onAdd, query }: { activeId: string | null; onOpen: (id: string) => void; onAdd: () => void; query?: string }) {
   const { conversations, messages, now, createLocal, ready, storageError } = useStore();
   const { t, dur, clock } = useI18n(); const { snap } = useP2P();
   const [q, setQ] = useState(""); const [f, setF] = useState<Filter>("all"); const [menu, setMenu] = useState(false); const [adding, setAdding] = useState(false); const [title, setTitle] = useState("");
 
   const rows = useMemo(() => {
-    const term = q.trim().toLowerCase();
+    const term = (query?.trim() || q).trim().toLowerCase(); // top-bar search wins when present
     return conversations
       .map((c) => { const contact = c.contactId ? snap.contacts.find((x) => x.id === c.contactId) : undefined; const msgs = messages.filter((m) => m.conversationId === c.id);
         return { c, name: contact?.name ?? c.title, photo: contact?.photo, msgs, last: msgs[msgs.length - 1], next: msgs.reduce<number | null>((a, m) => (a === null || m.expiresAt < a ? m.expiresAt : a), null) }; })
       .filter(({ c }) => (f === "archived" ? c.archived : !c.archived) && (f !== "unread" || c.unread > 0))
       .filter(({ name, msgs }) => !term || name.toLowerCase().includes(term) || msgs.some((m) => m.body.toLowerCase().includes(term)))
       .sort((a, b) => Number(b.c.pinned) - Number(a.c.pinned) || (b.last?.createdAt ?? 0) - (a.last?.createdAt ?? 0));
-  }, [conversations, messages, q, f, snap.contacts]);
+  }, [conversations, messages, q, f, snap.contacts, query]);
 
   const preview = (m?: (typeof messages)[number], mine = false) => {
     if (!m) return t("chats.noMessages");
@@ -82,7 +82,7 @@ export function ChatList({ activeId, onOpen, onAdd }: { activeId: string | null;
             </button>
           </li>
         ))}
-        {ready && rows.length === 0 && <li className="p-6 text-center text-sm text-muted">{conversations.length === 0 && f === "all" && !q ? t("chats.empty") : t("chats.emptyFilter")}</li>}
+        {ready && rows.length === 0 && <li className="p-6 text-center text-sm text-muted">{conversations.length === 0 && f === "all" && !q && !query ? t("chats.empty") : t("chats.emptyFilter")}</li>}
       </ul>
     </>
   );

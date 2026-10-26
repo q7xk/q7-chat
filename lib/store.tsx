@@ -46,7 +46,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const bumpBlobs = useCallback(() => setBlobTick((x) => x + 1), []);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [settings, setSettingsState] = useState<Settings>({ theme: "dark", previews: "ask", accent: "blue" });
+  const [settings, setSettingsState] = useState<Settings>({ theme: "dark", previews: "ask", accent: "blue", presence: "online", textScale: "m" });
   const convRef = useRef(conversations); convRef.current = conversations;
   const msgRef = useRef(messages); msgRef.current = messages;
   const started = useRef(false);
@@ -76,12 +76,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const c: Conversation = { id: uid(), mode: "local", title: tRef.current("welcome.title"), pinned: false, muted: false, archived: false, unread: 0 };
         setConversations([c]); setMessages([mk(c.id, tRef.current("welcome.text"))]);
       }
-      try { const th = localStorage.getItem("q7.theme"); if (th === "light" || th === "dark") setSettingsState((s) => ({ ...s, theme: th })); const ac = localStorage.getItem("q7.accent"); if (ac) setSettingsState((s) => ({ ...s, accent: ac })); } catch {}
+      try {
+        const raw = localStorage.getItem("q7.settings");
+        if (raw) setSettingsState((s) => ({ ...s, ...JSON.parse(raw) as Partial<Settings> }));
+        else { const th = localStorage.getItem("q7.theme"); if (th === "light" || th === "dark") setSettingsState((s) => ({ ...s, theme: th })); const ac = localStorage.getItem("q7.accent"); if (ac) setSettingsState((s) => ({ ...s, accent: ac })); }
+      } catch {}
       setNow(Date.now()); setReady(true);
     })();
   }, [reload]);
 
   useEffect(() => { document.documentElement.dataset.theme = settings.theme; applyAccent(settings.accent, settings.theme); }, [settings.theme, settings.accent]);
+  useEffect(() => { document.documentElement.style.fontSize = settings.textScale === "s" ? "14px" : settings.textScale === "l" ? "18px" : ""; }, [settings.textScale]);
+  useEffect(() => { if (settings.reduceMotion) document.documentElement.dataset.motion = "calm"; else delete document.documentElement.dataset.motion; }, [settings.reduceMotion]);
 
   useEffect(() => {
     const tick = () => {
@@ -147,7 +153,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return r;
   }, [reload]);
   const setSettings = useCallback((patch: Partial<Settings>) => {
-    setSettingsState((s) => ({ ...s, ...patch }));
+    setSettingsState((s) => {
+      const n = { ...s, ...patch };
+      try { localStorage.setItem("q7.settings", JSON.stringify(n)); } catch {}
+      return n;
+    });
     if (patch.theme) try { localStorage.setItem("q7.theme", patch.theme); } catch {}
     if (patch.accent !== undefined) try { localStorage.setItem("q7.accent", patch.accent); } catch {}
   }, []);

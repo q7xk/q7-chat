@@ -19,7 +19,7 @@ export const INLINE_MAX = 160 * 1024;
 export type LinkState = "offline" | "connecting" | "online";
 export type P2PMode = "direct" | "relay";
 export interface Request { rid: string; name: string; code: string; safety: string; receivedAt: number; env: Envelope }
-export interface P2PSettings { name: string; photo?: string; relayEnabled: boolean; customRelays: string[]; turn?: { urls: string; username?: string; credential?: string }; giphy?: string }
+export interface P2PSettings { name: string; photo?: string; relayEnabled: boolean; customRelays: string[]; turn?: { urls: string; username?: string; credential?: string }; giphy?: string; onlyContacts?: boolean }
 export type PairingState =
   | { kind: "idle" } | { kind: "code"; code: string; phase: "waiting" | "failed"; detail?: string }
   | { kind: "manual-offer"; text: string } | { kind: "manual-answer"; text: string }
@@ -90,7 +90,7 @@ export class P2PManager {
       if (!stored.ecdhJwk) { stored = await withStaticEcdh(stored); await db.putIdentity(stored); } // v1 identities upgrade in place
       this.id = await loadIdentity(stored);
       const saved = ((await db.getFlag("p2p-settings")) ?? {}) as Partial<P2PSettings>;
-      const settings: P2PSettings = { name: saved.name || `Q7 ${this.id.code.slice(-4)}`, relayEnabled: saved.relayEnabled !== false, customRelays: saved.customRelays ?? [], turn: saved.turn, photo: saved.photo, giphy: saved.giphy };
+      const settings: P2PSettings = { name: saved.name || `Q7 ${this.id.code.slice(-4)}`, relayEnabled: saved.relayEnabled !== false, customRelays: saved.customRelays ?? [], turn: saved.turn, photo: saved.photo, giphy: saved.giphy, onlyContacts: saved.onlyContacts === true };
       this.set({ ready: true, code: this.id.code, pub: this.id.pubB64, fp: hex(this.id.fp), settings, contacts: await db.getContacts() });
       await this.startRelay();
       this.tick = setInterval(() => this.reconnectAll(), 45_000);
@@ -143,6 +143,7 @@ export class P2PManager {
   async setRelayEnabled(v: boolean) { await this.saveSettings({ relayEnabled: v }); await this.startRelay(); }
   async setCustomRelays(urls: string[]) { await this.saveSettings({ customRelays: urls.filter((u) => /^wss:\/\/[^\s]+$/.test(u)).slice(0, 5) }); await this.startRelay(); }
   setTurn(turn?: P2PSettings["turn"]) { return this.saveSettings({ turn: turn?.urls ? turn : undefined }); }
+  setOnlyContacts(v: boolean) { return this.saveSettings({ onlyContacts: v }); }
 
   /* ---------- links (direct WebRTC transport) ---------- */
   private newLink(silent: boolean): Link {
@@ -231,6 +232,7 @@ export class P2PManager {
     this.seen.add(env.rid); if (this.seen.size > 500) this.seen.clear();
     const fp = hex(await sha256(fromB64(env.pub)));
     const known = this.snap.contacts.find((c) => c.id === fp);
+    if (!known && this.snap.settings.onlyContacts) return;     // access restriction: strangers cannot even ask
     if (known) { if (!known.blocked) void this.acceptOffer(env, true).catch(() => {}); return; } // known contacts reconnect automatically; blocked ones are ignored
     const until = this.declined.get(fp); if (until && until > Date.now()) return;
     if (this.snap.requests.length >= 10 || this.snap.requests.some((r) => r.env.pub === env.pub)) return;
