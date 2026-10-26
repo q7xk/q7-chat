@@ -51,7 +51,7 @@ function VoiceBubble({ url, dur }: { url: string; dur: number }) {
         <audio ref={ref} src={url} preload="metadata" hidden
           onPlay={() => setPlaying(true)} onPause={() => { setPlaying(false); }} onEnded={() => { setPlaying(false); setAt(0); }}
           onTimeUpdate={(e) => setAt(e.currentTarget.currentTime)} />
-        <input type="range" min={0} max={dur} step={0.1} value={Math.min(at, dur)} aria-label="seek" readOnly
+        <input type="range" min={0} max={dur} step={0.1} value={Math.min(at, dur)} aria-label="seek"
           onChange={(e) => { const v = Number(e.target.value); setAt(v); if (ref.current) ref.current.currentTime = v; }}
           className="mt-1 h-1.5 w-full cursor-pointer appearance-none rounded-full bg-black/20 accent-[rgb(var(--accent))]" />
       </div>

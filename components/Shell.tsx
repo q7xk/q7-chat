@@ -7,13 +7,13 @@ import { useI18n, type K } from "@/lib/i18n";
 import { useP2P } from "@/lib/p2p/context";
 import { ShapeDefs } from "./Badges";
 import { CallOverlay } from "./Call";
+import { CallsPanel } from "./Calls";
 import { ChatList } from "./ChatList";
 import { ConnectPanel } from "./Connect";
 import { ContactsPanel } from "./Contacts";
 import { Logo } from "./Logo";
 import { SettingsPanel } from "./Settings";
 import { Thread } from "./Thread";
-import { Box, Page } from "./ui";
 
 const NAV: { id: View; label: K; icon: LucideIcon }[] = [
   { id: "chats", label: "nav.chats", icon: MessageSquare }, { id: "contacts", label: "nav.contacts", icon: Users }, { id: "connect", label: "nav.connect", icon: ScanLine },
@@ -54,7 +54,7 @@ export function Shell() {
           <section className={cn("min-w-0 flex-1 overflow-y-auto bg-panel scroll-thin", paneScroll)}>
             {view === "contacts" && <ContactsPanel onOpenChat={openChat} onAdd={() => go("connect")} />}
             {view === "connect" && <ConnectPanel onOpenChat={openChat} />}
-            {view === "calls" && <Page title={t("calls.title")}><Box className="flex items-center gap-3 text-sm text-muted"><Phone size={20} aria-hidden />{t("calls.soon")}</Box></Page>}
+            {view === "calls" && <CallsPanel onOpenChat={openChat} />}
             {view === "settings" && <SettingsPanel />}
           </section>
         )}

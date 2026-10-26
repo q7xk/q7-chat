@@ -10,6 +10,7 @@ import {
 import { packEnvelope, unpackEnvelope } from "./pack";
 import { PeerLink, STUN } from "./rtc";
 import { RelayClient } from "./mqtt";
+import { pushCallEntry } from "../calllog";
 import { ackRoot, liveTopic, mailRoot, makeRFrame, openFrom, openRFrame, pairKey, SeqWindow, sealTo, unHex } from "./q7rp";
 
 export const DEFAULT_RELAYS = ["wss://broker.emqx.io:8084/mqtt", "wss://broker.hivemq.com:8884/mqtt", "wss://test.mosquitto.org:8081"];
@@ -92,7 +93,7 @@ export class P2PManager {
   shutdown() {
     this.links.forEach((l) => l.pc.close()); this.manualOffers.forEach((l) => l.pc.close()); [...this.knocks.keys()].forEach((r) => { this.knocks.get(r)?.link.pc.close(); this.finishKnock(r); });
     this.links.clear(); this.manualOffers.clear(); this.relay?.stop(); this.relay = undefined; clearInterval(this.tick); clearInterval(this.outTickTimer);
-    this.endLive("silent");
+    this.endLive("silent", false);
     document.removeEventListener("visibilitychange", this.vis);
     this.started = false; this.id = undefined;
     this.snap = { ...this.snap, ready: false, contacts: [], status: {}, modes: {}, requests: [], pairing: IDLE, code: "", pub: "" }; this.listeners.forEach((l) => l());
@@ -462,10 +463,16 @@ export class P2PManager {
     this.set({ call: pub });
   }
   private patchCall(p: Partial<CallState>) { if (!this.live) return; this.live = { ...this.live, ...p }; this.publishCall(); }
-  /** Tears the call down. failed=true keeps a short "ended" state for the UI. */
-  private endLive(how: "failed" | "ended" | "silent") {
+  /** Persists a finished call attempt to the local call history. */
+  private logCall(cid: string, dir: "in" | "out", video: boolean, missed: boolean, dur: number) {
+    const name = this.snap.contacts.find((c) => c.id === cid)?.name ?? cid.slice(0, 8);
+    pushCallEntry({ id: randomHex(8), cid, name, dir, video, missed, at: Date.now(), dur: Math.max(0, Math.round(dur)) });
+  }
+  /** Tears the call down. log=false skips the call-history entry (e.g. during a wipe). */
+  private endLive(how: "failed" | "ended" | "silent", log = true) {
     const call = this.live; if (!call) return; this.live = undefined;
     clearTimeout(this.ring); this.ring = undefined;
+    if (log) this.logCall(call.cid, call.dir, call.video, !call.startedAt, call.startedAt ? (Date.now() - call.startedAt) / 1000 : 0);
     try { call.local?.getTracks().forEach((t) => t.stop()); } catch {}
     try { call.pc.onicecandidate = null; call.pc.ontrack = null; call.pc.onconnectionstatechange = null; call.pc.close(); } catch {}
     this.set({ call: null });
@@ -527,7 +534,8 @@ export class P2PManager {
     const link = this.links.get(cid); if (!link?.sess) return;
     const c = this.snap.contacts.find((x) => x.id === cid);
     if (a === "offer") {
-      if (!c || c.blocked || this.live || typeof o.sdp !== "string" || !o.sdp) { if (!c?.blocked) this.sendCallFrame(cid, { k: "call", a: "reject", id }); return; }
+      if (!c || c.blocked) return;
+      if (this.live || typeof o.sdp !== "string" || !o.sdp) { if (this.live) this.logCall(cid, "in", o.video === true, true, 0); this.sendCallFrame(cid, { k: "call", a: "reject", id }); return; } // busy or malformed
       const pc = new RTCPeerConnection({ iceServers: this.iceServers() });
       this.live = { id, cid, dir: "in", video: o.video === true, state: "ringing", pc, offerSdp: o.sdp as string, pendingIce: [] };
       this.publishCall();
