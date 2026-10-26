@@ -193,7 +193,6 @@
  "gif.search": "Пошук GIF",
  "gif.none": "GIF не знайдено",
  "gif.trending": "Популярне",
- "gif.keyNote": "Потрібен ключ API GIPHY. Отримайте його на developers.giphy.com",
  "set.giphyKey": "Ключ API GIPHY",
  "set.themeColor": "Колір теми",
  "set.themeCustom": "Свій колір",

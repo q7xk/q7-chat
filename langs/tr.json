@@ -193,7 +193,6 @@
  "gif.search": "GIF ara",
  "gif.none": "GIF bulunamadı",
  "gif.trending": "Popüler",
- "gif.keyNote": "GIPHY API anahtarı gerekli. developers.giphy.com adresinden ücretsiz alın",
  "set.giphyKey": "GIPHY API anahtarı",
  "set.themeColor": "Tema rengi",
  "set.themeCustom": "Özel renk",

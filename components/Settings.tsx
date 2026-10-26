@@ -16,7 +16,7 @@ import { Box, Page } from "./ui";
 export function SettingsPanel() {
   const { t, tk, pref, setPref, size } = useI18n(); const { settings, setSettings, wipeLocal, exportLocal, importLocal } = useStore(); const { mgr, snap } = useP2P();
   const [name, setName] = useState(snap.settings.name), [relays, setRelays] = useState(snap.settings.customRelays.join("\n")), [turn, setTurn] = useState(snap.settings.turn?.urls ?? "");
-  const [tu, setTu] = useState(snap.settings.turn?.username ?? ""), [tp, setTp] = useState(snap.settings.turn?.credential ?? ""), [gk, setGk] = useState(snap.settings.giphy ?? "");
+  const [tu, setTu] = useState(snap.settings.turn?.username ?? ""), [tp, setTp] = useState(snap.settings.turn?.credential ?? "");
   const [warn, setWarn] = useState(false), [confirm, setConfirm] = useState(false), [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null), [usage, setUsage] = useState(0);
   const file = useRef<HTMLInputElement>(null), photo = useRef<HTMLInputElement>(null);
   useEffect(() => { setName(snap.settings.name); }, [snap.settings.name]);
@@ -88,12 +88,6 @@ export function SettingsPanel() {
         </div>
         <label className="block space-y-2"><span className="text-xs text-muted">{t("set.lang")}</span>
           <select value={pref} onChange={(e) => setPref(e.target.value)} className={field}><option value="auto">{t("set.langAuto")}</option>{LANGS.map((l) => <option key={l.code} value={l.code}>{l.name}</option>)}</select></label>
-      </Box>
-
-      <Box className="space-y-4"><p className="text-sm font-medium">{t("set.giphyKey")}</p>
-        <p className="text-xs leading-relaxed text-muted">{t("gif.keyNote")}</p>
-        <div className="flex gap-2"><input dir="ltr" value={gk} onChange={(e) => setGk(e.target.value)} placeholder="GIPHY API key" aria-label={t("set.giphyKey")} className={field} />
-          <button onClick={() => void mgr.setGiphyKey(gk)} className={cn(btn, "bg-sc text-onsc transition-[filter] hover:brightness-110")}>{t("c.save")}</button></div>
       </Box>
 
       <Box className="space-y-4"><p className="text-sm font-medium">{t("set.storage")}</p>

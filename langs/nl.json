@@ -193,7 +193,6 @@
  "gif.search": "GIF's zoeken",
  "gif.none": "Geen GIF's gevonden",
  "gif.trending": "Trending",
- "gif.keyNote": "Een GIPHY API-sleutel is vereist. Vraag er een aan op developers.giphy.com",
  "set.giphyKey": "GIPHY API-sleutel",
  "set.themeColor": "Themakleur",
  "set.themeCustom": "Eigen kleur",

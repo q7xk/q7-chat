@@ -193,7 +193,6 @@
  "gif.search": "GIFs suchen",
  "gif.none": "Keine GIFs gefunden",
  "gif.trending": "Angesagt",
- "gif.keyNote": "Ein GIPHY-API-Schlüssel ist erforderlich. Hol dir einen auf developers.giphy.com",
  "set.giphyKey": "GIPHY-API-Schlüssel",
  "set.themeColor": "Designfarbe",
  "set.themeCustom": "Eigene Farbe",

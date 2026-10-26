@@ -193,7 +193,6 @@
  "gif.search": "搜索 GIF",
  "gif.none": "未找到 GIF",
  "gif.trending": "热门",
- "gif.keyNote": "需要 GIPHY API 密钥。请在 developers.giphy.com 获取",
  "set.giphyKey": "GIPHY API 密钥",
  "set.themeColor": "主题颜色",
  "set.themeCustom": "自定义颜色",

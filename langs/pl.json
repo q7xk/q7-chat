@@ -193,7 +193,6 @@
  "gif.search": "Szukaj GIF-ów",
  "gif.none": "Nie znaleziono GIF-ów",
  "gif.trending": "Popularne",
- "gif.keyNote": "Wymagany jest klucz API GIPHY. Uzyskaj go na developers.giphy.com",
  "set.giphyKey": "Klucz API GIPHY",
  "set.themeColor": "Kolor motywu",
  "set.themeCustom": "Własny kolor",

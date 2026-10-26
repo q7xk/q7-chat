@@ -193,7 +193,6 @@
  "gif.search": "Pesquisar GIFs",
  "gif.none": "Nenhum GIF encontrado",
  "gif.trending": "Em alta",
- "gif.keyNote": "É necessária uma chave de API do GIPHY. Consiga uma em developers.giphy.com",
  "set.giphyKey": "Chave de API do GIPHY",
  "set.themeColor": "Cor do tema",
  "set.themeCustom": "Cor personalizada",

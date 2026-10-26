@@ -25,7 +25,7 @@ export function Shell() {
   const [view, setView] = useState<View>("chats"); const [activeId, setActiveId] = useState<string | null>(null);
   const go = (v: View) => { setView(v); setActiveId(null); };
   const openChat = (id: string) => { setView("chats"); setActiveId(id); };
-  const chat = view === "chats"; const pane = "md:rounded-[28px] md:overflow-hidden";
+  const chat = view === "chats"; const pane = "md:rounded-[28px] md:overflow-hidden"; const paneScroll = "md:rounded-[28px]";
   const badge = (id: View) => (id === "connect" ? snap.requests.length : 0);
 
   return (
@@ -51,7 +51,7 @@ export function Shell() {
             <section className={cn("min-w-0 flex-1 flex-col bg-container md:flex", pane, activeId ? "flex" : "hidden")}><Thread conversationId={activeId} onBack={() => setActiveId(null)} /></section>
           </>
         ) : (
-          <section className={cn("min-w-0 flex-1 overflow-y-auto bg-panel scroll-thin", pane)}>
+          <section className={cn("min-w-0 flex-1 overflow-y-auto bg-panel scroll-thin", paneScroll)}>
             {view === "contacts" && <ContactsPanel onOpenChat={openChat} onAdd={() => go("connect")} />}
             {view === "connect" && <ConnectPanel onOpenChat={openChat} />}
             {view === "calls" && <Page title={t("calls.title")}><Box className="flex items-center gap-3 text-sm text-muted"><Phone size={20} aria-hidden />{t("calls.soon")}</Box></Page>}

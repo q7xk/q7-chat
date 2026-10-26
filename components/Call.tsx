@@ -13,7 +13,7 @@ export function CallOverlay() {
   const { t } = useI18n(); const { snap, mgr } = useP2P();
   const call = snap.call;
   const [muted, setMuted] = useState(false); const [camOff, setCamOff] = useState(false); const [elapsed, setElapsed] = useState(0);
-  const remote = useRef<HTMLVideoElement>(null); const local = useRef<HTMLVideoElement>(null);
+  const remote = useRef<HTMLVideoElement>(null); const remoteAudio = useRef<HTMLAudioElement>(null); const local = useRef<HTMLVideoElement>(null);
   const contact = call ? snap.contacts.find((c) => c.id === call.cid) : undefined;
 
   useEffect(() => { setMuted(false); setCamOff(false); setElapsed(0); }, [call?.id]);
@@ -24,6 +24,7 @@ export function CallOverlay() {
   }, [call?.startedAt, call?.state]);
   useEffect(() => {
     if (remote.current) remote.current.srcObject = call?.remote ?? null;
+    if (remoteAudio.current) remoteAudio.current.srcObject = call?.remote ?? null;
     if (local.current) local.current.srcObject = call?.local ?? null;
   });
 
@@ -45,10 +46,12 @@ export function CallOverlay() {
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-gradient-to-b from-black/85 via-black/80 to-black/90 text-white backdrop-blur-md" role="dialog" aria-label={t("call.audio")}>
+      {/* audio-only calls: the remote stream must ride an element to be heard */}
+      {!call.video && <audio ref={remoteAudio} autoPlay onLoadedMetadata={(e) => void e.currentTarget.play().catch(() => { e.currentTarget.muted = true; void e.currentTarget.play().catch(() => {}); })} />}
       <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6 pt-16">
         {call.video ? (
           <div className="relative w-full max-w-2xl overflow-hidden rounded-3xl bg-black/60">
-            <video ref={remote} autoPlay playsInline className={cn("h-[50dvh] w-full bg-black object-cover", !call.remote && "opacity-0")} />
+            <video ref={remote} autoPlay playsInline onLoadedMetadata={(e) => void e.currentTarget.play().catch(() => { e.currentTarget.muted = true; void e.currentTarget.play().catch(() => {}); })} className={cn("h-[50dvh] w-full bg-black object-cover", !call.remote && "opacity-0")} />
             {!call.remote && <div className="absolute inset-0 flex items-center justify-center text-sm text-white/70">{stateText}</div>}
             {call.local && <video ref={local} autoPlay playsInline muted className="absolute end-3 top-3 h-28 w-20 rounded-2xl border border-white/20 bg-black object-cover md:h-36 md:w-24" style={{ transform: "scaleX(-1)" }} />}
           </div>

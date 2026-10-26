@@ -487,6 +487,7 @@ export class P2PManager {
     this.live = { id, cid, dir: "out", video, state: "connecting", local: media, pc, pendingIce: [] };
     this.publishCall();
     media.getTracks().forEach((t) => pc.addTrack(t, media));
+    pc.getTransceivers().forEach((tx) => { if (tx.sender.track) tx.direction = "sendrecv"; });
     this.wireCallPc(cid, id, pc);
     try {
       await pc.setLocalDescription(await pc.createOffer());
@@ -504,8 +505,10 @@ export class P2PManager {
     try { media = await navigator.mediaDevices.getUserMedia({ audio: true, ...(call.video ? { video: { facingMode: "user" } } : {}) }); } catch { this.sendCallFrame(call.cid, { k: "call", a: "reject", id: call.id }); this.endLive("silent"); return; }
     try {
       const pc = call.pc;
-      await pc.setRemoteDescription({ type: "offer", sdp: call.offerSdp! });
+      // Tracks must exist BEFORE setRemoteDescription so the offer's m-lines associate with our
+      // senders — answering with recvonly transceivers means media never flows in either direction.
       media.getTracks().forEach((t) => pc.addTrack(t, media));
+      await pc.setRemoteDescription({ type: "offer", sdp: call.offerSdp! });
       for (const cand of call.pendingIce) void pc.addIceCandidate(cand).catch(() => {});
       call.pendingIce = [];
       await pc.setLocalDescription(await pc.createAnswer());
@@ -554,7 +557,7 @@ export class P2PManager {
   }
   private wireCallPc(cid: string, id: string, pc: RTCPeerConnection) {
     pc.onicecandidate = (e) => { if (e.candidate) this.sendCallFrame(cid, { k: "call", a: "ice", id, c: e.candidate.toJSON() }); };
-    pc.ontrack = (e) => { if (this.live?.id === id && e.streams[0]) this.patchCall({ remote: e.streams[0] }); };
+    pc.ontrack = (e) => { if (this.live?.id !== id) return; const s = e.streams[0] ?? new MediaStream([e.track]); this.patchCall({ remote: s }); };
     pc.onconnectionstatechange = () => {
       const st = pc.connectionState;
       if (st === "failed" || st === "closed") { if (this.live?.id === id) { this.sendCallFrame(cid, { k: "call", a: "bye", id }); this.endLive("silent"); } }

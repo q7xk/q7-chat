@@ -193,7 +193,6 @@
  "gif.search": "GIF खोजें",
  "gif.none": "कोई GIF नहीं मिला",
  "gif.trending": "ट्रेंडिंग",
- "gif.keyNote": "GIPHY API कुंजी आवश्यक है। इसे developers.giphy.com पर प्राप्त करें",
  "set.giphyKey": "GIPHY API कुंजी",
  "set.themeColor": "थीम का रंग",
  "set.themeCustom": "कस्टम रंग",

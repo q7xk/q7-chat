@@ -193,7 +193,6 @@
  "gif.search": "GIF 검색",
  "gif.none": "GIF를 찾을 수 없음",
  "gif.trending": "인기",
- "gif.keyNote": "GIPHY API 키가 필요합니다. developers.giphy.com에서 발급받으세요",
  "set.giphyKey": "GIPHY API 키",
  "set.themeColor": "테마 색상",
  "set.themeCustom": "사용자 지정 색상",

@@ -193,7 +193,6 @@
  "gif.search": "GIFを検索",
  "gif.none": "GIFが見つかりません",
  "gif.trending": "人気",
- "gif.keyNote": "GIPHY APIキーが必要です。developers.giphy.com で取得してください",
  "set.giphyKey": "GIPHY APIキー",
  "set.themeColor": "テーマカラー",
  "set.themeCustom": "カスタムカラー",

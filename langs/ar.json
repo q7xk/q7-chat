@@ -193,7 +193,6 @@
  "gif.search": "البحث في GIF",
  "gif.none": "لم يتم العثور على GIF",
  "gif.trending": "الرائج",
- "gif.keyNote": "مطلوب مفتاح GIPHY API. احصل عليه من developers.giphy.com",
  "set.giphyKey": "مفتاح GIPHY API",
  "set.themeColor": "لون المظهر",
  "set.themeCustom": "لون مخصص",
