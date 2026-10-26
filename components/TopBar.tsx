@@ -62,7 +62,8 @@ export function TopBar({ railOpen, onRail, query, onQuery, onSection, view, goCh
         <MenuIcon size={20} />
       </button>
       <div className="flex items-center gap-2.5 pe-2">
-        <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-pc text-onpc"><LogoMark size={22} /></span>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.svg" alt="" width={36} height={36} className="h-9 w-9 shrink-0" />
         <span className="text-lg font-semibold tracking-tight text-ink">Chat</span>
       </div>
 

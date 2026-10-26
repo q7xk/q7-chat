@@ -107,7 +107,7 @@ export function Shell() {
             {expanded && <span className="truncate">{t("rail.newChat")}</span>}
           </button>
 
-          <div className="scroll-thin min-h-0 flex-1 overflow-y-auto overflow-x-clip pb-2">
+          <div className="scroll-thin min-h-0 flex-1 space-y-1 overflow-y-auto overflow-x-clip pb-2 pt-1">
             <p aria-hidden={!expanded} className={cn(cap, !expanded && "sr-only")}>{t("rail.shortcuts")}</p>
             {SHORTCUTS.map(({ id, label, icon: Icon }) => (
               <button key={id} onClick={() => go(id)} aria-current={view === id ? "page" : undefined} title={t(label)}
