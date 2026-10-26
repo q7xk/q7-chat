@@ -312,7 +312,7 @@ export class P2PManager {
         const c = this.snap.contacts.find((x) => x.id === cid);
         if (!c || !c.ek || hex(this.id.fp) === cid) return null;
         const peerEk = fromB64(c.ek);
-        if (peerEk.length !== 65 || hex(await sha256(c.pub)) !== cid) return null;
+        if (peerEk.length !== 65 || hex(await sha256(fromB64(c.pub))) !== cid) return null;
         return await pairKey(this.id.ecdh, peerEk, this.id.fp, unHex(cid));
       } catch { return null; }
     })();
@@ -340,7 +340,7 @@ export class P2PManager {
   private async sendRelayAck(cid: string, id: string) {
     const relay = this.relay;
     if (!relay || !relay.connected || !this.id) return;
-    const sig = toB64(await this.id.sign(utf8(JSON.stringify(["q7rp-ack-v1", hex(this.id.fp), id]))));
+    const sig = toB64(await this.id.sign(utf8(JSON.stringify(["q7rp-ack-v1", cid, id])))); // binds the receipt to the receiver's topic fp
     relay.publish(ackRoot(cid), utf8(JSON.stringify({ c: "ack", id, sig })));
   }
   private async onRelayAck(payload: Uint8Array) {    if (!this.id) return;

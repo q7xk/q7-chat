@@ -4,7 +4,7 @@ import { LIFETIME_MS } from "./time";
 import { isDirectImageUrl, parseHttpsUrl } from "./links";
 
 /** IndexedDB persistence for Local Mode. Nothing in this file touches the network. */
-const NAME = "q7-local";
+const NAME = (typeof process !== "undefined" && process.env?.Q7_DB) || "q7-local";
 const VERSION = 3;
 export const STORES = { conv: "local_conversations", msg: "local_messages", settings: "local_settings", contacts: "p2p_contacts", identity: "p2p_identity", blobs: "local_blobs" } as const;
 
