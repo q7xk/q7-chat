@@ -6,7 +6,7 @@ import { cn } from "@/lib/cn";
 import { useI18n, type K } from "@/lib/i18n";
 import { useP2P } from "@/lib/p2p/context";
 import { useStore } from "@/lib/store";
-import { Avatar, clipShape, ShapeDefs } from "./Badges";
+import { Avatar, ShapeDefs } from "./Badges";
 import { CallOverlay } from "./Call";
 import { CallsPanel } from "./Calls";
 import { ChatList } from "./ChatList";
@@ -85,8 +85,9 @@ export function Shell() {
     .sort((a, b) => Number(b.c.pinned) - Number(a.c.pinned) || b.last - a.last)
     .slice(0, 12), [conversations, messages, snap.contacts]);
 
-  const rowBase = "m3-press relative flex h-11 w-full items-center gap-3 rounded-full text-start text-sm font-medium";
-  const onRow = "bg-sc text-onsc"; const offRow = "text-muted hover:bg-container hover:text-ink";
+  const rowCls = (on: boolean) => cn("m3-press relative flex h-11 shrink-0 items-center rounded-full text-sm font-medium",
+    expanded ? "w-full gap-3 px-3.5 text-start" : "mx-auto w-11 justify-center",
+    on ? "bg-sc text-onsc" : "text-muted hover:bg-container hover:text-ink");
   const cap = "mb-1 mt-4 px-3 text-[11px] font-semibold uppercase tracking-wider text-muted";
 
   return (
@@ -101,8 +102,7 @@ export function Shell() {
           {/* Yeni sohbet → Bağlan */}
           <button onClick={() => go("connect")} title={t("rail.newChat")} aria-label={t("rail.newChat")}
             className={cn("m3-press flex shrink-0 items-center gap-3 bg-pc text-onpc transition-[filter,transform] duration-200 ease-spring hover:brightness-110 active:scale-95",
-              expanded ? "h-12 rounded-full px-5 text-[15px] font-semibold" : "mx-auto h-12 w-12 justify-center")}
-            style={!expanded ? clipShape("cookie9") : undefined}>
+              expanded ? "h-12 w-full rounded-full px-5 text-[15px] font-semibold" : "mx-auto h-12 w-12 justify-center rounded-2xl")}>
             <Plus size={20} className="shrink-0" />
             {expanded && <span className="truncate">{t("rail.newChat")}</span>}
           </button>
@@ -111,25 +111,25 @@ export function Shell() {
             <p aria-hidden={!expanded} className={cn(cap, !expanded && "sr-only")}>{t("rail.shortcuts")}</p>
             {SHORTCUTS.map(({ id, label, icon: Icon }) => (
               <button key={id} onClick={() => go(id)} aria-current={view === id ? "page" : undefined} title={t(label)}
-                className={cn(rowBase, view === id ? onRow : offRow)}>
+                className={rowCls(view === id)}>
                 <span key={view === id ? "on" : "off"} className={cn("flex shrink-0", view === id && "m3-bounce")}><Icon size={19} className={cn(id === "starred" && view === id && "fill-current")} /></span>
                 {expanded && <span className="truncate">{t(label)}</span>}
                 {expanded && id === "chats" && totalUnread > 0 && <span key={totalUnread} className="m3-bounce ms-auto rounded-full bg-accent px-1.5 text-center text-xs font-semibold text-bg">{totalUnread}</span>}
-                {!expanded && id === "chats" && totalUnread > 0 && <span key={totalUnread} className="m3-bounce absolute end-4 top-2 h-2 w-2 rounded-full bg-accent" />}
+                {!expanded && id === "chats" && totalUnread > 0 && <span key={totalUnread} className="m3-bounce absolute end-1 top-1 h-2 w-2 rounded-full bg-accent" />}
               </button>
             ))}
 
             <p aria-hidden={!expanded} className={cn(cap, !expanded && "sr-only")}>{t("rail.dms")}</p>
             {dms.map(({ c, contact }) => (
               <button key={c.id} onClick={() => openChat(c.id)} title={contact!.name} aria-current={chat && activeId === c.id ? "true" : undefined}
-                className={cn(rowBase, chat && activeId === c.id ? onRow : offRow)}>
+                className={rowCls(chat && activeId === c.id)}>
                 <span className="relative shrink-0">
                   <Avatar title={contact!.name} mode="p2p" photo={contact!.photo} size={30} shape="clover4" />
                   <span className={cn("absolute -bottom-0.5 -end-0.5 h-2.5 w-2.5 rounded-full border-2 border-panel", snap.status[contact!.id] === "online" ? "bg-accent" : "bg-line")} />
                 </span>
                 {expanded && <span className="min-w-0 flex-1 truncate">{contact!.name}</span>}
                 {expanded && c.unread > 0 && <span key={c.unread} className="m3-bounce rounded-full bg-accent px-1.5 text-center text-xs font-semibold text-bg">{c.unread}</span>}
-                {!expanded && c.unread > 0 && <span key={c.unread} className="m3-bounce absolute end-4 top-2 h-2 w-2 rounded-full bg-accent" />}
+                {!expanded && c.unread > 0 && <span key={c.unread} className="m3-bounce absolute end-1 top-1 h-2 w-2 rounded-full bg-accent" />}
               </button>
             ))}
             {expanded && dms.length === 0 && <p className="px-3 pb-1 text-xs leading-relaxed text-muted">{t("rail.dmNone")}</p>}
@@ -140,8 +140,8 @@ export function Shell() {
               const on = view === "spaces" && spaceId === s.id;
               return (
                 <button key={s.id} onClick={() => { setSpaceId(s.id); go("spaces"); }} title={s.name} aria-current={on ? "true" : undefined}
-                  className={cn(rowBase, on ? onRow : offRow)}>
-                  <span className="h-6 w-6 shrink-0 transition-transform duration-200 ease-spring hover:rotate-12" style={{ ...clipShape("cookie12"), backgroundColor: `hsl(${s.hue} 65% 55%)` }} />
+                  className={rowCls(on)}>
+                  <span className="h-6 w-6 shrink-0 rounded-xl" style={{ backgroundColor: `hsl(${s.hue} 65% 55%)` }} />
                   {expanded && <>
                     <span className="min-w-0 flex-1 truncate">{s.name}</span>
                     <span className="shrink-0 text-xs text-muted">{n}</span>
@@ -149,8 +149,8 @@ export function Shell() {
                 </button>
               );
             })}
-            <button onClick={() => { setSpaceId(null); go("spaces"); }} title={t("spaces.create")} aria-label={t("spaces.create")} className={cn(rowBase, offRow)}>
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center border-2 border-dashed border-line"><Plus size={13} /></span>
+            <button onClick={() => { setSpaceId(null); go("spaces"); }} title={t("spaces.create")} aria-label={t("spaces.create")} className={rowCls(false)}>
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border-2 border-dashed border-line"><Plus size={13} /></span>
               {expanded && <span className="truncate">{t("spaces.create")}</span>}
             </button>
           </div>
@@ -159,17 +159,17 @@ export function Shell() {
           <div className="shrink-0 space-y-1 border-t border-line/60 pt-2">
             {BOTTOM.map(({ id, label, icon: Icon }) => (
               <button key={id} onClick={() => go(id)} aria-current={view === id ? "page" : undefined} title={t(label)}
-                className={cn(rowBase, view === id ? onRow : offRow)}>
+                className={rowCls(view === id)}>
                 <span key={view === id ? "on" : "off"} className={cn("flex shrink-0", view === id && "m3-bounce")}><Icon size={19} /></span>
                 {expanded && <span className="truncate">{t(label)}</span>}
-                {!expanded && badge(id) > 0 && <span key={badge(id)} className="m3-bounce absolute end-4 top-2 h-2 w-2 rounded-full bg-accent" />}
+                {!expanded && badge(id) > 0 && <span key={badge(id)} className="m3-bounce absolute end-1 top-1 h-2 w-2 rounded-full bg-accent" />}
                 {expanded && badge(id) > 0 && <span key={badge(id)} className="m3-bounce ms-auto rounded-full bg-accent px-1.5 text-center text-xs font-semibold text-bg">{badge(id)}</span>}
               </button>
             ))}
           </div>
         </nav>
 
-        <main className="flex min-h-0 min-w-0 flex-1 gap-2 md:p-2 md:ps-0">
+        <main className="flex min-h-0 min-w-0 flex-1 gap-2 md:p-2">
           {chat ? (
             <>
               <section className={cn("m3-fade w-full shrink-0 flex-col bg-panel md:flex md:w-96", pane, activeId ? "hidden" : "flex")}><ChatList activeId={activeId} onOpen={setActiveId} onAdd={() => go("connect")} query={query} /></section>

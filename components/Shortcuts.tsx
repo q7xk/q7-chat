@@ -123,7 +123,7 @@ export function SpacesPanel({ spaceId, onPick, onOpenChat }: { spaceId: string |
               return (
                 <li key={s.id}>
                   <button onClick={() => onPick(s.id)} className="m3-press group flex w-full items-center gap-3 rounded-[28px] bg-container p-4 text-start hover:bg-raised">
-                    <span className="h-11 w-11 shrink-0 transition-transform duration-200 ease-spring group-hover:rotate-12" style={{ ...clipShape("cookie12"), backgroundColor: `hsl(${s.hue} 65% 55%)` }} />
+                    <span className="h-11 w-11 shrink-0 rounded-2xl" style={{ backgroundColor: `hsl(${s.hue} 65% 55%)` }} />
                     <span className="min-w-0 flex-1"><span className="block truncate font-medium">{s.name}</span><span className="block text-xs text-muted">{t("spaces.members")}: {n}</span></span>
                   </button>
                 </li>
