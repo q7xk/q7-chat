@@ -26,7 +26,7 @@ export function ChatList({ activeId, onOpen, onAdd }: { activeId: string | null;
 
   const preview = (m?: (typeof messages)[number], mine = false) => {
     if (!m) return t("chats.noMessages");
-    const a = m.att; const body = m.body || (a?.t === "poll" ? `📊 ${a.q}` : a?.t === "event" ? `📅 ${a.title}` : a?.t === "location" ? "📍" : a?.t === "contact" ? `👤 ${a.name}` : a?.t === "file" ? `${a.kind === "image" ? "🖼" : "📄"} ${a.name}` : m.link?.title || t("chats.link"));
+    const a = m.att; const body = m.body || (a?.t === "poll" ? `📊 ${a.q}` : a?.t === "event" ? `📅 ${a.title}` : a?.t === "location" ? "📍" : a?.t === "contact" ? `👤 ${a.name}` : a?.t === "gif" ? "GIF" : a?.t === "file" ? (a.kind === "image" ? `🖼 ${a.name}` : a.kind === "voice" ? `🎤 ${t("composer.voice")}` : `📄 ${a.name}`) : m.link?.title || t("chats.link"));
     return (mine ? t("chats.you") + ": " : "") + body;
   };
 
@@ -36,7 +36,7 @@ export function ChatList({ activeId, onOpen, onAdd }: { activeId: string | null;
       <header className="space-y-4 p-4 pb-2">
         <div className="relative flex items-center justify-between">
           <h1 className="px-1 text-[28px] font-semibold leading-9 tracking-tight">{t("nav.chats")}</h1>
-          <button onClick={() => setMenu((v) => !v)} aria-label={t("chats.newLocal")} aria-expanded={menu} className="flex h-12 w-12 items-center justify-center rounded-2xl bg-pc text-onpc transition-[border-radius] duration-300 ease-spring hover:rounded-full"><Plus size={22} /></button>
+          <button onClick={() => setMenu((v) => !v)} aria-label={t("chats.newLocal")} aria-expanded={menu} className="flex h-12 w-12 items-center justify-center rounded-2xl bg-pc text-onpc transition-[filter] hover:brightness-110"><Plus size={22} /></button>
           {menu && (
             <div className="absolute end-0 top-14 z-10 w-60 space-y-1 rounded-3xl bg-highest p-2 shadow-lg">
               <button onClick={() => { setMenu(false); setAdding(true); }} className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm hover:bg-container"><MessageSquarePlus size={18} />{t("chats.newLocal")}</button>
@@ -56,14 +56,14 @@ export function ChatList({ activeId, onOpen, onAdd }: { activeId: string | null;
         </label>
         <div className="flex gap-1.5" role="group">
           {(["all", "unread", "archived"] as Filter[]).map((k) => (
-            <button key={k} onClick={() => setF(k)} aria-pressed={f === k} className={cn("rounded-xl border px-4 py-1.5 text-sm font-medium transition-[border-radius,background-color] duration-300 ease-spring hover:rounded-full", f === k ? "border-transparent bg-sc text-onsc" : "border-line text-muted hover:bg-container")}>{t(`chats.${k}`)}</button>
+            <button key={k} onClick={() => setF(k)} aria-pressed={f === k} className={cn("rounded-xl border px-4 py-1.5 text-sm font-medium transition-colors", f === k ? "border-transparent bg-sc text-onsc" : "border-line text-muted hover:bg-container")}>{t(`chats.${k}`)}</button>
           ))}
         </div>
       </header>
       <ul className="min-h-0 flex-1 space-y-1 overflow-y-auto p-2 scroll-thin">
         {rows.map(({ c, name, photo, last, next }) => (
           <li key={c.id}>
-            <button onClick={() => onOpen(c.id)} aria-current={activeId === c.id} className={cn("flex w-full gap-3 px-3 py-3 text-start transition-[border-radius,background-color] duration-300 ease-spring", activeId === c.id ? "rounded-[28px] bg-sc text-onsc" : "rounded-2xl hover:rounded-[28px] hover:bg-container")}>
+            <button onClick={() => onOpen(c.id)} aria-current={activeId === c.id} className={cn("flex w-full gap-3 rounded-2xl px-3 py-3 text-start transition-colors", activeId === c.id ? "bg-sc text-onsc" : "hover:bg-container")}>
               <Avatar title={name} mode={c.mode} photo={photo} />
               <span className="min-w-0 flex-1">
                 <span className="flex items-center gap-2">

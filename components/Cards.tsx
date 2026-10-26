@@ -1,6 +1,6 @@
 "use client";
-import { useEffect, useState } from "react";
-import { CalendarPlus, Download, ExternalLink, FileText, MapPin, UserPlus } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { CalendarPlus, Download, ExternalLink, FileText, MapPin, Mic, PauseCircle, PlayCircle, UserPlus } from "lucide-react";
 import * as db from "@/lib/db";
 import type { Message } from "@/lib/types";
 import { useStore } from "@/lib/store";
@@ -26,14 +26,56 @@ function ics(title: string, start: number, place?: string, note?: string) {
   return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Q7 Message//EN", "BEGIN:VEVENT", `UID:${start}-${title.length}@q7`, `DTSTAMP:${f(Date.now())}`, `DTSTART:${f(start)}`, `DTEND:${f(start + 3600000)}`, `SUMMARY:${e(title)}`, ...(place ? [`LOCATION:${e(place)}`] : []), ...(note ? [`DESCRIPTION:${e(note)}`] : []), "END:VEVENT", "END:VCALENDAR"].join("\r\n");
 }
 
+const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+
+/** Voice bubble: play/pause with a live progress bar and total duration. */
+function VoiceBubble({ url, dur }: { url: string; dur: number }) {
+  const ref = useRef<HTMLAudioElement>(null); const [playing, setPlaying] = useState(false); const [at, setAt] = useState(0);
+  useEffect(() => { setPlaying(false); setAt(0); }, [url]);
+  const toggle = () => {
+    const a = ref.current; if (!a) return;
+    if (playing) { a.pause(); return; }
+    void a.play().catch(() => {});
+  };
+  return (
+    <div className="flex min-w-52 items-center gap-3 py-1">
+      <button onClick={toggle} aria-label={playing ? "pause" : "play"} className="shrink-0 transition-[filter] hover:brightness-110">
+        {playing ? <PauseCircle size={34} /> : <PlayCircle size={34} />}
+      </button>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <Mic size={14} className="shrink-0 opacity-70" aria-hidden />
+          <span className="text-xs tabular-nums opacity-90">{mmss(dur)}</span>
+        </div>
+        {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+        <audio ref={ref} src={url} preload="metadata" hidden
+          onPlay={() => setPlaying(true)} onPause={() => { setPlaying(false); }} onEnded={() => { setPlaying(false); setAt(0); }}
+          onTimeUpdate={(e) => setAt(e.currentTarget.currentTime)} />
+        <input type="range" min={0} max={dur} step={0.1} value={Math.min(at, dur)} aria-label="seek" readOnly
+          onChange={(e) => { const v = Number(e.target.value); setAt(v); if (ref.current) ref.current.currentTime = v; }}
+          className="mt-1 h-1.5 w-full cursor-pointer appearance-none rounded-full bg-black/20 accent-[rgb(var(--accent))]" />
+      </div>
+    </div>
+  );
+}
+
 export function AttachmentView({ m, p2p, onVote }: { m: Message; p2p: boolean; onVote: (choices: number[]) => void }) {
   const { t, size, date } = useI18n(); const { mgr, snap } = useP2P();
   const a = m.att; const file = useBlob(a?.t === "file" ? m.id : "");
   if (!a) return null;
   const chip = "inline-flex items-center gap-2 rounded-full bg-black/10 px-4 py-2 text-sm font-medium";
 
+  if (a.t === "gif") {
+    return (
+      <a href={a.url} target="_blank" rel="noopener noreferrer nofollow" className="block overflow-hidden rounded-2xl transition-[filter] hover:brightness-110" style={{ aspectRatio: `${a.w}/${a.h}`, maxWidth: 260 }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={a.url} alt="GIF" width={a.w} height={a.h} loading="lazy" className="h-full w-full object-cover" />
+      </a>
+    );
+  }
   if (a.t === "file") {
     if (!file) return <p className="mt-1 text-sm opacity-80">{a.name} · {t("file.receiving")}</p>;
+    if (a.kind === "voice") return <VoiceBubble url={file.url} dur={a.dur ?? 1} />;
     if (a.kind === "image") return /* eslint-disable-next-line @next/next/no-img-element */ <img src={file.url} alt={a.name} className="max-h-72 w-full rounded-2xl object-contain" />;
     return (
       <div className="flex items-center gap-3"><FileText size={26} /><div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{a.name}</p><p className="text-xs opacity-80">{size(a.size)}</p></div>
@@ -66,6 +108,7 @@ export function AttachmentView({ m, p2p, onVote }: { m: Message; p2p: boolean; o
         <p className="text-xs opacity-80">{t("poll.votes", { n: total })}</p></div>
     );
   }
+  if (a.t !== "event") return null;
   return (
     <div className="space-y-1"><p className="text-sm font-semibold">{a.title}</p><p className="text-sm">{date(a.start)}</p>
       {a.place && <p className="flex items-center gap-1 text-sm"><MapPin size={14} />{a.place}</p>}{a.note && <p className="text-sm opacity-90">{a.note}</p>}

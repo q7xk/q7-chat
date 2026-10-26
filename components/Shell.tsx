@@ -6,6 +6,7 @@ import { cn } from "@/lib/cn";
 import { useI18n, type K } from "@/lib/i18n";
 import { useP2P } from "@/lib/p2p/context";
 import { ShapeDefs } from "./Badges";
+import { CallOverlay } from "./Call";
 import { ChatList } from "./ChatList";
 import { ConnectPanel } from "./Connect";
 import { ContactsPanel } from "./Contacts";
@@ -35,7 +36,7 @@ export function Shell() {
         <ul className="flex flex-1 flex-col gap-1">
           {NAV.map(({ id, label, icon: Icon }) => (
             <li key={id}>
-              <button onClick={() => go(id)} aria-current={view === id ? "page" : undefined} className={cn("flex h-14 w-full items-center gap-3 rounded-full px-5 text-start text-[15px] font-medium transition-[background-color,border-radius] duration-300 ease-spring", view === id ? "bg-sc text-onsc" : "text-muted hover:bg-container hover:text-ink")}>
+              <button onClick={() => go(id)} aria-current={view === id ? "page" : undefined} className={cn("flex h-14 w-full items-center gap-3 rounded-full px-5 text-start text-[15px] font-medium transition-[background-color] duration-300", view === id ? "bg-sc text-onsc" : "text-muted hover:bg-container hover:text-ink")}>
                 <Icon size={21} />{t(label)}{badge(id) > 0 && <span className="ms-auto rounded-full bg-accent px-2 text-xs font-semibold text-bg">{badge(id)}</span>}
               </button>
             </li>
@@ -58,6 +59,8 @@ export function Shell() {
           </section>
         )}
       </main>
+
+      <CallOverlay />
 
       <nav aria-label="Q7 Message" className={cn("bg-container pb-[env(safe-area-inset-bottom)] md:hidden", chat && activeId && "hidden")}>
         <ul className="grid grid-cols-5 px-1 pb-2 pt-3">

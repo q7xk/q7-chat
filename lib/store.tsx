@@ -2,6 +2,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Attachment, Conversation, LinkMeta, Message, Settings } from "./types";
 import { LIFETIME_MS } from "./time";
+import { applyAccent } from "./theme";
 import * as db from "./db";
 import { useI18n } from "./i18n";
 
@@ -16,6 +17,7 @@ interface Store {
   addMessage: (m: Message, blob?: Blob) => void;
   updateMessage: (id: string, patch: Partial<Message>) => void;
   removeConversation: (id: string) => void;
+  clearConversation: (id: string) => void;
   wipeLocal: () => Promise<void>;
   exportLocal: () => Promise<string>;
   importLocal: (text: string) => Promise<{ conversations: number; messages: number; skipped: number }>;
@@ -44,7 +46,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const bumpBlobs = useCallback(() => setBlobTick((x) => x + 1), []);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [settings, setSettingsState] = useState<Settings>({ theme: "dark", previews: "ask" });
+  const [settings, setSettingsState] = useState<Settings>({ theme: "dark", previews: "ask", accent: "blue" });
   const convRef = useRef(conversations); convRef.current = conversations;
   const msgRef = useRef(messages); msgRef.current = messages;
   const started = useRef(false);
@@ -74,12 +76,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const c: Conversation = { id: uid(), mode: "local", title: tRef.current("welcome.title"), pinned: false, muted: false, archived: false, unread: 0 };
         setConversations([c]); setMessages([mk(c.id, tRef.current("welcome.text"))]);
       }
-      try { const th = localStorage.getItem("q7.theme"); if (th === "light" || th === "dark") setSettingsState((s) => ({ ...s, theme: th })); } catch {}
+      try { const th = localStorage.getItem("q7.theme"); if (th === "light" || th === "dark") setSettingsState((s) => ({ ...s, theme: th })); const ac = localStorage.getItem("q7.accent"); if (ac) setSettingsState((s) => ({ ...s, accent: ac })); } catch {}
       setNow(Date.now()); setReady(true);
     })();
   }, [reload]);
 
-  useEffect(() => { document.documentElement.dataset.theme = settings.theme; }, [settings.theme]);
+  useEffect(() => { document.documentElement.dataset.theme = settings.theme; applyAccent(settings.accent, settings.theme); }, [settings.theme, settings.accent]);
 
   useEffect(() => {
     const tick = () => {
@@ -129,6 +131,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     convRef.current = convRef.current.filter((c) => c.id !== id); setConversations(convRef.current);
     msgRef.current = msgRef.current.filter((m) => m.conversationId !== id); setMessages(msgRef.current); persist(db.deleteConversation(id));
   }, [persist]);
+  const clearConversation = useCallback((id: string) => {
+    msgRef.current = msgRef.current.filter((m) => m.conversationId !== id); setMessages(msgRef.current); persist(db.clearConversation(id));
+  }, [persist]);
   const wipeLocal = useCallback(async () => {
     setMessages([]); setConversations([]); msgRef.current = []; convRef.current = [];
     try { await db.wipeAll(); } catch { setStorageError(true); }
@@ -144,9 +149,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const setSettings = useCallback((patch: Partial<Settings>) => {
     setSettingsState((s) => ({ ...s, ...patch }));
     if (patch.theme) try { localStorage.setItem("q7.theme", patch.theme); } catch {}
+    if (patch.accent !== undefined) try { localStorage.setItem("q7.accent", patch.accent); } catch {}
   }, []);
 
   const live = useMemo(() => messages.filter((m) => m.expiresAt > now), [messages, now]);
-  const value: Store = { ready, now, storageError, blobTick, bumpBlobs, conversations, messages: live, settings, createLocal, update, send, remove, createP2P, addMessage, updateMessage, removeConversation, wipeLocal, exportLocal, importLocal, setSettings };
+  const value: Store = { ready, now, storageError, blobTick, bumpBlobs, conversations, messages: live, settings, createLocal, update, send, remove, createP2P, addMessage, updateMessage, removeConversation, clearConversation, wipeLocal, exportLocal, importLocal, setSettings };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

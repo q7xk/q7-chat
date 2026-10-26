@@ -9,7 +9,7 @@ import { Avatar } from "./Badges";
 import { Scanner } from "./Scanner";
 import { Box, Page } from "./ui";
 
-export const btn = "inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition-[border-radius] duration-300 ease-spring hover:rounded-2xl";
+export const btn = "inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition-[filter] hover:brightness-110";
 export const field = "w-full rounded-2xl bg-highest px-4 py-3 text-sm";
 
 export function CopyBtn({ text, label }: { text: string; label: string }) {

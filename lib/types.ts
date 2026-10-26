@@ -8,9 +8,11 @@ export interface Conversation {
   id: string; mode: Mode; title: string;
   pinned: boolean; muted: boolean; archived: boolean; unread: number;
   contactId?: string; // set for p2p conversations
+  wall?: string; // chat wallpaper (gradient id)
 }
 export type Attachment =
-  | { t: "file"; kind: "image" | "document"; name: string; mime: string; size: number }
+  | { t: "file"; kind: "image" | "document" | "voice"; name: string; mime: string; size: number; dur?: number }
+  | { t: "gif"; url: string; w: number; h: number }
   | { t: "location"; lat: number; lon: number }
   | { t: "contact"; name: string; code: string; pub: string }
   | { t: "poll"; q: string; opts: string[]; multi: boolean; votes: Record<string, number[]> }
@@ -24,5 +26,5 @@ export interface Message {
   direction?: "in" | "out"; // missing means out
   status?: "queued" | "sent" | "delivered"; // p2p outgoing only
 }
-export interface Contact { id: string; pub: string; name: string; code: string; addedAt: number; verified: boolean; photo?: string; renamed?: boolean; ek?: string }
-export interface Settings { theme: "dark" | "light"; previews: PreviewPolicy }
+export interface Contact { id: string; pub: string; name: string; code: string; addedAt: number; verified: boolean; photo?: string; renamed?: boolean; ek?: string; blocked?: boolean }
+export interface Settings { theme: "dark" | "light"; previews: PreviewPolicy; accent: string }

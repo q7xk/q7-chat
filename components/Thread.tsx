@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Archive, BellOff, ChevronLeft, Clock, MessageSquareDashed, Pin, Reply, ShieldCheck, Trash2, Wifi } from "lucide-react";
+import { ChevronLeft, Clock, MessageSquareDashed, Reply, ShieldCheck, Trash2, Wifi } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { useI18n } from "@/lib/i18n";
 import { useP2P } from "@/lib/p2p/context";
@@ -10,6 +10,7 @@ import type { Attachment, Message } from "@/lib/types";
 import { Avatar, ModeBadge } from "./Badges";
 import { AttachmentView } from "./Cards";
 import { Composer } from "./Composer";
+import { ChatMenu, wallStyle } from "./ChatMenu";
 import { CopyButton, LinkCard } from "./LinkCard";
 import { Logo } from "./Logo";
 
@@ -48,7 +49,6 @@ export function Thread({ conversationId, onBack }: { conversationId: string | nu
   const state = conv.contactId ? snap.status[conv.contactId] ?? "offline" : "offline";
   const viaRelay = p2p && snap.modes[conv.contactId!] === "relay" ? " · " + t("thread.relay") : "";
   const replyTo = list.find((m) => m.id === replyId);
-  const icon = (on: boolean) => cn("rounded-full p-2.5 transition-colors", on ? "bg-pc text-onpc" : "text-muted hover:bg-raised");
   const statusText = { queued: t("thread.queued"), sent: t("thread.sent"), delivered: t("thread.delivered") } as const;
   const sendAtt = (att: Attachment, blob?: Blob) => { if (p2p) mgr.sendRich(conv.contactId!, "", att, blob, replyId ?? undefined); else send(conv.id, "", undefined, replyId ?? undefined, att, blob); setReplyId(null); };
   const vote = (m: Message, choices: number[]) => {
@@ -68,14 +68,12 @@ export function Thread({ conversationId, onBack }: { conversationId: string | nu
             {p2p && <span className={cn("inline-flex items-center gap-1.5 text-xs", state === "online" ? "text-accent" : "text-muted")}><span className={cn("h-2 w-2 rounded-full", state === "online" ? "bg-accent" : state === "connecting" ? "animate-pulse bg-local" : "bg-line")} />{state === "online" ? t("thread.online") + viaRelay : state === "connecting" ? t("thread.connecting") : t("thread.offline") + viaRelay}</span>}
           </div>
         </div>
-        {p2p && state === "offline" && <button onClick={() => mgr.connectNow(conv.contactId!)} className="inline-flex items-center gap-2 rounded-full bg-sc px-4 py-2 text-sm font-medium text-onsc"><Wifi size={14} />{t("thread.connect")}</button>}
-        <button onClick={() => update(conv.id, { pinned: !conv.pinned })} aria-pressed={conv.pinned} aria-label={t("thread.pin")} className={icon(conv.pinned)}><Pin size={17} /></button>
-        <button onClick={() => update(conv.id, { muted: !conv.muted })} aria-pressed={conv.muted} aria-label={t("thread.mute")} className={icon(conv.muted)}><BellOff size={17} /></button>
-        <button onClick={() => { update(conv.id, { archived: !conv.archived }); onBack(); }} aria-label={conv.archived ? t("thread.unarchive") : t("thread.archive")} className={icon(conv.archived)}><Archive size={17} /></button>
+        {p2p && state === "offline" && <button onClick={() => mgr.connectNow(conv.contactId!)} className="inline-flex items-center gap-2 rounded-full bg-sc px-4 py-2 text-sm font-medium text-onsc transition-[filter] hover:brightness-110"><Wifi size={14} />{t("thread.connect")}</button>}
+        <ChatMenu conv={conv} contact={contact} p2p={p2p} />
       </header>
       <p className="mx-4 rounded-2xl bg-tc px-4 py-3 text-sm leading-relaxed text-ontc">{p2p ? t("thread.noteP2P") : t("thread.noteLocal")}</p>
 
-      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4 scroll-thin" role="log" aria-label={contact?.name ?? conv.title}>
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4 scroll-thin" role="log" aria-label={contact?.name ?? conv.title} style={{ backgroundImage: wallStyle(conv.wall) }}>
         {list.length === 0 && <p className="pt-10 text-center text-sm text-muted">{t("thread.empty")}</p>}
         {list.map((m) => {
           const incoming = m.direction === "in"; const parent = m.replyToId ? list.find((x) => x.id === m.replyToId) : undefined;

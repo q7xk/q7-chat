@@ -12,7 +12,7 @@ Privacy-first messaging with 72-hour message expiry. Built with Next.js, TypeScr
 - **Attach menu**: gallery, camera, location, contact, document, poll, event. Files go device to device in encrypted 16 KB chunks (10 MB limit); photos are re-encoded to strip metadata.
 - **Emoji**: recently used emojis are remembered on this device.
 - **Languages**: `/langs/*.json`, 17 languages (en, tr, de, zh, ja, ko, fr, es, pt, ru, pl, uk, hi, id, it, nl, ar). The browser language is detected automatically; English is the fallback; Settings can override. Arabic switches the layout to right-to-left. Add a language by adding a file and registering it in `lib/i18n.tsx`; `npm test` checks every key and placeholder.
-- **Logo**: speech bubble with `public/ornek.svg` (placeholder artwork) and the name.
+- **Logo**: inline SVG speech bubble with the name (no external assets).
 
 ## Security notes
 

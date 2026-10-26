@@ -8,7 +8,7 @@ import {
   safetyNumber, seal, sha256, signEnvelope, startHandshake, toB64, topicFor, unseal, utf8, verify, withStaticEcdh, type Envelope, type HandshakeState, type Identity, type Session,
 } from "./crypto";
 import { packEnvelope, unpackEnvelope } from "./pack";
-import { PeerLink } from "./rtc";
+import { PeerLink, STUN } from "./rtc";
 import { RelayClient } from "./mqtt";
 import { ackRoot, liveTopic, mailRoot, makeRFrame, openFrom, openRFrame, pairKey, SeqWindow, sealTo, unHex } from "./q7rp";
 
@@ -18,14 +18,15 @@ export const INLINE_MAX = 160 * 1024;
 export type LinkState = "offline" | "connecting" | "online";
 export type P2PMode = "direct" | "relay";
 export interface Request { rid: string; name: string; code: string; safety: string; receivedAt: number; env: Envelope }
-export interface P2PSettings { name: string; photo?: string; relayEnabled: boolean; customRelays: string[]; turn?: { urls: string; username?: string; credential?: string } }
+export interface P2PSettings { name: string; photo?: string; relayEnabled: boolean; customRelays: string[]; turn?: { urls: string; username?: string; credential?: string }; giphy?: string }
 export type PairingState =
   | { kind: "idle" } | { kind: "code"; code: string; phase: "waiting" | "failed"; detail?: string }
   | { kind: "manual-offer"; text: string } | { kind: "manual-answer"; text: string }
   | { kind: "connecting" } | { kind: "done"; name: string; convId: string } | { kind: "error"; message: string };
+export interface CallState { id: string; cid: string; dir: "in" | "out"; video: boolean; state: "ringing" | "connecting" | "active"; local?: MediaStream; remote?: MediaStream; startedAt?: number }
 export interface Snapshot {
   ready: boolean; error?: string; code: string; pub: string; fp: string; settings: P2PSettings; contacts: Contact[];
-  status: Record<string, LinkState>; modes: Record<string, P2PMode>; requests: Request[]; relay: { enabled: boolean; connected: number; total: number }; pairing: PairingState;
+  status: Record<string, LinkState>; modes: Record<string, P2PMode>; requests: Request[]; relay: { enabled: boolean; connected: number; total: number }; pairing: PairingState; call: CallState | null;
 }
 export interface Host {
   getConversations(): Conversation[]; getMessages(): Message[]; ensureConversation(contactId: string, title: string): string;
@@ -42,7 +43,7 @@ const IDLE: PairingState = { kind: "idle" };
 
 export class P2PManager {
   private listeners = new Set<() => void>();
-  private snap: Snapshot = { ready: false, code: "", pub: "", fp: "", settings: { name: "", relayEnabled: true, customRelays: [] }, contacts: [], status: {}, modes: {}, requests: [], relay: { enabled: true, connected: 0, total: 0 }, pairing: IDLE };
+  private snap: Snapshot = { ready: false, code: "", pub: "", fp: "", settings: { name: "", relayEnabled: true, customRelays: [] }, contacts: [], status: {}, modes: {}, requests: [], relay: { enabled: true, connected: 0, total: 0 }, pairing: IDLE, call: null };
   private id?: Identity; private relay?: RelayClient; private started = false;
   private links = new Map<string, Link>(); private knocks = new Map<string, Knock>(); private manualOffers = new Map<string, Link>();
   private seen = new Set<string>(); private lastTry = new Map<string, number>(); private declined = new Map<string, number>();
@@ -54,6 +55,9 @@ export class P2PManager {
   private orphans = new Map<string, Uint8Array>();                // inline file bytes that arrived before their header
   private outRunning = false; private outTickTimer?: ReturnType<typeof setInterval>;
   private active: string | null = null; private tick?: ReturnType<typeof setInterval>; private vis = () => { if (document.visibilityState === "visible") this.reconnectAll(); };
+  /* live call: internal wiring (pc, buffered ICE, saved offer) never leaks into the snapshot */
+  private live?: CallState & { pc: RTCPeerConnection; offerSdp?: string; pendingIce: RTCIceCandidateInit[] };
+  private ring?: ReturnType<typeof setTimeout>;
 
   constructor(private host: Host) {}
   subscribe = (l: () => void) => { this.listeners.add(l); return () => { this.listeners.delete(l); }; };
@@ -77,17 +81,18 @@ export class P2PManager {
       if (!stored.ecdhJwk) { stored = await withStaticEcdh(stored); await db.putIdentity(stored); } // v1 identities upgrade in place
       this.id = await loadIdentity(stored);
       const saved = ((await db.getFlag("p2p-settings")) ?? {}) as Partial<P2PSettings>;
-      const settings: P2PSettings = { name: saved.name || `Q7 ${this.id.code.slice(-4)}`, relayEnabled: saved.relayEnabled !== false, customRelays: saved.customRelays ?? [], turn: saved.turn, photo: saved.photo };
+      const settings: P2PSettings = { name: saved.name || `Q7 ${this.id.code.slice(-4)}`, relayEnabled: saved.relayEnabled !== false, customRelays: saved.customRelays ?? [], turn: saved.turn, photo: saved.photo, giphy: saved.giphy };
       this.set({ ready: true, code: this.id.code, pub: this.id.pubB64, fp: hex(this.id.fp), settings, contacts: await db.getContacts() });
       await this.startRelay();
       this.tick = setInterval(() => this.reconnectAll(), 45_000);
       document.addEventListener("visibilitychange", this.vis);
-      setTimeout(() => this.reconnectAll(), 3000);
+      setTimeout(() => { this.reconnectAll(); this.relayBroadcastProfile(); }, 3000);
     } catch { this.set({ ready: true, error: "err.generic" }); }
   }
   shutdown() {
     this.links.forEach((l) => l.pc.close()); this.manualOffers.forEach((l) => l.pc.close()); [...this.knocks.keys()].forEach((r) => { this.knocks.get(r)?.link.pc.close(); this.finishKnock(r); });
     this.links.clear(); this.manualOffers.clear(); this.relay?.stop(); this.relay = undefined; clearInterval(this.tick); clearInterval(this.outTickTimer);
+    this.endLive("silent");
     document.removeEventListener("visibilitychange", this.vis);
     this.started = false; this.id = undefined;
     this.snap = { ...this.snap, ready: false, contacts: [], status: {}, modes: {}, requests: [], pairing: IDLE, code: "", pub: "" }; this.listeners.forEach((l) => l());
@@ -106,13 +111,21 @@ export class P2PManager {
     r.subscribe(`${mailRoot(my)}/#`, (p, topic) => void this.onRelayFrame(topic, p));  // live frames + retained mailbox copies
     r.subscribe(`${ackRoot(my)}/#`, (p) => void this.onRelayAck(p));                   // signed receipts for frames we sent by relay
     r.start();
-    this.outTickTimer = setInterval(() => void this.outTick(), 20_000);
+    this.outTickTimer = setInterval(() => void this.outTick(), 4_000);
+    void this.outTick();
+    setTimeout(() => this.relayBroadcastProfile(), 1500); // freshly (re)connected contacts learn our name/photo without a direct link
   }
   private async saveSettings(patch: Partial<P2PSettings>) {
     const settings = { ...this.snap.settings, ...patch }; this.set({ settings }); await db.setFlag("p2p-settings", settings);
   }
-  async setName(name: string) { await this.saveSettings({ name: cleanName(name) }); this.broadcastProfile(); }
-  async setPhoto(photo?: string) { await this.saveSettings({ photo }); this.broadcastProfile(); }
+  async setName(name: string) { await this.saveSettings({ name: cleanName(name) }); this.broadcastProfile(); this.relayBroadcastProfile(); }
+  async setPhoto(photo?: string) { await this.saveSettings({ photo }); this.broadcastProfile(); this.relayBroadcastProfile(); }
+  async setGiphyKey(key: string) { await this.saveSettings({ giphy: key.trim() || undefined }); }
+  /** Pushes our profile to every reachable contact over the relays. */
+  private relayBroadcastProfile() {
+    if (!this.relay?.connected) return;
+    for (const c of this.snap.contacts) if (c.ek && !c.blocked) void this.relayPublish(c.id, { k: "profile", name: this.snap.settings.name, photo: this.snap.settings.photo });
+  }
   private sendProfile(link: Link) { if (!link.sess) return; link.tx = link.tx.then(async () => link.pc.send(await link.sess!.encrypt({ k: "profile", name: this.snap.settings.name, photo: this.snap.settings.photo }))).catch(() => link.pc.close()); }
   private broadcastProfile() { this.links.forEach((l) => this.sendProfile(l)); }
   async setRelayEnabled(v: boolean) { await this.saveSettings({ relayEnabled: v }); await this.startRelay(); }
@@ -139,6 +152,7 @@ export class P2PManager {
     for (const [rid, l] of this.manualOffers) if (l === link) this.manualOffers.delete(rid);
     if (link.contactId && this.links.get(link.contactId) === link) {
       this.links.delete(link.contactId); this.setStatus(link.contactId, "offline"); this.dropMode(link.contactId);
+      if (this.live?.cid === link.contactId) this.endLive("failed"); // a call cannot survive its transport
       setTimeout(() => { if (!this.links.has(link.contactId!)) this.ensureConnected(link.contactId!, false); }, 5_000);
     }
     else if (!link.sess && link.expectPub) void sha256(fromB64(link.expectPub)).then((fp) => { if (!this.links.has(hex(fp))) this.setStatus(hex(fp), "offline"); });
@@ -208,7 +222,8 @@ export class P2PManager {
     if (!env || env.t !== "offer" || env.to !== this.id.code || env.pub === this.id.pubB64 || this.seen.has(env.rid)) return;
     this.seen.add(env.rid); if (this.seen.size > 500) this.seen.clear();
     const fp = hex(await sha256(fromB64(env.pub)));
-    if (this.snap.contacts.some((c) => c.id === fp)) { void this.acceptOffer(env, true).catch(() => {}); return; } // known contacts reconnect automatically
+    const known = this.snap.contacts.find((c) => c.id === fp);
+    if (known) { if (!known.blocked) void this.acceptOffer(env, true).catch(() => {}); return; } // known contacts reconnect automatically; blocked ones are ignored
     const until = this.declined.get(fp); if (until && until > Date.now()) return;
     if (this.snap.requests.length >= 10 || this.snap.requests.some((r) => r.env.pub === env.pub)) return;
     const req: Request = { rid: env.rid, name: env.name, code: await codeOfPub(env.pub), safety: await safetyNumber(this.id.pub, fromB64(env.pub)), receivedAt: Date.now(), env };
@@ -285,6 +300,11 @@ export class P2PManager {
   }
   renameContact(id: string, name: string) { return this.patchContact(id, { name: cleanName(name), renamed: true }); }
   setVerified(id: string, verified: boolean) { return this.patchContact(id, { verified }); }
+  /** Blocked contacts receive nothing from us, their knock offers are ignored and their frames are dropped on arrival. */
+  async blockContact(id: string, blocked: boolean) {
+    await this.patchContact(id, { blocked: blocked || undefined });
+    if (blocked) { this.links.get(id)?.pc.close(); if (this.live?.cid === id) this.endCall(); }
+  }
   async removeContact(id: string) {
     this.links.get(id)?.pc.close(); this.links.delete(id); await db.deleteContact(id); this.host.removeConversationFor(id);
     const { [id]: _gone, ...status } = this.snap.status; void _gone; this.set({ contacts: this.snap.contacts.filter((c) => c.id !== id), status });
@@ -293,7 +313,7 @@ export class P2PManager {
   }
   connectNow(id: string) { this.ensureConnected(id, true); }
   private ensureConnected(id: string, force = false) {
-    const c = this.snap.contacts.find((x) => x.id === id); if (!c || !this.relay || this.relay.connected === 0) return;
+    const c = this.snap.contacts.find((x) => x.id === id); if (!c || c.blocked || !this.relay || this.relay.connected === 0) return;
     if (this.snap.status[id] === "online" || this.snap.status[id] === "connecting") return;
     if (!force && Date.now() - (this.lastTry.get(id) ?? 0) < 20_000) return;
     this.lastTry.set(id, Date.now()); this.setStatus(id, "connecting");
@@ -370,11 +390,13 @@ export class P2PManager {
     const opened = await openRFrame(raw);
     if (!opened || opened.to !== hex(this.id.fp)) return;
     const cid = opened.fp;
-    if (!this.snap.contacts.some((c) => c.id === cid)) return; // relayed frames from strangers are refused; contacts only
+    const known = this.snap.contacts.find((c) => c.id === cid);
+    if (!known) return;                                          // relayed frames from strangers are refused; contacts only
+    if (known.blocked) return;                                   // blocked contacts get no relay delivery at all
     const win = this.rxWin.get(cid) ?? new SeqWindow();
-    if (!win.allow(opened.seq)) return;                        // duplicate retained copy from another broker
+    if (!win.allow(opened.seq)) return;                          // duplicate retained copy from another broker
     this.rxWin.set(cid, win);
-    let c = this.snap.contacts.find((x) => x.id === cid)!;
+    let c = known;
     if (opened.ek && toB64(opened.ek) !== c.ek) { await this.patchContact(cid, { ek: toB64(opened.ek) }); this.pairs.delete(cid); c = this.snap.contacts.find((x) => x.id === cid)!; }
     const key = await this.pairKeyFor(cid);
     if (!key) return;
@@ -402,8 +424,8 @@ export class P2PManager {
         if (!alive) { this.outbox.delete(key); continue; }             // expired, deleted or never persisted
         if (this.links.get(e.cid)?.sess) continue;                     // the direct transport owns delivery while it is open
         if (e.next > now) continue;
-        if (this.relay.connected === 0) { e.next = now + 30_000; continue; }
-        if (!(await this.relayPublish(e.cid, e.obj))) { e.next = now + 30_000; continue; }
+        if (this.relay.connected === 0) { e.next = now + 4_000; continue; }
+        if (!(await this.relayPublish(e.cid, e.obj))) { e.next = now + 4_000; continue; }
         if (e.file) {                                                  // small attachments ride along as their own frame
           const id = mid as string;
           const blob = this.pendingBlobs.get(id) ?? (await db.getBlob(id))?.blob;
@@ -413,13 +435,131 @@ export class P2PManager {
           }
           e.file = undefined;
         }
-        e.tries++; e.next = now + Math.min(20_000 * e.tries, 8 * 60_000);
+        e.tries++; e.next = now + Math.min(5_000 * e.tries, 8 * 60_000);
         if (e.tries > 24) this.outbox.delete(key);                     // per-broker retained copies outlive the retry slot
         const conv2 = this.host.getConversations().find((c) => c.contactId === e.cid);
         const m = conv2 && e.kind === "msg" && this.host.getMessages().find((x) => x.id === mid && x.conversationId === conv2.id);
         if (m && m.status === "queued") this.host.updateMessage(m.id, { status: "sent" });
       }
     } finally { this.outRunning = false; }
+  }
+
+  /* ---------- calls: renegotiated media tracks on the direct WebRTC link, signalled in-band ---------- */
+  private iceServers(): RTCIceServer[] {
+    const s: RTCIceServer[] = [{ urls: STUN }];
+    const t = this.snap.settings.turn;
+    if (t?.urls) s.push({ urls: t.urls, username: t.username, credential: t.credential });
+    return s;
+  }
+  private sendCallFrame(cid: string, f: unknown) {
+    const link = this.links.get(cid);
+    if (!link?.sess) { if (this.live?.cid === cid) this.endLive("silent"); return; }
+    this.sendFrame(cid, f);
+  }
+  private publishCall() {
+    if (!this.live) { this.set({ call: null }); return; }
+    const { pc: _pc, offerSdp: _o, pendingIce: _i, ...pub } = this.live; void _pc; void _o; void _i;
+    this.set({ call: pub });
+  }
+  private patchCall(p: Partial<CallState>) { if (!this.live) return; this.live = { ...this.live, ...p }; this.publishCall(); }
+  /** Tears the call down. failed=true keeps a short "ended" state for the UI. */
+  private endLive(how: "failed" | "ended" | "silent") {
+    const call = this.live; if (!call) return; this.live = undefined;
+    clearTimeout(this.ring); this.ring = undefined;
+    try { call.local?.getTracks().forEach((t) => t.stop()); } catch {}
+    try { call.pc.onicecandidate = null; call.pc.ontrack = null; call.pc.onconnectionstatechange = null; call.pc.close(); } catch {}
+    this.set({ call: null });
+  }
+  /** User hangs up (or the UI ends it). */
+  endCall() {
+    const call = this.live; if (!call) return;
+    this.sendCallFrame(call.cid, { k: "call", a: call.dir === "in" && call.state === "ringing" ? "reject" : "bye", id: call.id });
+    this.endLive("silent");
+  }
+  async placeCall(cid: string, video: boolean): Promise<boolean> {
+    const c = this.snap.contacts.find((x) => x.id === cid);
+    if (!c || c.blocked || this.live || !this.links.get(cid)?.sess) return false;
+    let media: MediaStream;
+    try { media = await navigator.mediaDevices.getUserMedia({ audio: true, ...(video ? { video: { facingMode: "user", width: { ideal: 1280 } } } : {}) }); }
+    catch { return false; } // UI maps this to err.noMedia
+    const id = randomHex(8);
+    const pc = new RTCPeerConnection({ iceServers: this.iceServers() });
+    this.live = { id, cid, dir: "out", video, state: "connecting", local: media, pc, pendingIce: [] };
+    this.publishCall();
+    media.getTracks().forEach((t) => pc.addTrack(t, media));
+    this.wireCallPc(cid, id, pc);
+    try {
+      await pc.setLocalDescription(await pc.createOffer());
+      this.sendCallFrame(cid, { k: "call", a: "offer", id, video, sdp: pc.localDescription!.sdp });
+      this.patchCall({ state: "ringing" });
+      setTimeout(() => { if (this.live?.id === id && this.live.state === "ringing") { this.sendCallFrame(cid, { k: "call", a: "bye", id }); this.endLive("silent"); } }, 60_000);
+      return true;
+    } catch { this.endLive("silent"); return false; }
+  }
+  async acceptCall() {
+    const call = this.live; if (!call || call.dir !== "in" || call.state !== "ringing") return;
+    clearTimeout(this.ring); this.ring = undefined;
+    this.patchCall({ state: "connecting" });
+    let media: MediaStream;
+    try { media = await navigator.mediaDevices.getUserMedia({ audio: true, ...(call.video ? { video: { facingMode: "user" } } : {}) }); } catch { this.sendCallFrame(call.cid, { k: "call", a: "reject", id: call.id }); this.endLive("silent"); return; }
+    try {
+      const pc = call.pc;
+      await pc.setRemoteDescription({ type: "offer", sdp: call.offerSdp! });
+      media.getTracks().forEach((t) => pc.addTrack(t, media));
+      for (const cand of call.pendingIce) void pc.addIceCandidate(cand).catch(() => {});
+      call.pendingIce = [];
+      await pc.setLocalDescription(await pc.createAnswer());
+      this.sendCallFrame(call.cid, { k: "call", a: "answer", id: call.id, sdp: pc.localDescription!.sdp });
+      this.patchCall({ local: media, startedAt: Date.now() });
+    } catch { this.sendCallFrame(call.cid, { k: "call", a: "reject", id: call.id }); this.endLive("silent"); }
+  }
+  declineCall() {
+    const call = this.live; if (!call) return;
+    clearTimeout(this.ring); this.ring = undefined;
+    this.sendCallFrame(call.cid, { k: "call", a: call.dir === "in" ? "reject" : "bye", id: call.id });
+    this.endLive("silent");
+  }
+  private onCallFrame(cid: string, o: Record<string, unknown>) {
+    const a = o.a; const id = typeof o.id === "string" && ID.test(o.id) ? o.id : "";
+    const link = this.links.get(cid); if (!link?.sess) return;
+    const c = this.snap.contacts.find((x) => x.id === cid);
+    if (a === "offer") {
+      if (!c || c.blocked || this.live || typeof o.sdp !== "string" || !o.sdp) { if (!c?.blocked) this.sendCallFrame(cid, { k: "call", a: "reject", id }); return; }
+      const pc = new RTCPeerConnection({ iceServers: this.iceServers() });
+      this.live = { id, cid, dir: "in", video: o.video === true, state: "ringing", pc, offerSdp: o.sdp as string, pendingIce: [] };
+      this.publishCall();
+      this.wireCallPc(cid, id, pc);
+      clearTimeout(this.ring);
+      this.ring = setTimeout(() => { if (this.live?.id === id && this.live.state === "ringing") { this.sendCallFrame(cid, { k: "call", a: "reject", id }); this.endLive("silent"); } }, 45_000);
+      return;
+    }
+    const call = this.live; if (!call || call.cid !== cid || call.id !== id) return;
+    if (a === "answer" && call.dir === "out") {
+      if (typeof o.sdp !== "string") return;
+      void (async () => {
+        try {
+          await call.pc.setRemoteDescription({ type: "answer", sdp: o.sdp as string });
+          for (const cand of call.pendingIce) void call.pc.addIceCandidate(cand).catch(() => {});
+          call.pendingIce = [];
+          this.patchCall({ startedAt: Date.now() });
+        } catch { this.sendCallFrame(cid, { k: "call", a: "bye", id }); this.endLive("silent"); }
+      })();
+    } else if (a === "ice") {
+      const cand = o.c as RTCIceCandidateInit | undefined;
+      if (!cand || typeof cand.candidate !== "string") return;
+      if (!call.pc.remoteDescription) call.pendingIce.push(cand);
+      else void call.pc.addIceCandidate(cand).catch(() => {});
+    } else if (a === "bye") this.endLive("silent");
+    else if (a === "reject") this.endLive("silent");
+  }
+  private wireCallPc(cid: string, id: string, pc: RTCPeerConnection) {
+    pc.onicecandidate = (e) => { if (e.candidate) this.sendCallFrame(cid, { k: "call", a: "ice", id, c: e.candidate.toJSON() }); };
+    pc.ontrack = (e) => { if (this.live?.id === id && e.streams[0]) this.patchCall({ remote: e.streams[0] }); };
+    pc.onconnectionstatechange = () => {
+      const st = pc.connectionState;
+      if (st === "failed" || st === "closed") { if (this.live?.id === id) { this.sendCallFrame(cid, { k: "call", a: "bye", id }); this.endLive("silent"); } }
+      else if (st === "connected" && this.live?.id === id && this.live.state !== "active") this.patchCall({ state: "active", startedAt: this.live.startedAt ?? Date.now() });
+    };
   }
 
   /* ---------- messages ---------- */
@@ -488,6 +628,8 @@ export class P2PManager {
      direct frames arrive with their owning link; relayed frames come from onRelayFrame */
   private async apply(cid: string, f: unknown) {
     if (!f || typeof f !== "object") return; const o = f as Record<string, unknown>;
+    if (this.snap.contacts.find((c) => c.id === cid)?.blocked) return; // blocked contacts are fully silenced
+    if (o.k === "call") { this.onCallFrame(cid, o); return; }
     const conv = this.host.getConversations().find((c) => c.contactId === cid); if (!conv) return;
     if (o.k === "ping") { const link = this.links.get(cid); if (link?.sess) this.sendFrame(cid, { k: "pong" }); return; } // heartbeat is a direct-link-only affair
     const ack = (id: string) => {

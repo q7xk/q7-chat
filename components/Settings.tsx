@@ -1,11 +1,12 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Download, ImagePlus, Moon, Sun, Trash2, Upload } from "lucide-react";
+import { Download, ImagePlus, Moon, Palette, Sun, Trash2, Upload } from "lucide-react";
 import * as db from "@/lib/db";
 import { useStore } from "@/lib/store";
 import { useI18n, LANGS } from "@/lib/i18n";
 import { useP2P } from "@/lib/p2p/context";
 import { prepareAvatar } from "@/lib/attach";
+import { ACCENTS } from "@/lib/theme";
 import type { PreviewPolicy } from "@/lib/types";
 import { cn } from "@/lib/cn";
 import { Avatar } from "./Badges";
@@ -15,7 +16,7 @@ import { Box, Page } from "./ui";
 export function SettingsPanel() {
   const { t, tk, pref, setPref, size } = useI18n(); const { settings, setSettings, wipeLocal, exportLocal, importLocal } = useStore(); const { mgr, snap } = useP2P();
   const [name, setName] = useState(snap.settings.name), [relays, setRelays] = useState(snap.settings.customRelays.join("\n")), [turn, setTurn] = useState(snap.settings.turn?.urls ?? "");
-  const [tu, setTu] = useState(snap.settings.turn?.username ?? ""), [tp, setTp] = useState(snap.settings.turn?.credential ?? "");
+  const [tu, setTu] = useState(snap.settings.turn?.username ?? ""), [tp, setTp] = useState(snap.settings.turn?.credential ?? ""), [gk, setGk] = useState(snap.settings.giphy ?? "");
   const [warn, setWarn] = useState(false), [confirm, setConfirm] = useState(false), [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null), [usage, setUsage] = useState(0);
   const file = useRef<HTMLInputElement>(null), photo = useRef<HTMLInputElement>(null);
   useEffect(() => { setName(snap.settings.name); }, [snap.settings.name]);
@@ -48,7 +49,7 @@ export function SettingsPanel() {
 
       <Box className="space-y-3"><p className="text-sm font-medium">{t("set.privacy")}</p><p className="text-xs text-muted">{t("set.prev")}</p>
         <div role="radiogroup" aria-label={t("set.prev")} className="flex flex-wrap gap-2">
-          {prev.map((o) => <button key={o.v} role="radio" aria-checked={settings.previews === o.v} onClick={() => setSettings({ previews: o.v })} className={cn("rounded-xl border px-4 py-2 text-sm font-medium transition-[border-radius] duration-300 ease-spring hover:rounded-full", settings.previews === o.v ? "border-transparent bg-sc text-onsc" : "border-line text-muted")}>{t(o.k)}</button>)}
+          {prev.map((o) => <button key={o.v} role="radio" aria-checked={settings.previews === o.v} onClick={() => setSettings({ previews: o.v })} className={cn("rounded-xl border px-4 py-2 text-sm font-medium transition-colors", settings.previews === o.v ? "border-transparent bg-sc text-onsc" : "border-line text-muted hover:bg-container")}>{t(o.k)}</button>)}
         </div>
       </Box>
 
@@ -71,8 +72,28 @@ export function SettingsPanel() {
         <div className="inline-flex rounded-full bg-highest p-1" role="group">
           {(["dark", "light"] as const).map((x) => <button key={x} onClick={() => setSettings({ theme: x })} aria-pressed={settings.theme === x} className={cn("inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm", settings.theme === x ? "bg-pc text-onpc" : "text-muted")}>{x === "dark" ? <Moon size={14} /> : <Sun size={14} />}{t(x === "dark" ? "set.dark" : "set.light")}</button>)}
         </div>
+        <div className="space-y-2"><p className="text-xs text-muted">{t("set.themeColor")}</p>
+          <div role="radiogroup" aria-label={t("set.themeColor")} className="flex flex-wrap items-center gap-2.5">
+            {ACCENTS.map((a) => (
+              <button key={a.id} role="radio" aria-checked={settings.accent === a.id} onClick={() => setSettings({ accent: a.id })} title={t("set.themeColor")}
+                className={cn("h-9 w-9 rounded-full transition-[filter] hover:brightness-110", settings.accent === a.id && "ring-2 ring-ink ring-offset-2 ring-offset-[rgb(var(--panel))]")}
+                style={{ backgroundColor: `hsl(${a.hue} 60% 55%)` }} />
+            ))}
+            <label className={cn("flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-white", settings.accent.startsWith("#") && "ring-2 ring-ink ring-offset-2 ring-offset-[rgb(var(--panel))]")}
+              title={t("set.themeCustom")} style={{ background: settings.accent.startsWith("#") ? settings.accent : "conic-gradient(#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00)" }}>
+              {!settings.accent.startsWith("#") && <Palette size={14} />}
+              <input type="color" value={settings.accent.startsWith("#") ? settings.accent : "#435dff"} onChange={(e) => setSettings({ accent: e.target.value })} aria-label={t("set.themeCustom")} className="absolute h-0 w-0 opacity-0" />
+            </label>
+          </div>
+        </div>
         <label className="block space-y-2"><span className="text-xs text-muted">{t("set.lang")}</span>
           <select value={pref} onChange={(e) => setPref(e.target.value)} className={field}><option value="auto">{t("set.langAuto")}</option>{LANGS.map((l) => <option key={l.code} value={l.code}>{l.name}</option>)}</select></label>
+      </Box>
+
+      <Box className="space-y-4"><p className="text-sm font-medium">{t("set.giphyKey")}</p>
+        <p className="text-xs leading-relaxed text-muted">{t("gif.keyNote")}</p>
+        <div className="flex gap-2"><input dir="ltr" value={gk} onChange={(e) => setGk(e.target.value)} placeholder="GIPHY API key" aria-label={t("set.giphyKey")} className={field} />
+          <button onClick={() => void mgr.setGiphyKey(gk)} className={cn(btn, "bg-sc text-onsc transition-[filter] hover:brightness-110")}>{t("c.save")}</button></div>
       </Box>
 
       <Box className="space-y-4"><p className="text-sm font-medium">{t("set.storage")}</p>

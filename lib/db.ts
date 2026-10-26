@@ -56,6 +56,13 @@ export const deleteConversation = (id: string) => run([STORES.conv, STORES.msg, 
   keys.forEach((k) => { tx.objectStore(STORES.msg).delete(k); tx.objectStore(STORES.blobs).delete(k); }); // blob id equals message id
 });
 
+/** Keeps the conversation, wipes its messages and their blobs. */
+export const clearConversation = (id: string) => run([STORES.msg, STORES.blobs], "readwrite", async (tx) => {
+  const keys = await req(tx.objectStore(STORES.msg).index("conversationId").getAllKeys(id));
+  keys.forEach((k) => { tx.objectStore(STORES.msg).delete(k); tx.objectStore(STORES.blobs).delete(k); });
+  return keys.length;
+});
+
 /** Deletes the actual records for every message whose expiresAt <= now. */
 export const purgeExpired = (now: number) => run([STORES.msg], "readwrite", async (tx) => {
   const store = tx.objectStore(STORES.msg);

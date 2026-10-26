@@ -25,6 +25,15 @@ export function prepareDocument(file: File): { att: Attachment; blob: Blob } {
   if (file.size === 0) throw new Error("err.generic");
   return { att: { t: "file", kind: "document", name: safeName(file.name), mime: "application/octet-stream", size: file.size }, blob: file };
 }
+/** Picks the best voice codec the browser offers; Chrome=webm/opus, Safari=mp4/aac, Firefox=ogg/opus. */
+export function pickVoiceMime(): string {
+  const list = ["audio/webm;codecs=opus", "audio/ogg;codecs=opus", "audio/mp4;codecs=aac", "audio/webm", "audio/mp4"];
+  return list.find((m) => typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(m)) ?? "";
+}
+export const prepareVoice = (blob: Blob, dur: number): { att: Attachment; blob: Blob } => ({
+  att: { t: "file", kind: "voice", name: `voice-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.webm`, mime: blob.type || "audio/webm", size: blob.size, dur: Math.max(1, Math.round(dur)) },
+  blob,
+});
 /** Square 160px JPEG data URL for profile photos. */
 export async function prepareAvatar(file: File): Promise<string> {
   const bmp = await createImageBitmap(file); const s = Math.min(bmp.width, bmp.height);
@@ -34,6 +43,10 @@ export async function prepareAvatar(file: File): Promise<string> {
 }
 export const validAvatar = (v: unknown): v is string => typeof v === "string" && v.length < 60_000 && /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(v);
 
+/** GIFs ride as plain https URLs; only GIPHY media hosts are accepted to keep the frame small and predictable. */
+export const GIF_HOST = /(^(https:)?\/\/(media|i)\.giphy\.com\/|media\.tenor\.com)/;
+export const validGifUrl = (u: unknown): u is string => typeof u === "string" && u.length < 500 && /^https:\/\/[^\s"]+$/.test(u) && GIF_HOST.test(u);
+
 const num = (v: unknown, lo: number, hi: number) => typeof v === "number" && Number.isFinite(v) && v >= lo && v <= hi;
 const str = (v: unknown, max: number) => typeof v === "string" && v.length <= max;
 
@@ -41,9 +54,17 @@ const str = (v: unknown, max: number) => typeof v === "string" && v.length <= ma
 export async function cleanAtt(a: unknown): Promise<Attachment | null> {
   if (!a || typeof a !== "object") return null; const o = a as Record<string, unknown>;
   switch (o.t) {
-    case "file":
-      if ((o.kind !== "image" && o.kind !== "document") || !str(o.name, 100) || !num(o.size, 1, MAX_FILE)) return null;
-      return { t: "file", kind: o.kind, name: safeName(o.name as string), size: o.size as number, mime: o.kind === "image" && typeof o.mime === "string" && IMG.test(o.mime) ? o.mime : "application/octet-stream" };
+    case "file": {
+      if ((o.kind !== "image" && o.kind !== "document" && o.kind !== "voice") || !str(o.name, 100) || !num(o.size, 1, MAX_FILE)) return null;
+      if (o.kind === "voice" && !num(o.dur, 1, 1800)) return null;
+      const mime = typeof o.mime === "string" ? o.mime : "";
+      // documents are never trusted with a sender-supplied type; voice keeps a strict audio/* allow-list so blobs replay
+      return { t: "file", kind: o.kind, name: safeName(o.name as string), size: o.size as number, dur: o.kind === "voice" ? (o.dur as number) : undefined,
+        mime: o.kind === "voice" && /^audio\/(webm|ogg|mp4|aac|mpeg)/.test(mime) ? mime : o.kind === "image" && IMG.test(mime) ? mime : "application/octet-stream" };
+    }
+    case "gif":
+      if (!validGifUrl(o.url) || !num(o.w, 16, 2000) || !num(o.h, 16, 2000)) return null;
+      return { t: "gif", url: o.url as string, w: o.w as number, h: o.h as number };
     case "location": return num(o.lat, -90, 90) && num(o.lon, -180, 180) ? { t: "location", lat: o.lat as number, lon: o.lon as number } : null;
     case "contact": {
       if (!str(o.name, 80) || typeof o.pub !== "string" || typeof o.code !== "string") return null;
