@@ -91,7 +91,7 @@ export function CallOverlay() {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-gradient-to-b from-black/85 via-black/80 to-black/90 text-white backdrop-blur-md" role="dialog" aria-label={t("call.audio")}>
+    <div className="m3-fade fixed inset-0 z-50 flex flex-col bg-gradient-to-b from-black/85 via-black/80 to-black/90 text-white backdrop-blur-md" role="dialog" aria-label={t("call.audio")}>
       {/* audio-only calls: the remote stream must ride an element to be heard */}
       {!call.video && <audio ref={remoteAudio} autoPlay onLoadedMetadata={(e) => void e.currentTarget.play().catch(() => { e.currentTarget.muted = true; void e.currentTarget.play().catch(() => {}); })} />}
       <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6 pt-16">
@@ -102,7 +102,7 @@ export function CallOverlay() {
             {call.local && <video ref={local} autoPlay playsInline muted className="absolute end-3 top-3 h-28 w-20 rounded-2xl border border-white/20 bg-black object-cover md:h-36 md:w-24" style={{ transform: "scaleX(-1)" }} />}
           </div>
         ) : (
-          <div className="flex flex-col items-center gap-4">
+          <div className="m3-bounce flex flex-col items-center gap-4">
             <Avatar title={contact?.name ?? "?"} mode="p2p" photo={contact?.photo} size={120} shape="sunny" />
             {(muted || camOff) && active && <p className="text-xs text-white/60">{muted ? t("call.mute") : ""}{muted && camOff ? " · " : ""}{camOff && call.video ? t("call.cameraOff") : ""}</p>}
           </div>

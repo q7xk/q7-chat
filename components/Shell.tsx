@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { MessageSquare, Phone, ScanLine, Settings as Cog, Users, type LucideIcon } from "lucide-react";
 import type { View } from "@/lib/types";
 import { cn } from "@/lib/cn";
@@ -27,6 +27,11 @@ export function Shell() {
   const openChat = (id: string) => { setView("chats"); setActiveId(id); };
   const chat = view === "chats"; const pane = "md:rounded-[28px] md:overflow-hidden"; const paneScroll = "md:rounded-[28px]";
   const badge = (id: View) => (id === "connect" ? snap.requests.length : 0);
+  /* direction-aware shared-axis transition when switching categories */
+  const idx = NAV.findIndex((n) => n.id === view);
+  const lastIdx = useRef(idx);
+  const viewAnim = idx === lastIdx.current ? "" : idx > lastIdx.current ? "m3-view-next" : "m3-view-prev";
+  useEffect(() => { lastIdx.current = idx; });
 
   return (
     <div className="flex h-dvh flex-col bg-bg md:flex-row">
@@ -36,8 +41,8 @@ export function Shell() {
         <ul className="flex flex-1 flex-col gap-1">
           {NAV.map(({ id, label, icon: Icon }) => (
             <li key={id}>
-              <button onClick={() => go(id)} aria-current={view === id ? "page" : undefined} className={cn("flex h-14 w-full items-center gap-3 rounded-full px-5 text-start text-[15px] font-medium transition-[background-color] duration-300", view === id ? "bg-sc text-onsc" : "text-muted hover:bg-container hover:text-ink")}>
-                <Icon size={21} />{t(label)}{badge(id) > 0 && <span className="ms-auto rounded-full bg-accent px-2 text-xs font-semibold text-bg">{badge(id)}</span>}
+              <button onClick={() => go(id)} aria-current={view === id ? "page" : undefined} className={cn("m3-press flex h-14 w-full items-center gap-3 rounded-full px-5 text-start text-[15px] font-medium", view === id ? "bg-sc text-onsc" : "text-muted hover:bg-container hover:text-ink")}>
+                <span key={view === id ? "on" : "off"} className={cn("flex", view === id && "m3-bounce")}><Icon size={21} /></span>{t(label)}{badge(id) > 0 && <span key={badge(id)} className="m3-bounce ms-auto rounded-full bg-accent px-2 text-xs font-semibold text-bg">{badge(id)}</span>}
               </button>
             </li>
           ))}
@@ -47,15 +52,17 @@ export function Shell() {
       <main className="flex min-h-0 min-w-0 flex-1 gap-2 md:p-2 md:ps-0">
         {chat ? (
           <>
-            <section className={cn("w-full shrink-0 flex-col bg-panel md:flex md:w-96", pane, activeId ? "hidden" : "flex")}><ChatList activeId={activeId} onOpen={setActiveId} onAdd={() => go("connect")} /></section>
-            <section className={cn("min-w-0 flex-1 flex-col bg-container md:flex", pane, activeId ? "flex" : "hidden")}><Thread conversationId={activeId} onBack={() => setActiveId(null)} /></section>
+            <section className={cn("m3-fade w-full shrink-0 flex-col bg-panel md:flex md:w-96", pane, activeId ? "hidden" : "flex")}><ChatList activeId={activeId} onOpen={setActiveId} onAdd={() => go("connect")} /></section>
+            <section key={activeId} className={cn("m3-page min-w-0 flex-1 flex-col bg-container md:flex", pane, activeId ? "flex" : "hidden")}><Thread conversationId={activeId} onBack={() => setActiveId(null)} /></section>
           </>
         ) : (
-          <section className={cn("min-w-0 flex-1 overflow-y-auto bg-panel scroll-thin", paneScroll)}>
-            {view === "contacts" && <ContactsPanel onOpenChat={openChat} onAdd={() => go("connect")} />}
-            {view === "connect" && <ConnectPanel onOpenChat={openChat} />}
-            {view === "calls" && <CallsPanel onOpenChat={openChat} />}
-            {view === "settings" && <SettingsPanel />}
+          <section className={cn("min-w-0 flex-1 overflow-y-auto overflow-x-clip bg-panel scroll-thin", paneScroll)}>
+            <div key={view} className={cn("min-h-full", viewAnim)}>
+              {view === "contacts" && <ContactsPanel onOpenChat={openChat} onAdd={() => go("connect")} />}
+              {view === "connect" && <ConnectPanel onOpenChat={openChat} />}
+              {view === "calls" && <CallsPanel onOpenChat={openChat} />}
+              {view === "settings" && <SettingsPanel />}
+            </div>
           </section>
         )}
       </main>
@@ -66,8 +73,8 @@ export function Shell() {
         <ul className="grid grid-cols-5 px-1 pb-2 pt-3">
           {NAV.map(({ id, label, icon: Icon }) => (
             <li key={id}>
-              <button onClick={() => go(id)} aria-label={t(label)} aria-current={view === id ? "page" : undefined} className="flex w-full flex-col items-center gap-1 text-xs font-medium">
-                <span className={cn("relative flex h-8 w-16 items-center justify-center rounded-full transition-[background-color] duration-300 ease-spring", view === id ? "bg-sc text-onsc" : "text-muted")}><Icon size={20} />{badge(id) > 0 && <span className="absolute end-2 top-0 h-2.5 w-2.5 rounded-full bg-accent" />}</span>
+              <button onClick={() => go(id)} aria-label={t(label)} aria-current={view === id ? "page" : undefined} className="m3-press flex w-full flex-col items-center gap-1 text-xs font-medium">
+                <span key={view === id ? "on" : "off"} className={cn("relative flex h-8 w-16 items-center justify-center rounded-full transition-[background-color] duration-300 ease-spring", view === id ? "m3-bounce bg-sc text-onsc" : "text-muted")}><Icon size={20} />{badge(id) > 0 && <span key={badge(id)} className="m3-bounce absolute end-2 top-0 h-2.5 w-2.5 rounded-full bg-accent" />}</span>
                 <span className={cn("truncate", view === id ? "text-ink" : "text-muted")}>{t(label)}</span>
               </button>
             </li>

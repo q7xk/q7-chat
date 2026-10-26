@@ -33,7 +33,51 @@ body { background: rgb(var(--bg)); color: rgb(var(--text)); -webkit-font-smoothi
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 .scroll-thin { scrollbar-width: thin; scrollbar-color: rgb(var(--line)) transparent; }
 
-/* M3 Expressive: springy entrance for menus, sheets and pickers. */
+/* ===== M3 Expressive motion =====
+   Springs use cubic-bezier(0.34, 1.56, 0.64, 1). Press feedback fires on :active only —
+   hover never morphs shapes. Reduced motion is handled by the global rule above. */
 @keyframes m3-pop { from { opacity: 0; transform: translateY(10px) scale(0.96); } to { opacity: 1; transform: none; } }
 .m3-pop { animation: m3-pop 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
-@media (prefers-reduced-motion: reduce) { .m3-pop { animation: none; } }
+
+@keyframes m3-fade { from { opacity: 0; } }
+.m3-fade { animation: m3-fade 0.25s ease-out both; }
+
+@keyframes m3-rise { from { opacity: 0; transform: translateY(14px) scale(0.98); } to { opacity: 1; transform: none; } }
+.m3-rise { animation: m3-rise 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+
+/* Shared-axis switch between nav categories; flipped for RTL. */
+@keyframes m3-view-next { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: none; } }
+@keyframes m3-view-prev { from { opacity: 0; transform: translateX(-28px); } to { opacity: 1; transform: none; } }
+.m3-view-next { animation: m3-view-next 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.m3-view-prev { animation: m3-view-prev 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+[dir="rtl"] .m3-view-next { animation-name: m3-view-prev; }
+[dir="rtl"] .m3-view-prev { animation-name: m3-view-next; }
+
+/* A chat opens as a page sliding in from the end edge. */
+@keyframes m3-page { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: none; } }
+@keyframes m3-page-rtl { from { opacity: 0; transform: translateX(-40px); } to { opacity: 1; transform: none; } }
+.m3-page { animation: m3-page 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+[dir="rtl"] .m3-page { animation-name: m3-page-rtl; }
+
+/* Fresh messages pop in; on open the transcript cascades newest-last. */
+@keyframes m3-msg { from { opacity: 0; transform: translateY(8px) scale(0.97); } to { opacity: 1; transform: none; } }
+.m3-msg { animation: m3-msg 0.24s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+
+/* Springy pop for badges and icons that just became active. */
+@keyframes m3-bounce { 0% { opacity: 0; transform: scale(0.4); } 60% { opacity: 1; transform: scale(1.15); } 100% { transform: scale(1); } }
+.m3-bounce { animation: m3-bounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+
+/* Press squish — add .m3-press to buttons without their own active: scale utility. */
+.m3-press { transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.15s ease, color 0.15s ease, filter 0.15s ease; }
+.m3-press:active:not(:disabled) { transform: scale(0.94); }
+
+/* Children of .stagger cascade in on mount (delay capped after the 8th child). */
+.stagger > * { animation: m3-rise 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.stagger > *:nth-child(2) { animation-delay: 30ms; }
+.stagger > *:nth-child(3) { animation-delay: 60ms; }
+.stagger > *:nth-child(4) { animation-delay: 90ms; }
+.stagger > *:nth-child(5) { animation-delay: 120ms; }
+.stagger > *:nth-child(6) { animation-delay: 150ms; }
+.stagger > *:nth-child(7) { animation-delay: 180ms; }
+.stagger > *:nth-child(8) { animation-delay: 210ms; }
+.stagger > *:nth-child(n + 9) { animation-delay: 240ms; }

@@ -59,7 +59,7 @@ export function Thread({ conversationId, onBack }: { conversationId: string | nu
   return (
     <>
       <header className="flex items-center gap-3 px-4 py-3">
-        <button onClick={onBack} aria-label={t("thread.back")} className="rounded-full p-2 text-muted hover:bg-raised md:hidden"><ChevronLeft size={18} className="rtl:-scale-x-100" /></button>
+        <button onClick={onBack} aria-label={t("thread.back")} className="m3-press rounded-full p-2 text-muted hover:bg-raised md:hidden"><ChevronLeft size={18} className="rtl:-scale-x-100" /></button>
         <Avatar title={contact?.name ?? conv.title} mode={conv.mode} photo={contact?.photo} />
         <div className="min-w-0 flex-1">
           <h2 className="flex items-center gap-1.5 truncate text-lg font-semibold tracking-tight">{contact?.name ?? conv.title}{contact?.verified && <ShieldCheck size={15} className="shrink-0 text-accent" aria-label={t("thread.verified")} />}</h2>
@@ -68,17 +68,17 @@ export function Thread({ conversationId, onBack }: { conversationId: string | nu
             {p2p && <span className={cn("inline-flex items-center gap-1.5 text-xs", state === "online" ? "text-accent" : "text-muted")}><span className={cn("h-2 w-2 rounded-full", state === "online" ? "bg-accent" : state === "connecting" ? "animate-pulse bg-local" : "bg-line")} />{state === "online" ? t("thread.online") + viaRelay : state === "connecting" ? t("thread.connecting") : t("thread.offline") + viaRelay}</span>}
           </div>
         </div>
-        {p2p && state === "offline" && <button onClick={() => mgr.connectNow(conv.contactId!)} className="inline-flex items-center gap-2 rounded-full bg-sc px-4 py-2 text-sm font-medium text-onsc transition-[filter] hover:brightness-110"><Wifi size={14} />{t("thread.connect")}</button>}
+        {p2p && state === "offline" && <button onClick={() => mgr.connectNow(conv.contactId!)} className="m3-press inline-flex items-center gap-2 rounded-full bg-sc px-4 py-2 text-sm font-medium text-onsc hover:brightness-110"><Wifi size={14} />{t("thread.connect")}</button>}
         <ChatMenu conv={conv} contact={contact} p2p={p2p} />
       </header>
       <p className="mx-4 rounded-2xl bg-tc px-4 py-3 text-sm leading-relaxed text-ontc">{p2p ? t("thread.noteP2P") : t("thread.noteLocal")}</p>
 
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4 scroll-thin" role="log" aria-label={contact?.name ?? conv.title} style={{ backgroundImage: wallStyle(conv.wall) }}>
         {list.length === 0 && <p className="pt-10 text-center text-sm text-muted">{t("thread.empty")}</p>}
-        {list.map((m) => {
+        {list.map((m, i) => {
           const incoming = m.direction === "in"; const parent = m.replyToId ? list.find((x) => x.id === m.replyToId) : undefined;
           return (
-            <div key={m.id} className={cn("group max-w-[min(34rem,90%)]", incoming ? "me-auto" : "ms-auto")}>
+            <div key={m.id} style={{ animationDelay: `${Math.min(list.length - 1 - i, 9) * 25}ms` }} className={cn("m3-msg group max-w-[min(34rem,90%)]", incoming ? "me-auto" : "ms-auto")}>
               <div className={cn("space-y-2 rounded-3xl px-4 py-3", incoming ? "rounded-es-md bg-highest text-ink" : "rounded-ee-md bg-pc text-onpc")}>
                 {m.replyToId && <p className="truncate rounded-lg border-s-4 border-current bg-black/10 py-1 ps-2 text-xs opacity-80">{parent ? parent.body || parent.link?.title || t("chats.link") : t("thread.gone")}</p>}
                 <Body m={m} />
@@ -88,9 +88,9 @@ export function Thread({ conversationId, onBack }: { conversationId: string | nu
                 <Clock size={11} aria-hidden /><span>{t("thread.expires", { time: dur(m.expiresAt - now) })}</span>
                 {p2p && !incoming && m.status && <span className="ms-1">· {statusText[m.status]}</span>}
                 <span className="ms-2 flex items-center opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100">
-                  <button onClick={() => setReplyId(m.id)} aria-label={t("thread.reply")} className="rounded-full p-1.5 hover:bg-raised hover:text-ink"><Reply size={14} className="rtl:-scale-x-100" /></button>
+                  <button onClick={() => setReplyId(m.id)} aria-label={t("thread.reply")} className="m3-press rounded-full p-1.5 hover:bg-raised hover:text-ink"><Reply size={14} className="rtl:-scale-x-100" /></button>
                   {m.body && <CopyButton text={m.body} />}
-                  <button onClick={() => remove(m.id)} aria-label={t("thread.delete")} className="rounded-full p-1.5 hover:bg-raised hover:text-danger"><Trash2 size={14} /></button>
+                  <button onClick={() => remove(m.id)} aria-label={t("thread.delete")} className="m3-press rounded-full p-1.5 hover:bg-raised hover:text-danger"><Trash2 size={14} /></button>
                 </span>
               </div>
             </div>

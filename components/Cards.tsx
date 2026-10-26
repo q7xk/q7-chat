@@ -39,7 +39,7 @@ function VoiceBubble({ url, dur }: { url: string; dur: number }) {
   };
   return (
     <div className="flex min-w-52 items-center gap-3 py-1">
-      <button onClick={toggle} aria-label={playing ? "pause" : "play"} className="shrink-0 transition-[filter] hover:brightness-110">
+      <button onClick={toggle} aria-label={playing ? "pause" : "play"} className="m3-press shrink-0 hover:brightness-110">
         {playing ? <PauseCircle size={34} /> : <PlayCircle size={34} />}
       </button>
       <div className="min-w-0 flex-1">
@@ -63,11 +63,11 @@ export function AttachmentView({ m, p2p, onVote }: { m: Message; p2p: boolean; o
   const { t, size, date } = useI18n(); const { mgr, snap } = useP2P();
   const a = m.att; const file = useBlob(a?.t === "file" ? m.id : "");
   if (!a) return null;
-  const chip = "inline-flex items-center gap-2 rounded-full bg-black/10 px-4 py-2 text-sm font-medium";
+  const chip = "m3-press inline-flex items-center gap-2 rounded-full bg-black/10 px-4 py-2 text-sm font-medium hover:bg-black/20";
 
   if (a.t === "gif") {
     return (
-      <a href={a.url} target="_blank" rel="noopener noreferrer nofollow" className="block overflow-hidden rounded-2xl transition-[filter] hover:brightness-110" style={{ aspectRatio: `${a.w}/${a.h}`, maxWidth: 260 }}>
+      <a href={a.url} target="_blank" rel="noopener noreferrer nofollow" className="m3-press block overflow-hidden rounded-2xl hover:brightness-110" style={{ aspectRatio: `${a.w}/${a.h}`, maxWidth: 260 }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={a.url} alt="GIF" width={a.w} height={a.h} loading="lazy" className="h-full w-full object-cover" />
       </a>
@@ -79,7 +79,7 @@ export function AttachmentView({ m, p2p, onVote }: { m: Message; p2p: boolean; o
     if (a.kind === "image") return /* eslint-disable-next-line @next/next/no-img-element */ <img src={file.url} alt={a.name} className="max-h-72 w-full rounded-2xl object-contain" />;
     return (
       <div className="flex items-center gap-3"><FileText size={26} /><div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{a.name}</p><p className="text-xs opacity-80">{size(a.size)}</p></div>
-        <button onClick={() => save(file.url, a.name)} aria-label={t("c.save")} className="rounded-full bg-black/10 p-2.5"><Download size={18} /></button></div>
+        <button onClick={() => save(file.url, a.name)} aria-label={t("c.save")} className="m3-press rounded-full bg-black/10 p-2.5 hover:bg-black/20"><Download size={18} /></button></div>
     );
   }
   if (a.t === "location") {
@@ -100,8 +100,8 @@ export function AttachmentView({ m, p2p, onVote }: { m: Message; p2p: boolean; o
     return (
       <div className="min-w-56 space-y-2"><p className="text-sm font-semibold">{a.q}</p>
         {a.opts.map((o, i) => (
-          <button key={i} onClick={() => toggle(i)} aria-pressed={mine.includes(i)} className="relative block w-full overflow-hidden rounded-2xl bg-black/10 px-4 py-2.5 text-start text-sm">
-            <span className="absolute inset-y-0 start-0 bg-black/15" style={{ width: total ? `${(count(i) / total) * 100}%` : 0 }} aria-hidden />
+          <button key={i} onClick={() => toggle(i)} aria-pressed={mine.includes(i)} className="m3-press relative block w-full overflow-hidden rounded-2xl bg-black/10 px-4 py-2.5 text-start text-sm hover:bg-black/20">
+            <span className="absolute inset-y-0 start-0 bg-black/15 transition-[width] duration-300" style={{ width: total ? `${(count(i) / total) * 100}%` : 0 }} aria-hidden />
             <span className="relative flex justify-between gap-3"><span className={cn(mine.includes(i) && "font-semibold")}>{mine.includes(i) ? "✓ " : ""}{o}</span><span className="tabular-nums">{count(i)}</span></span>
           </button>
         ))}

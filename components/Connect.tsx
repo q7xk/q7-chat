@@ -9,7 +9,7 @@ import { Avatar } from "./Badges";
 import { Scanner } from "./Scanner";
 import { Box, Page } from "./ui";
 
-export const btn = "inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition-[filter] hover:brightness-110";
+export const btn = "m3-press inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium hover:brightness-110";
 export const field = "w-full rounded-2xl bg-highest px-4 py-3 text-sm";
 
 export function CopyBtn({ text, label }: { text: string; label: string }) {
@@ -50,7 +50,7 @@ export function ConnectPanel({ onOpenChat }: { onOpenChat: (convId: string) => v
   if (!snap.ready) return <Page title={t("connect.title")}><div className="h-40 animate-pulse rounded-3xl bg-container" /></Page>;
   if (snap.error) return <Page title={t("connect.title")}><Box className="bg-danger/10"><p role="alert" className="text-sm text-danger">{tk(snap.error)}</p></Box></Page>;
   return (
-    <Page title={t("connect.title")}>
+    <Page title={t("connect.title")} className="stagger">
       <Box className="space-y-4">
         <div className="flex items-center gap-3"><Avatar title={snap.settings.name} mode="p2p" photo={snap.settings.photo} /><div><p className="text-sm font-medium">{snap.settings.name}</p><p className="text-xs text-muted">{t("connect.yourCode")}</p></div></div>
         <p className="text-center text-[34px] font-semibold tabular-nums tracking-wider" dir="ltr">{formatCode(snap.code)}</p>

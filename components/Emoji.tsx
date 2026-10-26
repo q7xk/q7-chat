@@ -30,15 +30,15 @@ export function EmojiPicker({ onPick }: { onPick: (e: string) => void }) {
           {["recent", ...EMOJI_GROUPS.map((g) => g.id)].map((id) => (
             <button key={id} role="tab" aria-selected={tab === id} aria-label={t(id === "recent" ? "emoji.recent" : `emoji.cat.${id}` as K)} onClick={() => setTab(id)}
               title={t(id === "recent" ? "emoji.recent" : `emoji.cat.${id}` as K)}
-              className={cn("shrink-0 rounded-full px-3 py-1.5 text-xl transition-colors", tab === id ? "bg-pc text-onpc" : "text-muted hover:bg-container")}>
+              className={cn("m3-press shrink-0 rounded-full px-3 py-1.5 text-xl", tab === id ? "bg-pc text-onpc" : "text-muted hover:bg-container")}>
               {id === "recent" ? <span className="text-sm">{t("emoji.recent")}</span> : CAT_ICON[id]}
             </button>
           ))}
         </div>
       )}
-      <div className="grid max-h-44 grid-cols-[repeat(auto-fill,minmax(2.5rem,1fr))] gap-0.5 overflow-y-auto scroll-thin" role="group">
+      <div key={tab} className="m3-fade grid max-h-44 grid-cols-[repeat(auto-fill,minmax(2.5rem,1fr))] gap-0.5 overflow-y-auto scroll-thin" role="group">
         {list.length === 0 && <p className="col-span-full py-4 text-center text-sm text-muted">{t("emoji.none")}</p>}
-        {list.map((e) => <button key={e} onClick={() => pick(e)} className="rounded-xl px-1 py-1 text-2xl transition-colors hover:bg-container">{e}</button>)}
+        {list.map((e) => <button key={e} onClick={() => pick(e)} className="m3-press rounded-xl px-1 py-1 text-2xl hover:bg-container">{e}</button>)}
       </div>
     </div>
   );

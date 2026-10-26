@@ -24,11 +24,11 @@ function Row({ c, state, myPub, onOpen }: { c: Contact; state?: string; myPub: s
         <div className="min-w-0 flex-1"><p className="truncate font-medium">{c.name}</p><p className="text-xs tabular-nums text-muted" dir="ltr">{formatCode(c.code)}</p>
           <span className={cn("inline-flex items-center gap-1.5 text-xs", on ? "text-accent" : "text-muted")}><span className={cn("h-2 w-2 rounded-full", on ? "bg-accent" : state === "connecting" ? "animate-pulse bg-local" : "bg-line")} />{on ? t("thread.online") : state === "connecting" ? t("thread.connecting") : t("thread.offline")}</span></div>
         {c.verified && <ShieldCheck size={18} className="text-accent" aria-label={t("thread.verified")} />}
-        <button onClick={onOpen} aria-label={c.name} className="rounded-full bg-pc p-3 text-onpc"><MessageSquare size={18} /></button>
+        <button onClick={onOpen} aria-label={c.name} className="m3-press rounded-full bg-pc p-3 text-onpc hover:brightness-110"><MessageSquare size={18} /></button>
       </div>
-      <button onClick={() => setOpen(!open)} aria-expanded={open} className="mt-3 text-xs text-muted underline underline-offset-2">{t("contacts.details")}</button>
+      <button onClick={() => setOpen(!open)} aria-expanded={open} className="m3-press mt-3 text-xs text-muted underline underline-offset-2">{t("contacts.details")}</button>
       {open && (
-        <div className="mt-3 space-y-3">
+        <div className="m3-rise mt-3 space-y-3">
           <p className="text-xs leading-relaxed text-muted">{t("contacts.safety")}</p>
           <p className="rounded-2xl bg-highest px-4 py-3 text-center text-lg font-medium tabular-nums tracking-wide" dir="ltr">{safety || "…"}</p>
           <div className="flex flex-wrap gap-2">
@@ -54,12 +54,12 @@ export function ContactsPanel({ onOpenChat, onAdd }: { onOpenChat: (convId: stri
         <button onClick={() => setShowQr(!showQr)} aria-pressed={showQr} className={cn(btn, "bg-sc text-onsc")}><QrCode size={15} />{t("contacts.shareQr")}</button>
         <button onClick={() => { setScan(!scan); setBad(false); }} className={cn(btn, "bg-sc text-onsc")}><Camera size={15} />{t("contacts.scanQr")}</button>
       </div>
-      {showQr && snap.ready && !snap.error && <Box className="space-y-3"><QR text={mgr.myContactQr()} /><p className="text-xs leading-relaxed text-muted">{t("contacts.qrNote")}</p></Box>}
+      {showQr && snap.ready && !snap.error && <Box className="m3-pop space-y-3"><QR text={mgr.myContactQr()} /><p className="text-xs leading-relaxed text-muted">{t("contacts.qrNote")}</p></Box>}
       {scan && <Scanner prefixes={["Q7C:"]} onClose={() => setScan(false)} onResult={(x) => { setScan(false); void mgr.connectByContactQr(x).then((ok) => setBad(!ok)); }} />}
       {bad && <p role="alert" className="text-sm text-danger">{t("contacts.qrBad")}</p>}
       <PairingStatus onOpenChat={onOpenChat} />
       {snap.contacts.length === 0 ? <Box className="py-8 text-center text-sm text-muted">{t("contacts.empty")}</Box> : (
-        <ul className="space-y-3">{snap.contacts.map((c) => <Row key={c.id} c={c} state={snap.status[c.id]} myPub={snap.pub} onOpen={() => onOpenChat(createP2P(c.id, c.name))} />)}</ul>)}
+        <ul className="stagger space-y-3">{snap.contacts.map((c) => <Row key={c.id} c={c} state={snap.status[c.id]} myPub={snap.pub} onOpen={() => onOpenChat(createP2P(c.id, c.name))} />)}</ul>)}
     </Page>
   );
 }

@@ -36,7 +36,7 @@ export function SettingsPanel() {
   const fp = snap.fp.slice(0, 32).toUpperCase().replace(/(.{4})/g, "$1 ").trim();
 
   return (
-    <Page title={t("set.title")}>
+    <Page title={t("set.title")} className="stagger">
       <Box className="space-y-4"><p className="text-sm font-medium">{t("set.profile")}</p>
         <div className="flex items-center gap-4"><Avatar title={snap.settings.name} mode="p2p" photo={snap.settings.photo} size={72} shape="clover8" />
           <div className="flex flex-wrap gap-2">

@@ -39,16 +39,16 @@ export function ChatList({ activeId, onOpen, onAdd }: { activeId: string | null;
           <h1 className="px-1 text-[28px] font-semibold leading-9 tracking-tight">{t("nav.chats")}</h1>
           <button onClick={() => setMenu((v) => !v)} aria-label={t("chats.newLocal")} aria-expanded={menu} className="flex h-12 w-12 items-center justify-center bg-pc text-onpc transition-[filter,transform] duration-200 ease-spring hover:brightness-110 active:scale-95" style={clipShape("clover8")}><Plus size={22} /></button>
           {menu && (
-            <div className="absolute end-0 top-14 z-10 w-60 space-y-1 rounded-3xl bg-highest p-2 shadow-lg">
-              <button onClick={() => { setMenu(false); setAdding(true); }} className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm hover:bg-container"><MessageSquarePlus size={18} />{t("chats.newLocal")}</button>
-              <button onClick={() => { setMenu(false); onAdd(); }} className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm hover:bg-container"><UserPlus size={18} />{t("chats.addContact")}</button>
+            <div className="m3-pop absolute end-0 top-14 z-10 w-60 space-y-1 rounded-3xl bg-highest p-2 shadow-lg">
+              <button onClick={() => { setMenu(false); setAdding(true); }} className="m3-press flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm hover:bg-container"><MessageSquarePlus size={18} />{t("chats.newLocal")}</button>
+              <button onClick={() => { setMenu(false); onAdd(); }} className="m3-press flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm hover:bg-container"><UserPlus size={18} />{t("chats.addContact")}</button>
             </div>
           )}
         </div>
         {adding && (
-          <form onSubmit={(e) => { e.preventDefault(); onOpen(createLocal(title)); setTitle(""); setAdding(false); }} className="flex gap-2">
+          <form onSubmit={(e) => { e.preventDefault(); onOpen(createLocal(title)); setTitle(""); setAdding(false); }} className="m3-rise flex gap-2">
             <input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} maxLength={60} placeholder={t("chats.localName")} aria-label={t("chats.localName")} className="min-w-0 flex-1 rounded-2xl bg-highest px-4 py-3 text-sm" />
-            <button className="rounded-full bg-pc px-5 text-sm font-medium text-onpc">{t("c.save")}</button>
+            <button className="m3-press rounded-full bg-pc px-5 text-sm font-medium text-onpc hover:brightness-110">{t("c.save")}</button>
           </form>
         )}
         <label className="relative block">
@@ -57,14 +57,14 @@ export function ChatList({ activeId, onOpen, onAdd }: { activeId: string | null;
         </label>
         <div className="flex gap-1.5" role="group">
           {(["all", "unread", "archived"] as Filter[]).map((k) => (
-            <button key={k} onClick={() => setF(k)} aria-pressed={f === k} className={cn("rounded-xl border px-4 py-1.5 text-sm font-medium transition-colors", f === k ? "border-transparent bg-sc text-onsc" : "border-line text-muted hover:bg-container")}>{t(`chats.${k}`)}</button>
+            <button key={k} onClick={() => setF(k)} aria-pressed={f === k} className={cn("m3-press rounded-xl border px-4 py-1.5 text-sm font-medium", f === k ? "border-transparent bg-sc text-onsc" : "border-line text-muted hover:bg-container")}>{t(`chats.${k}`)}</button>
           ))}
         </div>
       </header>
-      <ul className="min-h-0 flex-1 space-y-1 overflow-y-auto p-2 scroll-thin">
+      <ul className="stagger min-h-0 flex-1 space-y-1 overflow-y-auto p-2 scroll-thin">
         {rows.map(({ c, name, photo, last, next }) => (
           <li key={c.id}>
-            <button onClick={() => onOpen(c.id)} aria-current={activeId === c.id} className={cn("flex w-full gap-3 rounded-2xl px-3 py-3 text-start transition-colors", activeId === c.id ? "bg-sc text-onsc" : "hover:bg-container")}>
+            <button onClick={() => onOpen(c.id)} aria-current={activeId === c.id} className={cn("m3-press flex w-full gap-3 rounded-2xl px-3 py-3 text-start", activeId === c.id ? "bg-sc text-onsc" : "hover:bg-container")}>
               <Avatar title={name} mode={c.mode} photo={photo} />
               <span className="min-w-0 flex-1">
                 <span className="flex items-center gap-2">
@@ -76,7 +76,7 @@ export function ChatList({ activeId, onOpen, onAdd }: { activeId: string | null;
                 <span className="mt-1.5 flex items-center gap-2">
                   <ModeBadge mode={c.mode} />
                   {next !== null && <span className="inline-flex items-center gap-1 text-[11px] text-muted"><Clock size={11} aria-hidden />{dur(next - now)}</span>}
-                  {c.unread > 0 && <span className="ms-auto min-w-5 rounded-full bg-accent px-1.5 text-center text-xs font-semibold text-bg">{c.unread}</span>}
+                  {c.unread > 0 && <span key={c.unread} className="m3-bounce ms-auto min-w-5 rounded-full bg-accent px-1.5 text-center text-xs font-semibold text-bg">{c.unread}</span>}
                 </span>
               </span>
             </button>

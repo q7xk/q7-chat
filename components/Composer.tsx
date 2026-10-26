@@ -90,9 +90,9 @@ export function Composer({ replyTo, onCancelReply, onSend, onAttach }: {
   return (
     <div className="p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
       {replyTo && (
-        <div className="mb-2 flex items-center gap-2 rounded-2xl border-s-4 border-accent bg-sc px-4 py-2 text-xs text-onsc">
+        <div className="m3-rise mb-2 flex items-center gap-2 rounded-2xl border-s-4 border-accent bg-sc px-4 py-2 text-xs text-onsc">
           <span className="min-w-0 flex-1 truncate">{t("thread.replyingTo", { text: replyTo.body || replyTo.link?.title || t("chats.link") })}</span>
-          <button onClick={onCancelReply} aria-label={t("c.cancel")}><X size={14} /></button>
+          <button onClick={onCancelReply} aria-label={t("c.cancel")} className="m3-press rounded-full p-1 hover:bg-black/10"><X size={14} /></button>
         </div>
       )}
       {panel === "emoji" && <EmojiPicker onPick={(e) => { setText((x) => x + e); ref.current?.focus(); }} />}
@@ -100,43 +100,43 @@ export function Composer({ replyTo, onCancelReply, onSend, onAttach }: {
       {panel === "attach" && (
         <div className="m3-pop mb-2 grid grid-cols-4 gap-2 rounded-3xl bg-highest p-3" role="menu">
           {items.map(({ icon: I, label, run }, i) => (
-            <button key={label} role="menuitem" onClick={run} className="flex flex-col items-center gap-1.5 rounded-2xl p-2 text-xs transition-colors hover:bg-container">
+            <button key={label} role="menuitem" onClick={run} className="m3-press flex flex-col items-center gap-1.5 rounded-2xl p-2 text-xs hover:bg-container">
               <span className="flex h-12 w-12 items-center justify-center bg-pc text-onpc transition-[filter,transform] duration-200 ease-spring hover:brightness-110 active:scale-95" style={clipShape(CHIP_SHAPES[i % CHIP_SHAPES.length])}><I size={21} /></span>{t(label)}
             </button>
           ))}
         </div>
       )}
       {panel === "location" && (
-        <div className="mb-2 space-y-3 rounded-3xl bg-highest p-4"><p className="text-sm font-medium">{t("loc.title")}</p>
+        <div className="m3-pop mb-2 space-y-3 rounded-3xl bg-highest p-4"><p className="text-sm font-medium">{t("loc.title")}</p>
           {locState === "wait" && <p className="text-sm text-muted">{t("loc.getting")}</p>}
           {locState === "denied" && <p role="alert" className="text-sm text-danger">{t("loc.denied")}</p>}
-          {loc && <><p className="text-sm tabular-nums">{loc.lat}, {loc.lon}</p><button onClick={() => done({ t: "location", ...loc })} className={cn(btn, "bg-accent text-bg transition-[filter] hover:brightness-110")}>{t("loc.share")}</button></>}
+          {loc && <><p className="text-sm tabular-nums">{loc.lat}, {loc.lon}</p><button onClick={() => done({ t: "location", ...loc })} className={cn(btn, "bg-accent text-bg")}>{t("loc.share")}</button></>}
         </div>
       )}
       {panel === "contact" && (
-        <div className="mb-2 space-y-2 rounded-3xl bg-highest p-4"><p className="text-sm font-medium">{t("ctc.title")}</p>
+        <div className="m3-pop mb-2 space-y-2 rounded-3xl bg-highest p-4"><p className="text-sm font-medium">{t("ctc.title")}</p>
           {snap.contacts.length === 0 && <p className="text-sm text-muted">{t("ctc.none")}</p>}
-          {snap.contacts.map((c) => <button key={c.id} onClick={() => done({ t: "contact", name: c.name, code: c.code, pub: c.pub })} className="flex w-full items-center justify-between rounded-2xl bg-container px-4 py-3 text-start text-sm transition-colors hover:bg-raised"><span>{c.name}</span><span className="tabular-nums text-muted">{formatCode(c.code)}</span></button>)}
+          {snap.contacts.map((c) => <button key={c.id} onClick={() => done({ t: "contact", name: c.name, code: c.code, pub: c.pub })} className="m3-press flex w-full items-center justify-between rounded-2xl bg-container px-4 py-3 text-start text-sm hover:bg-raised"><span>{c.name}</span><span className="tabular-nums text-muted">{formatCode(c.code)}</span></button>)}
         </div>
       )}
       {panel === "poll" && (
-        <div className="mb-2 space-y-2 rounded-3xl bg-highest p-4"><p className="text-sm font-medium">{t("poll.title")}</p>
+        <div className="m3-pop mb-2 space-y-2 rounded-3xl bg-highest p-4"><p className="text-sm font-medium">{t("poll.title")}</p>
           <input value={q} onChange={(e) => setQ(e.target.value)} maxLength={200} placeholder={t("poll.q")} aria-label={t("poll.q")} className={field} />
           {opts.map((o, i) => <input key={i} value={o} onChange={(e) => setOpts(opts.map((x, j) => (j === i ? e.target.value : x)))} maxLength={100} placeholder={t("poll.opt", { n: i + 1 })} aria-label={t("poll.opt", { n: i + 1 })} className={field} />)}
           <div className="flex flex-wrap items-center gap-3">
-            {opts.length < 6 && <button onClick={() => setOpts([...opts, ""])} className={cn(btn, "bg-sc text-onsc transition-[filter] hover:brightness-110")}>{t("poll.add")}</button>}
+            {opts.length < 6 && <button onClick={() => setOpts([...opts, ""])} className={cn(btn, "bg-sc text-onsc")}>{t("poll.add")}</button>}
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={multi} onChange={(e) => setMulti(e.target.checked)} className="accent-[rgb(var(--accent))]" />{t("poll.multi")}</label>
           </div>
-          <button disabled={!q.trim() || cleanOpts.length < 2} onClick={() => { done({ t: "poll", q: q.trim(), opts: cleanOpts, multi, votes: {} }); setQ(""); setOpts(["", ""]); }} className={cn(btn, "bg-accent text-bg transition-[filter] hover:brightness-110 disabled:opacity-40")}>{t("poll.send")}</button>
+          <button disabled={!q.trim() || cleanOpts.length < 2} onClick={() => { done({ t: "poll", q: q.trim(), opts: cleanOpts, multi, votes: {} }); setQ(""); setOpts(["", ""]); }} className={cn(btn, "bg-accent text-bg disabled:opacity-40")}>{t("poll.send")}</button>
         </div>
       )}
       {panel === "event" && (
-        <div className="mb-2 space-y-2 rounded-3xl bg-highest p-4"><p className="text-sm font-medium">{t("ev.title")}</p>
+        <div className="m3-pop mb-2 space-y-2 rounded-3xl bg-highest p-4"><p className="text-sm font-medium">{t("ev.title")}</p>
           <input value={evT} onChange={(e) => setEvT(e.target.value)} maxLength={100} placeholder={t("ev.name")} aria-label={t("ev.name")} className={field} />
           <input type="datetime-local" value={evW} onChange={(e) => setEvW(e.target.value)} aria-label={t("ev.when")} className={field} />
           <input value={evP} onChange={(e) => setEvP(e.target.value)} maxLength={100} placeholder={t("ev.where")} aria-label={t("ev.where")} className={field} />
           <input value={evN} onChange={(e) => setEvN(e.target.value)} maxLength={300} placeholder={t("ev.note")} aria-label={t("ev.note")} className={field} />
-          <button disabled={!evT.trim() || !evW} onClick={() => { done({ t: "event", title: evT.trim(), start: new Date(evW).getTime(), place: evP.trim() || undefined, note: evN.trim() || undefined }); setEvT(""); setEvW(""); setEvP(""); setEvN(""); }} className={cn(btn, "bg-accent text-bg transition-[filter] hover:brightness-110 disabled:opacity-40")}>{t("ev.send")}</button>
+          <button disabled={!evT.trim() || !evW} onClick={() => { done({ t: "event", title: evT.trim(), start: new Date(evW).getTime(), place: evP.trim() || undefined, note: evN.trim() || undefined }); setEvT(""); setEvW(""); setEvP(""); setEvN(""); }} className={cn(btn, "bg-accent text-bg disabled:opacity-40")}>{t("ev.send")}</button>
         </div>
       )}
       {err && <p role="alert" className="mb-2 px-2 text-sm text-danger">{err}</p>}
@@ -152,9 +152,9 @@ export function Composer({ replyTo, onCancelReply, onSend, onAttach }: {
         </div>
       ) : (
         <div className="flex items-end gap-1 rounded-[28px] bg-highest p-1.5">
-          <button onClick={() => tgl("attach")} aria-label={t("composer.attach")} aria-pressed={panel === "attach"} className="rounded-full p-2.5 text-muted transition-colors hover:bg-container hover:text-ink"><Paperclip size={19} /></button>
-          <button onClick={() => tgl("emoji")} aria-label={t("composer.emoji")} aria-pressed={panel === "emoji"} className="rounded-full p-2.5 text-muted transition-colors hover:bg-container hover:text-ink"><Smile size={19} /></button>
-          <button onClick={() => tgl("gif")} aria-label={t("composer.gif")} aria-pressed={panel === "gif"} className="rounded-full px-2 py-2.5 text-xs font-bold text-muted transition-colors hover:bg-container hover:text-ink">GIF</button>
+          <button onClick={() => tgl("attach")} aria-label={t("composer.attach")} aria-pressed={panel === "attach"} className="m3-press rounded-full p-2.5 text-muted hover:bg-container hover:text-ink"><Paperclip size={19} /></button>
+          <button onClick={() => tgl("emoji")} aria-label={t("composer.emoji")} aria-pressed={panel === "emoji"} className="m3-press rounded-full p-2.5 text-muted hover:bg-container hover:text-ink"><Smile size={19} /></button>
+          <button onClick={() => tgl("gif")} aria-label={t("composer.gif")} aria-pressed={panel === "gif"} className="m3-press rounded-full px-2 py-2.5 text-xs font-bold text-muted hover:bg-container hover:text-ink">GIF</button>
           <textarea ref={ref} value={text} onChange={(e) => setText(e.target.value)} rows={1} maxLength={MAX} aria-label={t("composer.ph")} placeholder={t("composer.ph")}
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); send(); } }}
             className="max-h-40 min-h-[42px] flex-1 resize-none bg-transparent px-2 py-3 text-sm focus-visible:outline-none" />

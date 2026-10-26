@@ -45,19 +45,19 @@ export function GifPicker({ onPick }: { onPick: (g: GifPick) => void }) {
     <div className="m3-pop mb-2 space-y-2 rounded-3xl bg-highest p-3">
       <div className="flex items-center gap-2">
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("gif.search")} aria-label={t("gif.search")} className="min-w-0 flex-1 rounded-2xl bg-container px-4 py-2.5 text-sm" />
-        <button onClick={() => setShowKey((v) => !v)} aria-label={t("set.giphyKey")} aria-expanded={showKey} className={cn("rounded-full p-2 transition-colors hover:bg-container", showKey ? "text-accent" : "text-muted hover:text-ink")}><KeyRound size={16} /></button>
+        <button onClick={() => setShowKey((v) => !v)} aria-label={t("set.giphyKey")} aria-expanded={showKey} className={cn("m3-press rounded-full p-2 hover:bg-container", showKey ? "text-accent" : "text-muted hover:text-ink")}><KeyRound size={16} /></button>
       </div>
       {showKey && (
         <div className="flex gap-2 rounded-2xl bg-container p-3">
           <input value={draftKey} onChange={(e) => setDraftKey(e.target.value)} dir="ltr" placeholder={t("set.giphyKey")} aria-label={t("set.giphyKey")} className="min-w-0 flex-1 rounded-2xl bg-highest px-4 py-2.5 text-sm" />
-          <button onClick={() => void saveKey()} disabled={!draftKey.trim()} className="rounded-full bg-sc px-4 py-2 text-sm font-medium text-onsc transition-[filter] hover:brightness-110 disabled:opacity-40">{t("c.save")}</button>
+          <button onClick={() => void saveKey()} disabled={!draftKey.trim()} className="m3-press rounded-full bg-sc px-4 py-2 text-sm font-medium text-onsc hover:brightness-110 disabled:opacity-40">{t("c.save")}</button>
         </div>
       )}
       {busy && <div className="grid grid-cols-3 gap-1">{Array.from({ length: 6 }, (_, i) => <div key={i} className="aspect-square animate-pulse rounded-2xl bg-container" />)}</div>}
       {!busy && items.length > 0 && (
-        <div className="grid max-h-52 grid-cols-3 gap-1 overflow-y-auto scroll-thin">
+        <div className="stagger grid max-h-52 grid-cols-3 gap-1 overflow-y-auto scroll-thin">
           {items.map((g) => (
-            <button key={g.url} onClick={() => onPick(g)} className="overflow-hidden rounded-2xl bg-container transition-[filter] hover:brightness-110">
+            <button key={g.url} onClick={() => onPick(g)} className="m3-press overflow-hidden rounded-2xl bg-container hover:brightness-110">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={g.url} alt="" width={g.w} height={g.h} loading="lazy" className="h-auto w-full object-cover" />
             </button>
