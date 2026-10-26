@@ -5,7 +5,10 @@ import { useI18n, type K } from "@/lib/i18n";
 import { EMOJI_GROUPS, EMOJI_INDEX } from "@/lib/emoji-data";
 import { cn } from "@/lib/cn";
 
-const CAT_ICON: Record<string, string> = { smileys: "😀", people: "👋", nature: "🐻", food: "🍔", travel: "🚗", activity: "⚽", objects: "💡", flags: "🚩" };
+const CAT_ICON: Record<string, string> = {
+  smileys: "😀", people: "👋", family: "👪", animals: "🐶", nature: "🌿", fruits: "🍎", food: "🍔", activity: "⚽", travel: "🚗", objects: "💻",
+  office: "📚", clothing: "👕", hearts: "❤️", arrows: "➡️", symbols: "✅", flags: "🇹🇷", flagsOther: "🏴", numbers: "🔢", shapes: "🎨", tones: "✋",
+};
 
 /** Full-Unicode emoji picker (CLDR set, v15; the symbols group is intentionally excluded). */
 export function EmojiPicker({ onPick }: { onPick: (e: string) => void }) {
@@ -20,7 +23,7 @@ export function EmojiPicker({ onPick }: { onPick: (e: string) => void }) {
   };
   const term = q.trim().toLowerCase();
   const list = useMemo(() => (term
-    ? EMOJI_INDEX.filter(([, n]) => n.includes(term)).slice(0, 120).map(([c]) => c)
+    ? EMOJI_INDEX.filter(([, n]) => n && n.includes(term)).slice(0, 120).map(([c]) => c)
     : tab === "recent" ? recent : (EMOJI_GROUPS.find((g) => g.id === tab)!.list.map(([c]) => c))), [term, tab, recent]);
   return (
     <div className="m3-pop mb-2 rounded-3xl bg-highest p-3">
