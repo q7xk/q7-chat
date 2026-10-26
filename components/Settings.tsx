@@ -9,7 +9,7 @@ import { prepareAvatar } from "@/lib/attach";
 import { ACCENTS } from "@/lib/theme";
 import type { PreviewPolicy } from "@/lib/types";
 import { cn } from "@/lib/cn";
-import { Avatar } from "./Badges";
+import { Avatar, clipShape } from "./Badges";
 import { btn, field } from "./Connect";
 import { Box, Page } from "./ui";
 
@@ -38,7 +38,7 @@ export function SettingsPanel() {
   return (
     <Page title={t("set.title")}>
       <Box className="space-y-4"><p className="text-sm font-medium">{t("set.profile")}</p>
-        <div className="flex items-center gap-4"><Avatar title={snap.settings.name} mode="p2p" photo={snap.settings.photo} size={72} />
+        <div className="flex items-center gap-4"><Avatar title={snap.settings.name} mode="p2p" photo={snap.settings.photo} size={72} shape="clover8" />
           <div className="flex flex-wrap gap-2">
             <button onClick={() => photo.current?.click()} className={cn(btn, "bg-sc text-onsc")}><ImagePlus size={15} />{t("set.photo")}</button>
             {snap.settings.photo && <button onClick={() => void mgr.setPhoto(undefined)} className={cn(btn, "bg-sc text-onsc")}>{t("set.photoRemove")}</button>}
@@ -73,17 +73,23 @@ export function SettingsPanel() {
           {(["dark", "light"] as const).map((x) => <button key={x} onClick={() => setSettings({ theme: x })} aria-pressed={settings.theme === x} className={cn("inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm", settings.theme === x ? "bg-pc text-onpc" : "text-muted")}>{x === "dark" ? <Moon size={14} /> : <Sun size={14} />}{t(x === "dark" ? "set.dark" : "set.light")}</button>)}
         </div>
         <div className="space-y-2"><p className="text-xs text-muted">{t("set.themeColor")}</p>
-          <div role="radiogroup" aria-label={t("set.themeColor")} className="flex flex-wrap items-center gap-2.5">
+          <div role="radiogroup" aria-label={t("set.themeColor")} className="flex flex-wrap items-center gap-3 pb-1">
             {ACCENTS.map((a) => (
-              <button key={a.id} role="radio" aria-checked={settings.accent === a.id} onClick={() => setSettings({ accent: a.id })} title={t("set.themeColor")}
-                className={cn("h-9 w-9 rounded-full transition-[filter] hover:brightness-110", settings.accent === a.id && "ring-2 ring-ink ring-offset-2 ring-offset-[rgb(var(--panel))]")}
-                style={{ backgroundColor: `hsl(${a.hue} 60% 55%)` }} />
+              <span key={a.id} className="relative">
+                <button role="radio" aria-checked={settings.accent === a.id} onClick={() => setSettings({ accent: a.id })} title={t("set.themeColor")}
+                  className="block h-9 w-9 transition-[filter,transform] duration-200 ease-spring hover:scale-110 active:scale-95"
+                  style={{ ...clipShape("cookie12"), backgroundColor: `hsl(${a.hue} 60% 55%)` }} />
+                {settings.accent === a.id && <span className="absolute inset-x-0 -bottom-1.5 mx-auto h-1 w-1 rounded-full bg-ink" />}
+              </span>
             ))}
-            <label className={cn("flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-white", settings.accent.startsWith("#") && "ring-2 ring-ink ring-offset-2 ring-offset-[rgb(var(--panel))]")}
-              title={t("set.themeCustom")} style={{ background: settings.accent.startsWith("#") ? settings.accent : "conic-gradient(#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00)" }}>
-              {!settings.accent.startsWith("#") && <Palette size={14} />}
-              <input type="color" value={settings.accent.startsWith("#") ? settings.accent : "#435dff"} onChange={(e) => setSettings({ accent: e.target.value })} aria-label={t("set.themeCustom")} className="absolute h-0 w-0 opacity-0" />
-            </label>
+            <span className="relative">
+              <label className="flex h-9 w-9 cursor-pointer items-center justify-center text-white transition-[filter,transform] duration-200 ease-spring hover:scale-110 active:scale-95"
+                title={t("set.themeCustom")} style={{ ...clipShape("cookie12"), background: settings.accent.startsWith("#") ? settings.accent : "conic-gradient(#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00)" }}>
+                {!settings.accent.startsWith("#") && <Palette size={14} />}
+                <input type="color" value={settings.accent.startsWith("#") ? settings.accent : "#435dff"} onChange={(e) => setSettings({ accent: e.target.value })} aria-label={t("set.themeCustom")} className="absolute h-0 w-0 opacity-0" />
+              </label>
+              {settings.accent.startsWith("#") && <span className="absolute inset-x-0 -bottom-1.5 mx-auto h-1 w-1 rounded-full bg-ink" />}
+            </span>
           </div>
         </div>
         <label className="block space-y-2"><span className="text-xs text-muted">{t("set.lang")}</span>

@@ -8,4 +8,4 @@ export function Page({ title, intro, children }: { title: string; intro?: string
     </div>
   );
 }
-export const Box = ({ children, className }: { children: React.ReactNode; className?: string }) => <div className={cn("rounded-3xl p-5", !className?.includes("bg-") && "bg-container", className)}>{children}</div>;
+export const Box = ({ children, className }: { children: React.ReactNode; className?: string }) => <div className={cn("rounded-[28px] p-5", !className?.includes("bg-") && "bg-container", className)}>{children}</div>;

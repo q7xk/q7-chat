@@ -42,7 +42,7 @@ export function GifPicker({ onPick }: { onPick: (g: GifPick) => void }) {
   const saveKey = async () => { await mgr.setGiphyKey(draftKey); setDraftKey(""); setShowKey(false); };
 
   return (
-    <div className="mb-2 space-y-2 rounded-3xl bg-highest p-3">
+    <div className="m3-pop mb-2 space-y-2 rounded-3xl bg-highest p-3">
       <div className="flex items-center gap-2">
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("gif.search")} aria-label={t("gif.search")} className="min-w-0 flex-1 rounded-2xl bg-container px-4 py-2.5 text-sm" />
         <button onClick={() => setShowKey((v) => !v)} aria-label={t("set.giphyKey")} aria-expanded={showKey} className={cn("rounded-full p-2 transition-colors hover:bg-container", showKey ? "text-accent" : "text-muted hover:text-ink")}><KeyRound size={16} /></button>

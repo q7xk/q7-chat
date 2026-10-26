@@ -27,7 +27,7 @@ export const wallStyle = (id?: string) => WALLS.find((w) => w.id === id)?.css ||
 
 const item = "flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm transition-colors hover:bg-container";
 const sheetWrap = "fixed inset-0 z-40 flex items-end justify-center bg-black/50 md:items-center";
-const sheet = "max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-panel p-5 scroll-thin md:rounded-3xl";
+const sheet = "m3-pop max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-t-[28px] bg-panel p-5 scroll-thin md:rounded-[28px]";
 
 function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   useEffect(() => {
@@ -95,7 +95,7 @@ export function ChatMenu({ conv, contact, p2p }: { conv: Conversation; contact?:
       </>}
       <button onClick={() => setOpen((v) => !v)} aria-label={t("menu.more")} aria-expanded={open} className={cn(iconBtn, open && "bg-raised text-ink")}><MoreVertical size={19} /></button>
       {open && (
-        <div className="absolute end-0 top-12 z-20 w-64 space-y-0.5 rounded-3xl bg-highest p-2 shadow-xl" role="menu">
+        <div className="m3-pop absolute end-0 top-12 z-20 w-64 space-y-0.5 rounded-3xl bg-highest p-2 shadow-xl" role="menu">
           {p2p && <>
             <button role="menuitem" onClick={() => { setOpen(false); setPanel("info"); }} className={item}><UserIcon size={18} />{t("menu.contact")}</button>
             <button role="menuitem" onClick={() => void call(false)} className={item}><Phone size={18} />{t("menu.call")}</button>
@@ -123,7 +123,7 @@ export function ChatMenu({ conv, contact, p2p }: { conv: Conversation; contact?:
           <div className="grid grid-cols-2 gap-3">
             {WALLS.map((w) => (
               <button key={w.id || "none"} onClick={() => { update(conv.id, { wall: w.id || undefined }); setPanel(null); }} aria-pressed={(conv.wall ?? "") === w.id}
-                className={cn("flex h-24 items-end justify-start rounded-3xl border-2 bg-bg p-2 text-xs transition-colors", (conv.wall ?? "") === w.id ? "border-accent" : "border-line hover:border-muted")}
+                className={cn("m3-pop flex h-24 items-end justify-start rounded-[28px] border-2 bg-bg p-2 text-xs transition-colors", (conv.wall ?? "") === w.id ? "border-accent" : "border-line hover:border-muted")}
                 style={w.css ? { backgroundImage: w.css } : undefined}>
                 <span className="rounded-full bg-highest px-2 py-0.5">{w.id ? w.id.toUpperCase() : "—"}</span>
               </button>
@@ -151,7 +151,7 @@ function ContactSheet({ contact, onClose }: { contact: Contact; onClose: () => v
   return (
     <Sheet title={t("menu.contact")} onClose={onClose}>
       <div className="mb-5 flex items-center gap-4">
-        <Avatar title={contact.name} mode="p2p" photo={contact.photo} size={64} />
+        <Avatar title={contact.name} mode="p2p" photo={contact.photo} size={64} shape="cookie12" />
         <div className="min-w-0"><p className="truncate text-lg font-semibold">{contact.name}</p>
           <p className="text-xs tabular-nums text-muted">{formatCode(contact.code)}</p>
           {contact.blocked && <p className="mt-1 text-xs font-medium text-danger">{t("info.blocked")}</p>}</div>

@@ -9,12 +9,15 @@ import { formatCode } from "@/lib/p2p/crypto";
 import { cn } from "@/lib/cn";
 import { EmojiPicker } from "./Emoji";
 import { GifPicker } from "./Gif";
+import { clipShape, type M3Shape } from "./Badges";
 
 const MAX = 4000;
 const field = "w-full rounded-2xl bg-container px-4 py-3 text-sm";
 const btn = "rounded-full px-5 py-2 text-sm font-medium";
 type Panel = null | "emoji" | "gif" | "attach" | "location" | "contact" | "poll" | "event";
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+/* M3 Expressive: attach chips cycle through the shape set instead of repeating one. */
+const CHIP_SHAPES: M3Shape[] = ["cookie9", "clover4", "cookie12", "clover8", "sunny", "clover4", "cookie12", "clover8"];
 
 interface Rec { mr: MediaRecorder; stream: MediaStream; startedAt: number; mime: string }
 
@@ -95,10 +98,10 @@ export function Composer({ replyTo, onCancelReply, onSend, onAttach }: {
       {panel === "emoji" && <EmojiPicker onPick={(e) => { setText((x) => x + e); ref.current?.focus(); }} />}
       {panel === "gif" && <GifPicker onPick={(g) => done({ t: "gif", ...g })} />}
       {panel === "attach" && (
-        <div className="mb-2 grid grid-cols-4 gap-2 rounded-3xl bg-highest p-3" role="menu">
-          {items.map(({ icon: I, label, run }) => (
+        <div className="m3-pop mb-2 grid grid-cols-4 gap-2 rounded-3xl bg-highest p-3" role="menu">
+          {items.map(({ icon: I, label, run }, i) => (
             <button key={label} role="menuitem" onClick={run} className="flex flex-col items-center gap-1.5 rounded-2xl p-2 text-xs transition-colors hover:bg-container">
-              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-pc text-onpc transition-[filter] hover:brightness-110"><I size={22} /></span>{t(label)}
+              <span className="flex h-12 w-12 items-center justify-center bg-pc text-onpc transition-[filter,transform] duration-200 ease-spring hover:brightness-110 active:scale-95" style={clipShape(CHIP_SHAPES[i % CHIP_SHAPES.length])}><I size={21} /></span>{t(label)}
             </button>
           ))}
         </div>
@@ -144,8 +147,8 @@ export function Composer({ replyTo, onCancelReply, onSend, onAttach }: {
         <div className="flex items-center gap-3 rounded-[28px] bg-highest p-2 ps-4">
           <span className="relative flex h-3 w-3 shrink-0"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-danger opacity-75" /><span className="relative inline-flex h-3 w-3 rounded-full bg-danger" /></span>
           <span className="min-w-0 flex-1 text-sm tabular-nums">{t("voice.rec")} <span dir="ltr" className="opacity-80">{mmss(elapsed)}</span></span>
-          <button onClick={() => stopRec(false)} aria-label={t("voice.cancel")} className="rounded-full bg-danger/15 p-2.5 text-danger transition-colors hover:bg-danger/25"><Trash2 size={18} /></button>
-          <button onClick={() => stopRec(true)} aria-label={t("voice.send")} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent text-bg transition-[filter] hover:brightness-110"><Send size={18} className="rtl:-scale-x-100" /></button>
+          <button onClick={() => stopRec(false)} aria-label={t("voice.cancel")} className="rounded-full bg-danger/15 p-2.5 text-danger transition-[filter,transform] duration-200 ease-spring hover:bg-danger/25 active:scale-90"><Trash2 size={18} /></button>
+          <button onClick={() => stopRec(true)} aria-label={t("voice.send")} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent text-bg transition-[filter,transform] duration-200 ease-spring hover:brightness-110 active:scale-90"><Send size={18} className="rtl:-scale-x-100" /></button>
         </div>
       ) : (
         <div className="flex items-end gap-1 rounded-[28px] bg-highest p-1.5">
@@ -156,9 +159,9 @@ export function Composer({ replyTo, onCancelReply, onSend, onAttach }: {
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); send(); } }}
             className="max-h-40 min-h-[42px] flex-1 resize-none bg-transparent px-2 py-3 text-sm focus-visible:outline-none" />
           {text.trim() ? (
-            <button onClick={send} aria-label={t("c.send")} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent text-bg transition-[filter] hover:brightness-110"><Send size={18} className="rtl:-scale-x-100" /></button>
+            <button onClick={send} aria-label={t("c.send")} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent text-bg transition-[filter,transform] duration-200 ease-spring hover:brightness-110 active:scale-90"><Send size={18} className="rtl:-scale-x-100" /></button>
           ) : (
-            <button onClick={() => void startRec()} aria-label={t("composer.voice")} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent text-bg transition-[filter] hover:brightness-110"><Mic size={18} /></button>
+            <button onClick={() => void startRec()} aria-label={t("composer.voice")} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent text-bg transition-[filter,transform] duration-200 ease-spring hover:brightness-110 active:scale-90"><Mic size={18} /></button>
           )}
         </div>
       )}

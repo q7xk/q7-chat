@@ -23,7 +23,7 @@ export function EmojiPicker({ onPick }: { onPick: (e: string) => void }) {
     ? EMOJI_INDEX.filter(([, n]) => n.includes(term)).slice(0, 120).map(([c]) => c)
     : tab === "recent" ? recent : (EMOJI_GROUPS.find((g) => g.id === tab)!.list.map(([c]) => c))), [term, tab, recent]);
   return (
-    <div className="mb-2 rounded-3xl bg-highest p-3">
+    <div className="m3-pop mb-2 rounded-3xl bg-highest p-3">
       <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("emoji.search")} aria-label={t("emoji.search")} className="mb-2 w-full rounded-2xl bg-container px-4 py-2.5 text-sm" />
       {!term && (
         <div className="mb-2 flex gap-0.5 overflow-x-auto scroll-thin" role="tablist">

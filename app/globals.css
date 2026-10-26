@@ -32,3 +32,8 @@ body { background: rgb(var(--bg)); color: rgb(var(--text)); -webkit-font-smoothi
 ::placeholder { color: rgb(var(--muted)); opacity: 0.8; }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 .scroll-thin { scrollbar-width: thin; scrollbar-color: rgb(var(--line)) transparent; }
+
+/* M3 Expressive: springy entrance for menus, sheets and pickers. */
+@keyframes m3-pop { from { opacity: 0; transform: translateY(10px) scale(0.96); } to { opacity: 1; transform: none; } }
+.m3-pop { animation: m3-pop 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+@media (prefers-reduced-motion: reduce) { .m3-pop { animation: none; } }

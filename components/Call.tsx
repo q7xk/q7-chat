@@ -4,7 +4,7 @@ import { Mic, MicOff, Phone, PhoneOff, Video, VideoOff } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useP2P } from "@/lib/p2p/context";
 import { cn } from "@/lib/cn";
-import { Avatar } from "./Badges";
+import { Avatar, clipShape } from "./Badges";
 
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 
@@ -33,7 +33,7 @@ export function CallOverlay() {
   const ringingOut = call.state === "ringing" && call.dir === "out";
   const active = call.state === "active" || call.state === "connecting";
   const stateText = ringingIn ? t("call.incoming") : ringingOut ? t("call.outgoing") : call.state === "connecting" ? t("call.connecting") : mmss(elapsed);
-  const ctrl = "flex h-14 w-14 items-center justify-center rounded-full transition-[filter] hover:brightness-110";
+  const ctrl = "flex h-14 w-14 items-center justify-center rounded-full transition-[filter,transform] duration-200 ease-spring hover:brightness-110 active:scale-90";
 
   const toggleMute = () => {
     const next = !muted; setMuted(next);
@@ -57,7 +57,7 @@ export function CallOverlay() {
           </div>
         ) : (
           <div className="flex flex-col items-center gap-4">
-            <Avatar title={contact?.name ?? "?"} mode="p2p" photo={contact?.photo} size={120} />
+            <Avatar title={contact?.name ?? "?"} mode="p2p" photo={contact?.photo} size={120} shape="sunny" />
             {(muted || camOff) && active && <p className="text-xs text-white/60">{muted ? t("call.mute") : ""}{muted && camOff ? " · " : ""}{camOff && call.video ? t("call.cameraOff") : ""}</p>}
           </div>
         )}

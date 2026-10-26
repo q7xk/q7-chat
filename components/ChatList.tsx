@@ -5,6 +5,7 @@ import { useStore } from "@/lib/store";
 import { useI18n } from "@/lib/i18n";
 import { useP2P } from "@/lib/p2p/context";
 import { cn } from "@/lib/cn";
+import { clipShape } from "./Badges";
 import { Avatar, ModeBadge } from "./Badges";
 
 type Filter = "all" | "unread" | "archived";
@@ -36,7 +37,7 @@ export function ChatList({ activeId, onOpen, onAdd }: { activeId: string | null;
       <header className="space-y-4 p-4 pb-2">
         <div className="relative flex items-center justify-between">
           <h1 className="px-1 text-[28px] font-semibold leading-9 tracking-tight">{t("nav.chats")}</h1>
-          <button onClick={() => setMenu((v) => !v)} aria-label={t("chats.newLocal")} aria-expanded={menu} className="flex h-12 w-12 items-center justify-center rounded-2xl bg-pc text-onpc transition-[filter] hover:brightness-110"><Plus size={22} /></button>
+          <button onClick={() => setMenu((v) => !v)} aria-label={t("chats.newLocal")} aria-expanded={menu} className="flex h-12 w-12 items-center justify-center bg-pc text-onpc transition-[filter,transform] duration-200 ease-spring hover:brightness-110 active:scale-95" style={clipShape("clover8")}><Plus size={22} /></button>
           {menu && (
             <div className="absolute end-0 top-14 z-10 w-60 space-y-1 rounded-3xl bg-highest p-2 shadow-lg">
               <button onClick={() => { setMenu(false); setAdding(true); }} className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm hover:bg-container"><MessageSquarePlus size={18} />{t("chats.newLocal")}</button>
