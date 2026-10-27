@@ -46,8 +46,11 @@ function useNotifier() {
     if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
     for (const m of fresh.slice(-3)) {
       const conv = conversations.find((c) => c.id === m.conversationId);
-      if (!conv || conv.mode !== "p2p" || conv.muted) continue;
-      const name = snap.contacts.find((c) => c.id === conv.contactId)?.name ?? conv.title;
+      if (!conv || conv.mode === "local" || conv.muted) continue;
+      const sender = conv.mode === "group" ? (snap.contacts.find((c) => c.id === m.from)?.name ?? conv.names?.[m.from ?? ""] ?? "") : "";
+      const name = conv.mode === "group"
+        ? (sender ? `${sender} · ${conv.title}` : conv.title)
+        : snap.contacts.find((c) => c.id === conv.contactId)?.name ?? conv.title;
       const body = settings.notifyPreview === false || !m.body ? t("notif.new") : m.body.slice(0, 160);
       try { new Notification(name, { body, silent: settings.notifySound === false }); } catch {}
     }
@@ -84,6 +87,11 @@ export function Shell() {
     .filter((x) => x.contact && !x.contact.blocked)
     .sort((a, b) => Number(b.c.pinned) - Number(a.c.pinned) || b.last - a.last)
     .slice(0, 12), [conversations, messages, snap.contacts]);
+  const groups = useMemo(() => conversations
+    .filter((c) => c.mode === "group" && !c.archived)
+    .map((c) => ({ c, last: messages.reduce((a, m) => (m.conversationId === c.id ? Math.max(a, m.createdAt) : a), 0) }))
+    .sort((a, b) => Number(b.c.pinned) - Number(a.c.pinned) || b.last - a.last)
+    .slice(0, 12), [conversations, messages]);
 
   const rowCls = (on: boolean) => cn("m3-press relative flex h-11 shrink-0 items-center rounded-full text-sm font-medium",
     expanded ? "w-full gap-3 px-3.5 text-start" : "mx-auto w-11 justify-center",
@@ -138,6 +146,20 @@ export function Shell() {
               </button>
             ))}
             {expanded && dms.length === 0 && <p className="px-3 pb-1 text-xs leading-relaxed text-muted">{t("rail.dmNone")}</p>}
+
+            <p aria-hidden={!expanded} className={cn(cap, !expanded && "sr-only")}>{t("rail.groups")}</p>
+            {groups.map(({ c }) => (
+              <button key={c.id} onClick={() => openChat(c.id)} title={c.title} aria-current={chat && activeId === c.id ? "true" : undefined}
+                className={rowCls(chat && activeId === c.id)}>
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center text-[11px] font-semibold text-white" style={{ clipPath: "url(#shape-clover8)", backgroundColor: `hsl(${c.hue ?? 210} 62% 46%)` }}>
+                  {c.title.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join("") || "#"}
+                </span>
+                {expanded && <span className="min-w-0 flex-1 truncate">{c.title}</span>}
+                {expanded && c.unread > 0 && <span key={c.unread} className="m3-bounce rounded-full bg-accent px-1.5 text-center text-xs font-semibold text-bg">{c.unread}</span>}
+                {!expanded && c.unread > 0 && <span key={c.unread} className="m3-bounce absolute end-1 top-1 h-2 w-2 rounded-full bg-accent" />}
+              </button>
+            ))}
+            {expanded && groups.length === 0 && <p className="px-3 pb-1 text-xs leading-relaxed text-muted">{t("group.none")}</p>}
 
             <p aria-hidden={!expanded} className={cn(cap, !expanded && "sr-only")}>{t("rail.spaces")}</p>
             {spaces.map((s) => {

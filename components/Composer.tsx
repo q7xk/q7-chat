@@ -23,8 +23,10 @@ const CHIP_SHAPES: M3Shape[] = ["cookie9", "clover4", "cookie12", "clover8", "su
 
 interface Rec { mr: MediaRecorder; stream: MediaStream; startedAt: number; mime: string }
 
-export function Composer({ replyTo, onCancelReply, onSend, onAttach }: {
+export function Composer({ replyTo, onCancelReply, onSend, onAttach, maxFile }: {
   replyTo?: Message; onCancelReply: () => void; onSend: (body: string) => void; onAttach: (att: Attachment, blob?: Blob) => void;
+  /** Group relays cannot carry big files: anything above this is refused with a friendly error. */
+  maxFile?: number;
 }) {
   const { t, tk } = useI18n(); const { snap } = useP2P();
   const [text, setText] = useState(""); const [panel, setPanel] = useState<Panel>(null); const [err, setErr] = useState("");
@@ -47,11 +49,14 @@ export function Composer({ replyTo, onCancelReply, onSend, onAttach }: {
     return () => clearInterval(h);
   }, [rec]);
 
-  const done = (att: Attachment, blob?: Blob) => { onAttach(att, blob); setPanel(null); setErr(""); };
+  const done = (att: Attachment, blob?: Blob) => {
+    if (maxFile !== undefined && att.t === "file" && att.size > maxFile) { setErr(tk("group.big")); return; }
+    onAttach(att, blob); setPanel(null); setErr("");
+  };
   const send = () => { const b = text.trim(); if (b) { onSend(b.slice(0, MAX)); setText(""); setPanel(null); } };
   const files = async (list: FileList | null, kind: "image" | "document") => {
     for (const f of Array.from(list ?? []).slice(0, 10)) {
-      try { const r = kind === "image" ? await prepareImage(f) : prepareDocument(f); onAttach(r.att, r.blob); setPanel(null); setErr(""); }
+      try { const r = kind === "image" ? await prepareImage(f) : prepareDocument(f); done(r.att, r.blob); }
       catch (e) { setErr(tk(e instanceof Error ? e.message : "err.generic")); }
     }
   };
@@ -75,7 +80,7 @@ export function Composer({ replyTo, onCancelReply, onSend, onAttach }: {
         const blob = new Blob(chunks, { type: mr.mimeType || mime || "audio/webm" });
         if (dur < 1 || blob.size === 0) return;
         const r = prepareVoice(blob, dur);
-        onAttach(r.att, r.blob);
+        done(r.att, r.blob);
       };
       mr.start(250);
       setRec({ mr, stream, startedAt, mime: mr.mimeType || mime });

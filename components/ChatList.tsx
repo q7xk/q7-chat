@@ -1,19 +1,21 @@
 "use client";
 import { useMemo, useState } from "react";
-import { BellOff, Clock, Pin, Plus, Search, Star, UserPlus, MessageSquarePlus } from "lucide-react";
+import { BellOff, Clock, Pin, Plus, Search, Star, UserPlus, MessageSquarePlus, Users } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { useI18n } from "@/lib/i18n";
 import { useP2P } from "@/lib/p2p/context";
+import { memberName } from "@/lib/names";
 import { cn } from "@/lib/cn";
 import { clipShape } from "./Badges";
 import { Avatar, ModeBadge } from "./Badges";
+import { GroupDialog } from "./GroupDialog";
 
 type Filter = "all" | "unread" | "archived";
 
 export function ChatList({ activeId, onOpen, onAdd, query }: { activeId: string | null; onOpen: (id: string) => void; onAdd: () => void; query?: string }) {
   const { conversations, messages, now, createLocal, ready, storageError } = useStore();
   const { t, dur, clock } = useI18n(); const { snap } = useP2P();
-  const [q, setQ] = useState(""); const [f, setF] = useState<Filter>("all"); const [menu, setMenu] = useState(false); const [adding, setAdding] = useState(false); const [title, setTitle] = useState("");
+  const [q, setQ] = useState(""); const [f, setF] = useState<Filter>("all"); const [menu, setMenu] = useState(false); const [adding, setAdding] = useState(false); const [title, setTitle] = useState(""); const [groupOpen, setGroupOpen] = useState(false);
 
   const rows = useMemo(() => {
     const term = (query?.trim() || q).trim().toLowerCase(); // top-bar search wins when present
@@ -25,10 +27,11 @@ export function ChatList({ activeId, onOpen, onAdd, query }: { activeId: string 
       .sort((a, b) => Number(b.c.pinned) - Number(a.c.pinned) || (b.last?.createdAt ?? 0) - (a.last?.createdAt ?? 0));
   }, [conversations, messages, q, f, snap.contacts, query]);
 
-  const preview = (m?: (typeof messages)[number], mine = false) => {
+  const preview = (c: (typeof conversations)[number], m?: (typeof messages)[number]) => {
     if (!m) return t("chats.noMessages");
     const a = m.att; const body = m.body || (a?.t === "poll" ? `📊 ${a.q}` : a?.t === "event" ? `📅 ${a.title}` : a?.t === "location" ? "📍" : a?.t === "contact" ? `👤 ${a.name}` : a?.t === "gif" ? "GIF" : a?.t === "file" ? (a.kind === "image" ? `🖼 ${a.name}` : a.kind === "voice" ? `🎤 ${t("composer.voice")}` : `📄 ${a.name}`) : m.link?.title || t("chats.link"));
-    return (mine ? t("chats.you") + ": " : "") + body;
+    if (c.mode === "group") return (m.direction === "out" ? t("chats.you") : memberName(c, m.from, snap.contacts, t("group.unknown"))) + ": " + body;
+    return (m.direction === "out" ? t("chats.you") + ": " : "") + body;
   };
 
   return (
@@ -41,6 +44,7 @@ export function ChatList({ activeId, onOpen, onAdd, query }: { activeId: string 
           {menu && (
             <div className="m3-pop absolute end-0 top-14 z-10 w-60 space-y-1 rounded-3xl bg-highest p-2 shadow-lg">
               <button onClick={() => { setMenu(false); setAdding(true); }} className="m3-press flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm hover:bg-container"><MessageSquarePlus size={18} />{t("chats.newLocal")}</button>
+              <button onClick={() => { setMenu(false); setGroupOpen(true); }} className="m3-press flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm hover:bg-container"><Users size={18} />{t("group.create")}</button>
               <button onClick={() => { setMenu(false); onAdd(); }} className="m3-press flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm hover:bg-container"><UserPlus size={18} />{t("chats.addContact")}</button>
             </div>
           )}
@@ -73,7 +77,7 @@ export function ChatList({ activeId, onOpen, onAdd, query }: { activeId: string 
                   {c.starred && <Star size={12} className="shrink-0 fill-current text-accent" />}
                   <span className="ms-auto shrink-0 text-xs text-muted">{last ? clock(last.createdAt, now) : ""}</span>
                 </span>
-                <span className="mt-0.5 block truncate text-sm text-muted">{preview(last, last?.direction === "out" && c.mode === "p2p")}</span>
+                <span className="mt-0.5 block truncate text-sm text-muted">{preview(c, last)}</span>
                 <span className="mt-1.5 flex items-center gap-2">
                   <ModeBadge mode={c.mode} />
                   {next !== null && <span className="inline-flex items-center gap-1 text-[11px] text-muted"><Clock size={11} aria-hidden />{dur(next - now)}</span>}
@@ -85,6 +89,7 @@ export function ChatList({ activeId, onOpen, onAdd, query }: { activeId: string 
         ))}
         {ready && rows.length === 0 && <li className="p-6 text-center text-sm text-muted">{conversations.length === 0 && f === "all" && !q && !query ? t("chats.empty") : t("chats.emptyFilter")}</li>}
       </ul>
+      {groupOpen && <GroupDialog onClose={() => setGroupOpen(false)} onCreated={(gid) => { setGroupOpen(false); onOpen(gid); }} />}
     </>
   );
 }

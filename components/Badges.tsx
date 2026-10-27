@@ -1,4 +1,4 @@
-import { HardDrive, Radio } from "lucide-react";
+import { HardDrive, Radio, Users } from "lucide-react";
 import type { Mode } from "@/lib/types";
 import { cn } from "@/lib/cn";
 import { useI18n } from "@/lib/i18n";
@@ -36,17 +36,19 @@ export function ShapeDefs() {
 export const clipShape = (s: M3Shape): { clipPath: string } => ({ clipPath: `url(#shape-${s})` });
 
 export function ModeBadge({ mode, long }: { mode: Mode; long?: boolean }) {
-  const { t } = useI18n(); const local = mode === "local"; const Icon = local ? HardDrive : Radio;
+  const { t } = useI18n(); const local = mode === "local"; const group = mode === "group";
+  const Icon = local ? HardDrive : group ? Users : Radio;
+  const text = local ? (long ? t("mode.localLong") : t("mode.local")) : group ? t("mode.group") : t("mode.p2p");
   return (
     <span className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium", local ? "bg-tc text-ontc" : "bg-pc text-onpc")}>
-      <Icon size={12} aria-hidden /> {local ? (long ? t("mode.localLong") : t("mode.local")) : t("mode.p2p")}
+      <Icon size={12} aria-hidden /> {text}
     </span>
   );
 }
 
-export function Avatar({ title, mode, photo, size = 48, shape }: { title: string; mode: Mode; photo?: string; size?: number; shape?: M3Shape }) {
+export function Avatar({ title, mode, photo, hue, size = 48, shape }: { title: string; mode: Mode; photo?: string; hue?: number; size?: number; shape?: M3Shape }) {
   const initials = title.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join("") || "?";
-  const style = { ...clipShape(shape ?? (mode === "local" ? "cookie9" : "clover4")), width: size, height: size };
+  const style = { ...clipShape(shape ?? (mode === "local" ? "cookie9" : mode === "group" ? "sunny" : "clover4")), width: size, height: size, ...(mode === "group" && hue !== undefined && !photo ? { background: `hsl(${hue} 62% 46%)`, color: "#fff" } : {}) };
   if (photo) return /* eslint-disable-next-line @next/next/no-img-element */ <img src={photo} alt="" style={style} className="shrink-0 object-cover" />;
-  return <span aria-hidden style={style} className={cn("flex shrink-0 items-center justify-center font-semibold", mode === "local" ? "bg-tc text-ontc" : "bg-pc text-onpc")}>{initials}</span>;
+  return <span aria-hidden style={style} className={cn("flex shrink-0 items-center justify-center font-semibold", mode === "local" ? "bg-tc text-ontc" : mode === "group" ? "" : "bg-pc text-onpc")}>{initials}</span>;
 }

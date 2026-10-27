@@ -1,4 +1,4 @@
-export type Mode = "local" | "p2p";
+export type Mode = "local" | "p2p" | "group";
 export type View = "chats" | "contacts" | "connect" | "calls" | "settings" | "mentions" | "starred" | "spaces";
 export type PreviewPolicy = "ask" | "block" | "allow";
 export type Presence = "online" | "dnd" | "away";
@@ -15,6 +15,10 @@ export interface Conversation {
   starred?: boolean; // collected under the "Yıldızlı" rail shortcut
   contactId?: string; // set for p2p conversations
   wall?: string; // chat wallpaper (gradient id)
+  members?: string[]; // group: member fingerprints, mine included
+  hue?: number; // group avatar hue
+  names?: Record<string, string>; // group: roster names for members who are not my contacts
+  left?: boolean; // group: I left — kept only until the next purge
 }
 export type Attachment =
   | { t: "file"; kind: "image" | "document" | "voice"; name: string; mime: string; size: number; dur?: number }
@@ -30,7 +34,10 @@ export interface Message {
   link?: LinkMeta; replyToId?: string;
   att?: Attachment; // file bytes live in the local_blobs store under the message id
   direction?: "in" | "out"; // missing means out
-  status?: "queued" | "sent" | "delivered"; // p2p outgoing only
+  from?: string; // group: sender member id (my sends carry my fingerprint)
+  status?: "queued" | "sent" | "delivered" | "seen"; // p2p/group outgoing only
+  reactions?: Record<string, string[]>; // emoji -> member ids
+  editedAt?: number; // last edit time, shown as a marker
 }
 export interface Contact { id: string; pub: string; name: string; code: string; addedAt: number; verified: boolean; photo?: string; renamed?: boolean; ek?: string; blocked?: boolean }
 export interface Settings {

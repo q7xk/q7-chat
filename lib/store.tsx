@@ -14,8 +14,12 @@ interface Store {
   send: (conversationId: string, body: string, link?: LinkMeta, replyToId?: string, att?: Attachment, blob?: Blob) => void;
   remove: (messageId: string) => void;
   createP2P: (contactId: string, title: string) => string;
+  /** Group conversation ("space"): id is fixed by the inviter so every member shares it. */
+  createGroup: (opts: { id?: string; title: string; members: string[]; hue?: number; names?: Record<string, string> }) => string;
   addMessage: (m: Message, blob?: Blob) => void;
   updateMessage: (id: string, patch: Partial<Message>) => void;
+  /** Toggles one member's emoji reaction on a message. */
+  reactMessage: (id: string, emoji: string, who: string, on: boolean) => void;
   removeConversation: (id: string) => void;
   clearConversation: (id: string) => void;
   wipeLocal: () => Promise<void>;
@@ -144,6 +148,25 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     msgRef.current = [...msgRef.current, m]; setMessages(msgRef.current); setNow(Date.now());
     persist((async () => { if (blob) await db.putBlob({ id: m.id, blob, expiresAt: m.expiresAt }); await db.putMessage(m); setBlobTick((x) => x + 1); })());
   }, [persist]);
+  const createGroup = useCallback((opts: { id?: string; title: string; members: string[]; hue?: number; names?: Record<string, string> }) => {
+    if (opts.id) { const ex = convRef.current.find((c) => c.id === opts.id); if (ex) return ex.id; }
+    const c: Conversation = {
+      id: opts.id || uid(), mode: "group", title: opts.title.trim().slice(0, 60) || "Group",
+      pinned: false, muted: false, archived: false, unread: 0,
+      members: Array.from(new Set(opts.members)).slice(0, 50), hue: opts.hue, names: opts.names,
+    };
+    convRef.current = [...convRef.current.filter((x) => x.id !== c.id), c]; setConversations(convRef.current); persist(db.putConversation(c));
+    return c.id;
+  }, [persist]);
+  const reactMessage = useCallback((id: string, emoji: string, who: string, on: boolean) => {
+    const cur = msgRef.current.find((x) => x.id === id); if (!cur) return;
+    const rx: Record<string, string[]> = { ...(cur.reactions ?? {}) };
+    const list = new Set(rx[emoji] ?? []);
+    if (on) list.add(who); else list.delete(who);
+    if (list.size) rx[emoji] = [...list]; else delete rx[emoji];
+    const next = { ...cur, reactions: Object.keys(rx).length ? rx : undefined, id: cur.id, createdAt: cur.createdAt, expiresAt: cur.expiresAt };
+    msgRef.current = msgRef.current.map((x) => (x.id === id ? next : x)); setMessages(msgRef.current); persist(db.putMessage(next));
+  }, [persist]);
   const updateMessage = useCallback((id: string, patch: Partial<Message>) => {
     const cur = msgRef.current.find((x) => x.id === id); if (!cur) return;
     const next = { ...cur, ...patch, id: cur.id, createdAt: cur.createdAt, expiresAt: cur.expiresAt }; // lifetime can never be extended
@@ -199,6 +222,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const live = useMemo(() => messages.filter((m) => m.expiresAt > now), [messages, now]);
   const peekConversations = useCallback(() => convRef.current, []);
   const peekMessages = useCallback(() => { const t = Date.now(); return msgRef.current.filter((m) => m.expiresAt > t); }, []);
-  const value: Store = { ready, now, storageError, blobTick, bumpBlobs, conversations, messages: live, settings, createLocal, update, send, remove, createP2P, addMessage, updateMessage, removeConversation, clearConversation, wipeLocal, exportLocal, importLocal, setSettings, peekConversations, peekMessages, spaces, createSpace, deleteSpace, renameSpace, spaceAdd, spaceRemove };
+  const value: Store = { ready, now, storageError, blobTick, bumpBlobs, conversations, messages: live, settings, createLocal, update, send, remove, createP2P, createGroup, addMessage, updateMessage, reactMessage, removeConversation, clearConversation, wipeLocal, exportLocal, importLocal, setSettings, peekConversations, peekMessages, spaces, createSpace, deleteSpace, renameSpace, spaceAdd, spaceRemove };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

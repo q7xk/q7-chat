@@ -17,6 +17,11 @@ export function P2PProvider({ children }: { children: ReactNode }) {
     updateMessage: (id, patch) => ref.current.updateMessage(id, patch),
     removeConversationFor: (cid) => { const c = ref.current.conversations.find((x) => x.contactId === cid); if (c) ref.current.removeConversation(c.id); },
     bumpUnread: (convId) => { const c = ref.current.conversations.find((x) => x.id === convId); if (c) ref.current.update(convId, { unread: c.unread + 1 }); },
+    updateGroup: (gid, patch) => ref.current.update(gid, patch),
+    removeGroup: (gid) => ref.current.removeConversation(gid),
+    createGroup: (opts) => ref.current.createGroup(opts),
+    reactMessage: (id, emoji, who, on) => ref.current.reactMessage(id, emoji, who, on),
+    removeMessage: (id) => ref.current.remove(id),
   }), []);
   useEffect(() => { if (s.ready) void mgr.init(); }, [s.ready, mgr]);
   return <Ctx.Provider value={mgr}>{children}</Ctx.Provider>;

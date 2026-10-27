@@ -38,7 +38,7 @@ export async function openFrom(key: CryptoKey, iv: Uint8Array, ct: Uint8Array): 
 
 /* ---------- signed relay frames ---------- */
 export interface RFrame { v: 2; from: string; to: string; pub: string; ek?: string; seq: number; iv: string; ct: string; sig: string }
-const HEX64 = /^[0-9a-f]{64}$/;
+export const HEX64 = /^[0-9a-f]{64}$/;
 const rBytes = (r: Omit<RFrame, "sig">) => utf8(JSON.stringify(["q7rp-v2", r.from, r.to, r.pub, r.ek ?? null, r.seq, r.iv, r.ct]));
 
 export interface FrameInput { to: string; seq: number; iv: Uint8Array; ct: Uint8Array; id: Identity }

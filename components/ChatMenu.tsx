@@ -1,8 +1,8 @@
 "use client";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
-  Archive, ArrowLeftRight, Ban, Bell, BellOff, ChevronRight, Eraser, FileText, FolderOpen, Link2, Mic,
-  MoreVertical, Palette, Phone, Pin, PinOff, Star, StarOff, Trash2, User as UserIcon, Video, Download,
+  Archive, ArrowLeftRight, Ban, Bell, BellOff, ChevronRight, Eraser, FileText, FolderOpen, Link2, LogOut, Mic,
+  MoreVertical, Palette, Pencil, Phone, Pin, PinOff, Star, StarOff, Trash2, User as UserIcon, UserMinus, UserPlus, Users, Video, Download,
 } from "lucide-react";
 import type { Conversation, Contact, LinkMeta, Message } from "@/lib/types";
 import { useStore } from "@/lib/store";
@@ -12,6 +12,8 @@ import { formatCode } from "@/lib/p2p/crypto";
 import { extractUrls } from "@/lib/links";
 import { cn } from "@/lib/cn";
 import { Avatar } from "./Badges";
+import { memberName } from "@/lib/names";
+import { btn } from "./Connect";
 
 /** Chat wallpapers applied over the message list background. */
 export const WALLS: { id: string; css: string }[] = [
@@ -46,14 +48,15 @@ function Sheet({ title, onClose, children }: { title: string; onClose: () => voi
   );
 }
 
-export function ChatMenu({ conv, contact, p2p }: { conv: Conversation; contact?: Contact; p2p: boolean }) {
+export function ChatMenu({ conv, contact, p2p, onOpenConv }: { conv: Conversation; contact?: Contact; p2p: boolean; onOpenConv?: () => void }) {
   const { t } = useI18n(); const { mgr, snap } = useP2P();
   const { messages, update, clearConversation } = useStore();
   const [open, setOpen] = useState(false); const [more, setMore] = useState(false);
-  const [panel, setPanel] = useState<null | "info" | "media" | "theme" | "clear">(null);
+  const [panel, setPanel] = useState<null | "info" | "media" | "theme" | "clear" | "members" | "rename" | "leave">(null);
   const [toast, setToast] = useState("");
   const root = useRef<HTMLDivElement>(null);
   const msgs = useMemo(() => messages.filter((m) => m.conversationId === conv.id), [messages, conv.id]);
+  const group = conv.mode === "group";
 
   useEffect(() => {
     if (!open) return;
@@ -71,7 +74,7 @@ export function ChatMenu({ conv, contact, p2p }: { conv: Conversation; contact?:
     if (!ok) flash(snap.status[conv.contactId] !== "online" ? t("thread.offline") : t("err.noMedia"));
   };
   const exportChat = () => {
-    const name = (m: Message) => (m.direction === "in" ? contact?.name ?? conv.title : t("chats.you"));
+    const name = (m: Message) => (m.direction === "in" ? (group ? memberName(conv, m.from, snap.contacts, t("group.unknown")) : contact?.name ?? conv.title) : t("chats.you"));
     const body = (m: Message) => m.body || (m.att?.t === "file" ? (m.att.kind === "voice" ? "🎤" : m.att.kind === "image" ? "🖼" : `📄 ${m.att.name}`) : m.att?.t === "gif" ? "GIF" : m.att?.t === "poll" ? `📊 ${m.att.q}` : m.att?.t === "event" ? `📅 ${m.att.title}` : m.att?.t === "location" ? "📍" : m.att?.t === "contact" ? `👤 ${m.att.name}` : m.link?.title || t("chats.link"));
     const txt = msgs.map((m) => `[${new Date(m.createdAt).toLocaleString()}] ${name(m)}: ${body(m)}`).join("\n");
     const url = URL.createObjectURL(new Blob([txt], { type: "text/plain;charset=utf-8" }));
@@ -101,6 +104,8 @@ export function ChatMenu({ conv, contact, p2p }: { conv: Conversation; contact?:
             <button role="menuitem" onClick={() => { setOpen(false); setPanel("info"); }} className={item}><UserIcon size={18} />{t("menu.contact")}</button>
             <button role="menuitem" onClick={() => void call(false)} className={item}><Phone size={18} />{t("menu.call")}</button>
           </>}
+          {group && <button role="menuitem" onClick={() => { setOpen(false); setPanel("members"); }} className={item}><Users size={18} />{t("group.members", { n: (conv.members ?? []).length })}</button>}
+          {group && <button role="menuitem" onClick={() => { setOpen(false); setPanel("rename"); }} className={item}><Pencil size={18} />{t("group.rename")}</button>}
           <button role="menuitem" onClick={() => { setOpen(false); setPanel("media"); }} className={item}><FolderOpen size={18} />{t("menu.media")}</button>
           <button role="menuitem" onClick={toggleMute} className={item}>{conv.muted ? <Bell size={18} /> : <BellOff size={18} />}{conv.muted ? t("menu.unmute") : t("menu.mute")}</button>
           <button role="menuitem" onClick={() => { setOpen(false); setPanel("theme"); }} className={item}><Palette size={18} />{t("menu.theme")}</button>
@@ -113,12 +118,28 @@ export function ChatMenu({ conv, contact, p2p }: { conv: Conversation; contact?:
               <button role="menuitem" onClick={togglePin} className={item}>{conv.pinned ? <PinOff size={18} /> : <Pin size={18} />}{conv.pinned ? t("menu.unpin") : t("menu.pin")}</button>
               <button role="menuitem" onClick={toggleStar} className={item}>{conv.starred ? <StarOff size={18} /> : <Star size={18} />}{conv.starred ? t("menu.unstar") : t("menu.star")}</button>
               <button role="menuitem" onClick={toggleArchive} className={item}><Archive size={18} />{conv.archived ? t("menu.unarchive") : t("menu.archive")}</button>
+              {group && <button role="menuitem" onClick={() => { setOpen(false); setPanel("leave"); }} className={cn(item, "text-danger")}><LogOut size={18} />{t("group.leave")}</button>}
             </div>
           )}
         </div>
       )}
 
       {panel === "info" && contact && <ContactSheet contact={contact} onClose={() => setPanel(null)} />}
+      {panel === "members" && <MembersSheet conv={conv} onClose={() => setPanel(null)} />}
+      {panel === "rename" && (
+        <Sheet title={t("group.rename")} onClose={() => setPanel(null)}>
+          <RenameForm conv={conv} onDone={() => setPanel(null)} />
+        </Sheet>
+      )}
+      {panel === "leave" && (
+        <Sheet title={t("group.leave")} onClose={() => setPanel(null)}>
+          <p className="text-sm leading-relaxed">{t("group.leaveAsk")}</p>
+          <div className="mt-4 flex gap-2">
+            <button onClick={() => { mgr.leaveGroup(conv.id); setPanel(null); onOpenConv?.(); }} className="m3-press rounded-full bg-danger px-5 py-2 text-sm font-medium text-bg hover:brightness-110">{t("group.leave")}</button>
+            <button onClick={() => setPanel(null)} className="rounded-full px-5 py-2 text-sm text-muted transition-colors hover:bg-container">{t("c.cancel")}</button>
+          </div>
+        </Sheet>
+      )}
       {panel === "media" && <MediaSheet conv={conv} contact={contact} msgs={msgs} onClose={() => setPanel(null)} />}
       {panel === "theme" && (
         <Sheet title={t("menu.theme")} onClose={() => setPanel(null)}>
@@ -245,4 +266,64 @@ function MediaBlob({ id }: { id: string }) {
   if (!url) return <span className="h-24 animate-pulse rounded-2xl bg-container" />;
   /* eslint-disable-next-line @next/next/no-img-element */
   return <img src={url} alt="" className="h-24 w-full rounded-2xl object-cover" />;
+}
+
+/** Space roster: members, adding contacts, removing people. */
+function MembersSheet({ conv, onClose }: { conv: Conversation; onClose: () => void }) {
+  const { t } = useI18n(); const { mgr, snap } = useP2P();
+  const [adding, setAdding] = useState(false);
+  const members = conv.members ?? [];
+  const candidates = adding
+    ? snap.contacts.filter((c) => !c.blocked && !members.includes(c.id)).slice(0, 20)
+    : [];
+  return (
+    <Sheet title={t("group.members", { n: members.length })} onClose={onClose}>
+      <ul className="space-y-1">
+        {members.map((fp) => {
+          const c = snap.contacts.find((x) => x.id === fp);
+          const name = c?.name ?? conv.names?.[fp] ?? t("group.unknown");
+          const isMe = fp === snap.fp;
+          return (
+            <li key={fp} className="flex items-center gap-3 rounded-2xl bg-container px-3 py-2.5">
+              <Avatar title={name} mode="p2p" photo={c?.photo} size={38} shape="clover4" />
+              <span className="min-w-0 flex-1 truncate text-sm">{name}{isMe && <span className="ms-1.5 text-xs text-muted">({t("chats.you")})</span>}</span>
+              <span className="shrink-0 text-xs tabular-nums text-muted">{c ? formatCode(c.code) : fp.slice(0, 8)}</span>
+              {!isMe && (
+                <button onClick={() => mgr.groupRemove(conv.id, fp)} aria-label={t("c.remove")} title={t("c.remove")} className="m3-press rounded-full p-1.5 text-muted hover:bg-danger/10 hover:text-danger"><UserMinus size={15} /></button>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      {!adding ? (
+        <button onClick={() => setAdding(true)} className={cn(item, "mt-3 justify-center bg-sc text-onsc")}><UserPlus size={18} />{t("group.addPeople")}</button>
+      ) : (
+        <div className="m3-pop mt-3 space-y-1 rounded-2xl bg-container p-1.5">
+          <p className="px-2 pt-1.5 text-xs font-medium text-muted">{t("group.pick")}</p>
+          {candidates.length === 0 && <p className="px-2 pb-2 text-sm text-muted">{t("group.none")}</p>}
+          {candidates.map((c) => (
+            <button key={c.id} onClick={() => { mgr.groupAdd(conv.id, [c.id]); setAdding(false); }} className="m3-press flex w-full items-center gap-2.5 rounded-2xl px-3 py-2 text-start text-sm hover:bg-raised">
+              <Avatar title={c.name} mode="p2p" photo={c.photo} size={30} shape="clover4" />
+              <span className="min-w-0 flex-1 truncate">{c.name}</span><UserPlus size={15} className="text-accent" />
+            </button>
+          ))}
+          <button onClick={() => setAdding(false)} className="m3-press w-full rounded-2xl px-3 py-2 text-start text-sm text-muted hover:bg-raised">{t("c.cancel")}</button>
+        </div>
+      )}
+    </Sheet>
+  );
+}
+
+function RenameForm({ conv, onDone }: { conv: Conversation; onDone: () => void }) {
+  const { t } = useI18n(); const { mgr } = useP2P();
+  const [name, setName] = useState(conv.title);
+  return (
+    <div className="space-y-3">
+      <input value={name} onChange={(e) => setName(e.target.value)} maxLength={60} aria-label={t("group.name")} className="w-full rounded-2xl bg-highest px-4 py-2.5 text-sm" />
+      <div className="flex gap-2">
+        <button disabled={!name.trim()} onClick={() => { mgr.groupRename(conv.id, name); onDone(); }} className={cn(btn, "bg-accent text-bg disabled:opacity-40")}>{t("c.save")}</button>
+        <button onClick={onDone} className={cn(btn, "bg-sc text-onsc")}>{t("c.cancel")}</button>
+      </div>
+    </div>
+  );
 }

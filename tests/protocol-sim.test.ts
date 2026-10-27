@@ -89,7 +89,25 @@ const host = (): Box => {
     ensureConversation(contactId: string, title: string) { let c = conversations.find((x) => x.contactId === contactId); if (!c) { c = { id: "conv-" + contactId.slice(0, 8), mode: "p2p", contactId, title: title || "C", pinned: false, muted: false, archived: false, unread: 0 }; conversations.push(c); } return c.id; },
     addMessage(m: Message) { if (!messages.some((x) => x.id === m.id)) messages.push(m); },
     blobReady() {}, updateMessage(id: string, patch: Partial<Message>) { const m = messages.find((x) => x.id === id); if (m) Object.assign(m, patch); },
-    removeConversationFor() {}, bumpUnread() {} };
+    removeConversationFor() {}, bumpUnread() {},
+    createGroup(opts: { id?: string; title: string; members: string[]; hue?: number; names?: Record<string, string> }) {
+      const ex = conversations.find((x) => x.id === opts.id); if (ex) return ex.id;
+      const c: Conversation = { id: opts.id ?? "g" + conversations.length, mode: "group", title: opts.title, pinned: false, muted: false, archived: false, unread: 0, members: [...opts.members], hue: opts.hue, names: opts.names };
+      conversations.push(c); return c.id;
+    },
+    updateGroup(gid: string, patch: Partial<Conversation>) { const c = conversations.find((x) => x.id === gid); if (c) Object.assign(c, patch); },
+    removeGroup(gid: string) {
+      const i = conversations.findIndex((x) => x.id === gid); if (i >= 0) conversations.splice(i, 1);
+      for (let j = messages.length - 1; j >= 0; j--) if (messages[j]!.conversationId === gid) messages.splice(j, 1);
+    },
+    reactMessage(id: string, emoji: string, who: string, on: boolean) {
+      const m = messages.find((x) => x.id === id); if (!m) return;
+      const rx: Record<string, string[]> = { ...(m.reactions ?? {}) }; const list = new Set(rx[emoji] ?? []);
+      if (on) list.add(who); else list.delete(who);
+      if (list.size) rx[emoji] = [...list]; else delete rx[emoji];
+      m.reactions = Object.keys(rx).length ? rx : undefined;
+    },
+    removeMessage(id: string) { const i = messages.findIndex((x) => x.id === id); if (i >= 0) messages.splice(i, 1); } };
 };
 const openSide = async (tag: string) => {
   process.env.Q7_DB = tag; vi.resetModules();
@@ -136,4 +154,58 @@ describe("Q7RP simulated end to end", () => {
     expect({ step1, step2, step3 }).toEqual({ step1: true, step2: true, step3: true });
     expect(A.mgr.getSnapshot().modes[fpB]).toBe("relay");
   }, 30000);
+
+  it("spaces: invite, pairwise fan-out, reactions, edit, retract, seen, roster", async () => {
+    const A = await openSide("q7-sim-ga");
+    const B = await openSide("q7-sim-gb");
+    const C = await openSide("q7-sim-gc");
+    const { hex, codeOfPub, sha256 } = await import("../lib/p2p/crypto");
+    const fp = async (s: typeof A) => hex(await sha256(Buffer.from(s.ident.pub, "base64")));
+    const fpA = await fp(A), fpB = await fp(B), fpC = await fp(C);
+    const contact = (id: string, pub: string, ek: string, name: string) => ({ id, pub, ek, name, code: "", addedAt: 1, verified: true });
+    // three mutual contacts: every group member can seal frames to every other member
+    (A.mgr as unknown as { set(p: unknown): void }).set({ contacts: [contact(fpB, B.ident.pub, B.ident.ecdhPub, "Bee"), contact(fpC, C.ident.pub, C.ident.ecdhPub, "Cee")] });
+    (B.mgr as unknown as { set(p: unknown): void }).set({ contacts: [contact(fpA, A.ident.pub, A.ident.ecdhPub, "Ay"), contact(fpC, C.ident.pub, C.ident.ecdhPub, "Cee")] });
+    (C.mgr as unknown as { set(p: unknown): void }).set({ contacts: [contact(fpA, A.ident.pub, A.ident.ecdhPub, "Ay"), contact(fpB, B.ident.pub, B.ident.ecdhPub, "Bee")] });
+
+    const gid = A.mgr.createGroup("Ekip", [fpB, fpC])!;
+    expect(gid).toBeTruthy();
+    await waitFor(() => B.host.getConversations().some((c) => c.id === gid && c.mode === "group"));
+    await waitFor(() => C.host.getConversations().some((c) => c.id === gid && c.mode === "group"));
+    const bc = B.host.getConversations().find((c) => c.id === gid)!;
+    expect(bc.title).toBe("Ekip");
+    expect([...(bc.members ?? [])].sort()).toEqual([fpA, fpB, fpC].sort());
+
+    A.mgr.sendGroup(gid, "selam ekip");
+    await waitFor(() => B.host.getMessages().some((m) => m.body === "selam ekip" && m.from === fpA));
+    await waitFor(() => C.host.getMessages().some((m) => m.body === "selam ekip" && m.from === fpA));
+
+    const msgA = A.host.getMessages().find((m) => m.body === "selam ekip")!;
+    B.mgr.react(gid, msgA.id, "👍");
+    await waitFor(() => (A.host.getMessages().find((m) => m.id === msgA.id)?.reactions?.["👍"] ?? []).includes(fpB));
+    await waitFor(() => (C.host.getMessages().find((m) => m.id === msgA.id)?.reactions?.["👍"] ?? []).includes(fpB));
+
+    B.mgr.markRead(gid);
+    await waitFor(() => A.host.getMessages().find((m) => m.id === msgA.id)?.status === "seen");
+
+    A.mgr.editMessage(gid, msgA.id, "selam ekip!");
+    await waitFor(() => B.host.getMessages().find((m) => m.id === msgA.id)?.body === "selam ekip!");
+    await waitFor(() => C.host.getMessages().find((m) => m.id === msgA.id)?.editedAt !== undefined);
+
+    B.mgr.sendGroup(gid, "gecici");
+    await waitFor(() => A.host.getMessages().some((m) => m.body === "gecici" && m.from === fpB));
+    await waitFor(() => C.host.getMessages().some((m) => m.body === "gecici"));
+    const tmpB = B.host.getMessages().find((m) => m.body === "gecici")!;
+    B.mgr.retract(gid, tmpB.id);
+    await waitFor(() => !A.host.getMessages().some((m) => m.body === "gecici"));
+    await waitFor(() => !C.host.getMessages().some((m) => m.body === "gecici"));
+
+    A.mgr.groupRename(gid, "Yeni Ekip");
+    await waitFor(() => B.host.getConversations().find((c) => c.id === gid)?.title === "Yeni Ekip");
+
+    C.mgr.leaveGroup(gid);
+    await waitFor(() => !(A.host.getConversations().find((c) => c.id === gid)?.members ?? []).includes(fpC));
+    await waitFor(() => !(B.host.getConversations().find((c) => c.id === gid)?.members ?? []).includes(fpC));
+    expect(C.host.getConversations().some((c) => c.id === gid)).toBe(false);
+  }, 45000);
 });

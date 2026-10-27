@@ -32,6 +32,9 @@ export interface Snapshot {
 export interface Host {
   getConversations(): Conversation[]; getMessages(): Message[]; ensureConversation(contactId: string, title: string): string;
   addMessage(m: Message, blob?: Blob): void; blobReady(): void; updateMessage(id: string, patch: Partial<Message>): void; removeConversationFor(contactId: string): void; bumpUnread(convId: string): void;
+  createGroup(opts: { id?: string; title: string; members: string[]; hue?: number; names?: Record<string, string> }): string;
+  updateGroup(gid: string, patch: Partial<Conversation>): void; removeGroup(gid: string): void;
+  reactMessage(id: string, emoji: string, who: string, on: boolean): void; removeMessage(id: string): void;
 }
 interface Link {
   pc: PeerLink; expectPub?: string; name?: string; ek?: string; contactId?: string; hs?: HandshakeState; sess?: Session; silent: boolean; last: number;
@@ -58,6 +61,7 @@ export class P2PManager {
   private outbox = new Map<string, OutboxEntry>();                // the "tox relay" queue: everything that must survive the wait
   private orphans = new Map<string, Uint8Array>();                // inline file bytes that arrived before their header
   private outRunning = false; private outTickTimer?: ReturnType<typeof setInterval>;
+  private seenSent = new Map<string, number>();                   // last "seen" watermark we sent per conversation
   private active: string | null = null; private tick?: ReturnType<typeof setInterval>; private vis = () => { if (document.visibilityState === "visible") this.reconnectAll(); };
   /* live call: internal wiring (pc, buffered ICE, saved offer) never leaks into the snapshot */
   private live?: CallState & { pc: RTCPeerConnection; offerSdp?: string; pendingIce: RTCIceCandidateInit[] };
@@ -195,7 +199,7 @@ export class P2PManager {
     this.setStatus(cid, "online"); this.setMode(cid, "direct");
     this.noteSeen(cid); // the completed handshake itself is proof of life
     if (this.snap.pairing.kind !== "idle") this.setPairing({ kind: "done", name: contact.name, convId });
-    this.flush(cid); this.sendProfile(link);
+    this.flush(cid); this.flushQueue(cid); this.flushGroupsFor(cid); this.sendProfile(link);
   }
 
   /* ---------- relay pairing (by code) ---------- */
@@ -410,14 +414,22 @@ export class P2PManager {
     const relay = this.relay;
     if (!relay || !relay.connected || !this.id) return;
     const sig = toB64(await this.id.sign(utf8(JSON.stringify(["q7rp-ack-v1", cid, id])))); // binds the receipt to the receiver's topic fp
-    relay.publish(ackRoot(cid), utf8(JSON.stringify({ c: "ack", id, sig })));
+    relay.publish(ackRoot(cid), utf8(JSON.stringify({ c: "ack", id, by: hex(this.id.fp), sig })));
   }
   private async onRelayAck(payload: Uint8Array) {    if (!this.id) return;
     let o: unknown; try { o = JSON.parse(new TextDecoder().decode(payload)); } catch { return; }
     const a = o as Record<string, unknown>;
     if (!o || typeof o !== "object" || a.c !== "ack" || typeof a.id !== "string" || !ID.test(a.id) || typeof a.sig !== "string") return;
-    let m: Message | undefined; let conv: Conversation | undefined;
-    for (const c of this.host.getConversations()) { m = this.host.getMessages().find((x) => x.id === a.id && x.conversationId === c.id && x.direction === "out"); if (m) { conv = c; break; } }
+    // the receipt may name its signer; otherwise it can only be a 1:1 conversation's peer
+    const m = this.host.getMessages().find((x) => x.id === a.id && x.direction === "out");
+    if (typeof a.by === "string" && ID.test(a.by)) {
+      const c = this.snap.contacts.find((x) => x.id === a.by); if (!c) return;
+      let ok = false; try { ok = await verify(fromB64(c.pub), fromB64(a.sig), utf8(JSON.stringify(["q7rp-ack-v1", hex(this.id.fp), a.id]))); } catch {}
+      if (ok) this.markDelivered(a.by, a.id);
+      return;
+    }
+    if (!m) return;
+    const conv = this.host.getConversations().find((c) => c.id === m.conversationId);
     const cid = conv?.contactId; if (!cid) return;
     const c = this.snap.contacts.find((x) => x.id === cid); if (!c) return;
     let ok = false; try { ok = await verify(fromB64(c.pub), fromB64(a.sig), utf8(JSON.stringify(["q7rp-ack-v1", hex(this.id.fp), a.id]))); } catch {}
@@ -427,10 +439,10 @@ export class P2PManager {
   private markDelivered(cid: string, id: string) {
     this.relay?.clearRetained(`${mailRoot(cid)}/${id}`);     // delivered ⇒ no broker needs to hold a mailbox copy anymore
     this.relay?.clearRetained(`${mailRoot(cid)}/${id}/f`);
-    const conv = this.host.getConversations().find((c) => c.contactId === cid);
-    const m = conv && this.host.getMessages().find((x) => x.id === id && x.conversationId === conv.id && x.direction === "out");
-    if (m && m.status !== "delivered") this.host.updateMessage(m.id, { status: "delivered" });
-    this.pendingBlobs.delete(id); this.outbox.delete(this.outKey(cid, "msg", id)); this.outbox.delete(this.outKey(cid, "vote", id));
+    const m = this.host.getMessages().find((x) => x.id === id && x.direction === "out");
+    if (m && m.status !== "delivered" && m.status !== "seen") this.host.updateMessage(m.id, { status: "delivered" });
+    this.pendingBlobs.delete(id);
+    for (const [k, e] of this.outbox) if (e.cid === cid && (e.obj as { id?: unknown }).id === id) this.outbox.delete(k); // any kind: msgs, invites, roster edits, reactions…
   }
   /** A frame that travelled through the relays: a live push, or an offline mailbox copy replayed by a broker. */
   private async onRelayFrame(topic: string, payload: Uint8Array) {
@@ -468,9 +480,16 @@ export class P2PManager {
     try {
       const now = Date.now(), convs = this.host.getConversations();
       for (const [key, e] of [...this.outbox]) {
-        const conv = convs.find((c) => c.contactId === e.cid);
+        const gid = typeof (e.obj as { conv?: unknown }).conv === "string" ? (e.obj as { conv: string }).conv : "";
+        const conv = gid ? convs.find((c) => c.id === gid) : convs.find((c) => c.contactId === e.cid);
         const mid = (e.obj as { id?: unknown }).id;
-        const alive = conv && typeof mid === "string" && this.host.getMessages().some((m) => m.conversationId === conv.id && m.id === mid);
+        // chat frames are bound to their message (delete it ⇒ the queue entry dies);
+        // everything else (invites, roster changes, reactions, retracts, receipts) is bound
+        // to the conversation and bounded by the retry cap instead
+        const chat = e.kind === "msg" || e.kind === "vote";
+        const alive = chat
+          ? !!conv && typeof mid === "string" && this.host.getMessages().some((m) => m.conversationId === conv.id && m.id === mid)
+          : gid ? convs.some((c) => c.id === gid) : !!conv;
         // expired, deleted or never persisted — the grace window absorbs the moment between
         // addMessage and the next React render, so a brand-new message is never mistaken for a gone one
         if (!alive && now - e.added > 15_000) { this.outbox.delete(key); continue; }
@@ -489,7 +508,7 @@ export class P2PManager {
         }
         e.tries++; e.next = now + Math.min(5_000 * e.tries, 8 * 60_000);
         if (e.tries > 24) this.outbox.delete(key);                     // per-broker retained copies outlive the retry slot
-        const conv2 = this.host.getConversations().find((c) => c.contactId === e.cid);
+        const conv2 = gid ? convs.find((c) => c.id === gid) : convs.find((c) => c.contactId === e.cid);
         const m = conv2 && e.kind === "msg" && this.host.getMessages().find((x) => x.id === mid && x.conversationId === conv2.id);
         if (m && m.status === "queued") this.host.updateMessage(m.id, { status: "sent" });
       }
@@ -640,6 +659,13 @@ export class P2PManager {
     this.host.updateMessage(m.id, { att: { ...m.att, votes: { ...m.att.votes, [this.snap.fp]: choices } } });
     this.sendData(contactId, { k: "vote", id: m.id, c: choices });
   }
+  /** Group poll vote: apply locally, fan out to every member (the apply side keys votes by sender). */
+  voteIn(convId: string, msgId: string, choices: number[]) {
+    const m = this.host.getMessages().find((x) => x.id === msgId && x.conversationId === convId);
+    if (!this.groupConv(convId) || !m || m.att?.t !== "poll" || !validVote(choices, m.att.opts.length, m.att.multi)) return;
+    this.host.updateMessage(m.id, { att: { ...m.att, votes: { ...m.att.votes, [this.snap.fp]: choices } } });
+    this.fanout(convId, "vote", { k: "vote", conv: convId, id: m.id, c: choices });
+  }
   /** Picks the best available path: the DataChannel while it is open, the relays otherwise. */
   private sendData(contactId: string, f: unknown) {
     const link = this.links.get(contactId);
@@ -652,23 +678,26 @@ export class P2PManager {
     link.tx = link.tx.then(async () => link.pc.send(await link.sess!.encrypt(f))).catch(() => link.pc.close());
   }
   private transmit(contactId: string, m: Message) {
-    const link = this.links.get(contactId);
-    if (link?.sess) {
-      link.tx = link.tx.then(async () => {
-        const s = link.sess!;
-        link.pc.send(await s.encrypt({ k: "msg", id: m.id, ts: m.createdAt, body: m.body, link: m.link, replyTo: m.replyToId, att: m.att }));
-        if (m.att?.t === "file") {
-          const blob = this.pendingBlobs.get(m.id) ?? (await db.getBlob(m.id))?.blob;
-          if (blob) {
-            const buf = new Uint8Array(await blob.arrayBuffer()), n = Math.ceil(buf.length / CHUNK);
-            for (let i = 0; i < n; i++) { await link.pc.drain(); link.pc.send(await s.encrypt({ k: "chunk", id: m.id, i, n, d: toB64(buf.slice(i * CHUNK, (i + 1) * CHUNK)) })); }
-          }
-        }
-        if (m.status === "queued") this.host.updateMessage(m.id, { status: "sent" });
-      }).catch(() => link.pc.close());
-      return;
-    }
+    const frame = { k: "msg", id: m.id, ts: m.createdAt, body: m.body, link: m.link, replyTo: m.replyToId, att: m.att };
+    if (this.links.get(contactId)?.sess) { this.directSendMsg(contactId, frame, m); return; }
     this.relayTransmit(contactId, m);
+  }
+  /** One message (header + inline file chunks) over an open DataChannel. Returns false when no link exists. */
+  private directSendMsg(contactId: string, frame: unknown, m: Message) {
+    const link = this.links.get(contactId); if (!link?.sess) return false;
+    link.tx = link.tx.then(async () => {
+      const s = link.sess!;
+      link.pc.send(await s.encrypt(frame));
+      if (m.att?.t === "file") {
+        const blob = this.pendingBlobs.get(m.id) ?? (await db.getBlob(m.id))?.blob;
+        if (blob) {
+          const buf = new Uint8Array(await blob.arrayBuffer()), n = Math.ceil(buf.length / CHUNK);
+          for (let i = 0; i < n; i++) { await link.pc.drain(); link.pc.send(await s.encrypt({ k: "chunk", id: m.id, i, n, d: toB64(buf.slice(i * CHUNK, (i + 1) * CHUNK)) })); }
+        }
+      }
+      if (m.status === "queued") this.host.updateMessage(m.id, { status: "sent" });
+    }).catch(() => link.pc.close());
+    return true;
   }
   /** Q7RP path: sealed + signed frames into the live topic and the peer's retained mailbox. */
   private relayTransmit(contactId: string, m: Message) {
@@ -684,6 +713,179 @@ export class P2PManager {
     mine.filter((m) => m.direction === "out" && m.status !== "delivered").forEach((m) => this.transmit(contactId, m));
     mine.forEach((m) => { const v = m.att?.t === "poll" ? m.att.votes[this.snap.fp] : undefined; if (v) this.sendData(contactId, { k: "vote", id: m.id, c: v }); });
   }
+  /** A fresh direct link takes over every queued non-message frame (reactions, retracts, invites…). */
+  private flushQueue(contactId: string) {
+    for (const [key, e] of [...this.outbox]) {
+      if (e.cid !== contactId || e.kind === "msg") continue;
+      this.outbox.delete(key); this.sendFrame(contactId, e.obj);
+    }
+  }
+  /** Re-sends this member's undelivered group messages over the fresh link (duplicates are deduped by id). */
+  private flushGroupsFor(contactId: string) {
+    const now = Date.now();
+    for (const c of this.host.getConversations()) {
+      if (c.mode !== "group" || !c.members?.includes(contactId)) continue;
+      this.host.getMessages()
+        .filter((m) => m.conversationId === c.id && m.direction === "out" && m.expiresAt > now && m.status !== "delivered" && m.status !== "seen")
+        .forEach((m) => this.directSendMsg(contactId, { k: "msg", conv: c.id, from: this.snap.fp, id: m.id, ts: m.createdAt, body: m.body, link: m.link, replyTo: m.replyToId, att: m.att }, m));
+    }
+  }
+
+  /* ---------- groups: real multi-member spaces over the pairwise mesh ----------
+     There is no group key and no server: every frame is sealed per recipient with the
+     existing pairwise key and fanned out member by member, exactly like 1:1 traffic.
+     Membership itself travels as frames: g-invite carries the roster, g-meta edits it. */
+  private groupConv(gid: string) { return this.host.getConversations().find((c) => c.id === gid && c.mode === "group"); }
+  private groupPeers(gid: string): string[] {
+    const conv = this.groupConv(gid); if (!conv) return [];
+    return (conv.members ?? []).filter((x) => x !== this.snap.fp && !this.snap.contacts.find((c) => c.id === x)?.blocked);
+  }
+  /** Sends one frame to every group member: the open DataChannel when there is one, the outbox otherwise. */
+  private fanout(gid: string, kind: string, obj: unknown) {
+    for (const p of this.groupPeers(gid)) {
+      if (this.links.get(p)?.sess) this.sendFrame(p, obj);
+      else this.enqueue(p, kind, obj);
+    }
+  }
+  private dmSend(contactId: string, kind: string, f: unknown) {
+    if (this.links.get(contactId)?.sess) { this.sendFrame(contactId, f); return; }
+    this.enqueue(contactId, kind, f);
+  }
+  private rosterNames(members: string[], extra?: Record<string, string>): Record<string, string> {
+    const names: Record<string, string> = { ...(extra ?? {}), [this.snap.fp]: this.snap.settings.name || "Me" };
+    for (const c of this.snap.contacts) if (members.includes(c.id)) names[c.id] = c.name;
+    return names;
+  }
+  private inviteFrame(gid: string, conv: Conversation, members: string[], extraNames?: Record<string, string>) {
+    return { k: "g-invite", conv: gid, id: gid, title: conv.title, hue: conv.hue, members, names: this.rosterNames(members, extraNames), by: this.snap.fp, ts: Date.now() };
+  }
+  private metaFrame(gid: string, patch: { title?: string; add?: string[]; remove?: string[]; names?: Record<string, string> }) {
+    return { k: "g-meta", conv: gid, id: `${gid}:${randomHex(4)}`, ...patch, by: this.snap.fp, ts: Date.now() };
+  }
+  /** Creates a space with the picked contacts and invites each of them. Returns the conversation id. */
+  createGroup(title: string, memberIds: string[]): string | null {
+    if (!this.id) return null;
+    const me = this.snap.fp;
+    const ids = memberIds.filter((x) => x !== me && this.snap.contacts.some((c) => c.id === x && !c.blocked)).slice(0, 49);
+    if (!ids.length) return null;
+    const gid = this.host.createGroup({ title, members: [me, ...ids], hue: Math.floor(Math.random() * 360) });
+    const conv = this.groupConv(gid); if (!conv) return gid;
+    for (const p of ids) this.dmSend(p, "invite", this.inviteFrame(gid, conv, conv.members ?? []));
+    ids.forEach((p) => this.ensureConnected(p, true));
+    return gid;
+  }
+  leaveGroup(gid: string) {
+    const conv = this.groupConv(gid); if (!conv) return;
+    this.fanout(gid, "meta", this.metaFrame(gid, { remove: [this.snap.fp] })); // tell the rest before vanishing
+    this.host.removeGroup(gid);
+  }
+  groupRename(gid: string, title: string) {
+    const conv = this.groupConv(gid); if (!conv) return;
+    const t = cleanName(title).slice(0, 60); if (!t) return;
+    this.host.updateGroup(gid, { title: t });
+    this.fanout(gid, "meta", this.metaFrame(gid, { title: t }));
+  }
+  groupAdd(gid: string, contactIds: string[]) {
+    const conv = this.groupConv(gid); if (!conv) return;
+    const add = contactIds.filter((x) => x !== this.snap.fp && !conv.members?.includes(x) && this.snap.contacts.some((c) => c.id === x && !c.blocked));
+    if (!add.length) return;
+    const members = [...(conv.members ?? []), ...add].slice(0, 50);
+    this.host.updateGroup(gid, { members });
+    for (const p of add) this.dmSend(p, "invite", this.inviteFrame(gid, { ...conv, members }, members)); // newcomers get the full invite
+    this.fanout(gid, "meta", this.metaFrame(gid, { add, names: this.rosterNames(members) }));            // the rest learn the new roster
+    add.forEach((p) => this.ensureConnected(p, true));
+  }
+  groupRemove(gid: string, contactId: string) {
+    const conv = this.groupConv(gid); if (!conv || contactId === this.snap.fp || !conv.members?.includes(contactId)) return;
+    this.host.updateGroup(gid, { members: conv.members.filter((x) => x !== contactId) });
+    const meta = this.metaFrame(gid, { remove: [contactId] });
+    this.fanout(gid, "meta", meta);
+    this.dmSend(contactId, "meta", meta); // the removed member learns it too
+  }
+  /** Sends into a space: one sealed message per member, fanned out pairwise. */
+  sendGroup(convId: string, body: string, att?: Attachment, blob?: Blob, replyToId?: string, link?: LinkMeta) {
+    const conv = this.groupConv(convId); if (!conv) return;
+    const createdAt = Date.now();
+    const m: Message = { id: randomHex(16), conversationId: convId, body, createdAt, expiresAt: createdAt + LIFETIME_MS, link, replyToId, att, direction: "out", status: "queued", from: this.snap.fp };
+    if (blob) this.pendingBlobs.set(m.id, blob);
+    this.host.addMessage(m, blob);
+    const big = m.att?.t === "file" && m.att.size > INLINE_MAX;
+    const frame = { k: "msg", conv: convId, from: this.snap.fp, id: m.id, ts: m.createdAt, body: m.body, link: m.link, replyTo: m.replyToId, att: m.att, inl: m.att?.t === "file" && !big ? true : undefined };
+    for (const p of this.groupPeers(convId)) {
+      if (!this.directSendMsg(p, frame, m)) this.enqueue(p, "msg", frame, m.att?.t === "file" && !big ? { att: m.att } : undefined);
+    }
+    this.groupPeers(convId).forEach((p) => this.ensureConnected(p, true));
+  }
+  /** Toggles my emoji reaction on a message and tells everyone else. */
+  react(convId: string, msgId: string, emoji: string) {
+    const conv = this.host.getConversations().find((c) => c.id === convId); if (!conv || conv.mode === "local") return;
+    const m = this.host.getMessages().find((x) => x.id === msgId && x.conversationId === convId); if (!m) return;
+    const e = Array.from(emoji).slice(0, 8).join(""); if (!e) return;
+    const on = !(m.reactions?.[e] ?? []).includes(this.snap.fp);
+    this.host.reactMessage(msgId, e, this.snap.fp, on);
+    const f = { k: "react", ...(conv.mode === "group" ? { conv: convId } : {}), id: msgId, e, on };
+    if (conv.mode === "p2p" && conv.contactId) this.dmSend(conv.contactId, "react", f);
+    else if (conv.mode === "group") this.fanout(convId, "react", f);
+  }
+  /** Edits my own sent message everywhere it lives. */
+  editMessage(convId: string, msgId: string, body: string) {
+    const conv = this.host.getConversations().find((c) => c.id === convId); if (!conv || conv.mode === "local") return;
+    const m = this.host.getMessages().find((x) => x.id === msgId && x.conversationId === convId); if (!m || m.direction !== "out") return;
+    const b = body.slice(0, 4000);
+    this.host.updateMessage(msgId, { body: b, editedAt: Date.now() });
+    const f = { k: "edit", ...(conv.mode === "group" ? { conv: convId } : {}), id: msgId, body: b };
+    if (conv.mode === "p2p" && conv.contactId) this.dmSend(conv.contactId, "edit", f);
+    else if (conv.mode === "group") this.fanout(convId, "edit", f);
+  }
+  /** Deletes my own sent message on every device: the frame leaves first so it survives the local removal. */
+  retract(convId: string, msgId: string) {
+    const conv = this.host.getConversations().find((c) => c.id === convId); if (!conv || conv.mode === "local") return;
+    const m = this.host.getMessages().find((x) => x.id === msgId && x.conversationId === convId); if (!m || m.direction !== "out") return;
+    const f = { k: "retract", ...(conv.mode === "group" ? { conv: convId } : {}), id: msgId };
+    if (conv.mode === "p2p" && conv.contactId) this.dmSend(conv.contactId, "retract", f);
+    else if (conv.mode === "group") this.fanout(convId, "retract", f);
+    this.host.removeMessage(msgId);
+  }
+  /** Read receipts: tells the conversation how far we have read ("Görüldü"). */
+  markRead(convId: string) {
+    const conv = this.host.getConversations().find((c) => c.id === convId); if (!conv || conv.mode === "local") return;
+    const upto = this.host.getMessages().filter((m) => m.conversationId === convId && m.direction === "in").reduce((t, m) => Math.max(t, m.createdAt), 0);
+    if (!upto || upto <= (this.seenSent.get(convId) ?? 0)) return;
+    this.seenSent.set(convId, upto);
+    const f = { k: "seen", id: randomHex(8), ...(conv.mode === "group" ? { conv: convId } : {}), upto };
+    if (conv.mode === "p2p" && conv.contactId) this.dmSend(conv.contactId, "seen", f);
+    else if (conv.mode === "group") this.fanout(convId, "seen", f);
+  }
+  /** Applies a group invite: same conversation id on every member, roster and names included. */
+  private onGroupInvite(cid: string, o: Record<string, unknown>) {
+    const gid = o.conv; if (typeof gid !== "string" || !ID.test(gid)) return;
+    const members = Array.isArray(o.members) ? o.members.filter((x): x is string => typeof x === "string" && ID.test(x)).slice(0, 50) : [];
+    if (!members.includes(cid) || !members.includes(this.snap.fp) || members.length < 2) return;
+    const title = typeof o.title === "string" ? cleanName(o.title).slice(0, 60) : "";
+    if (!title) return;
+    const hue = typeof o.hue === "number" && Number.isFinite(o.hue) && o.hue >= 0 && o.hue < 360 ? Math.floor(o.hue) : undefined;
+    const names: Record<string, string> = {};
+    if (o.names && typeof o.names === "object") for (const [k, v] of Object.entries(o.names as Record<string, unknown>)) if (ID.test(k) && typeof v === "string") names[k] = cleanName(v);
+    this.host.createGroup({ id: gid, title, members, hue, names });
+  }
+  /** Applies a roster edit from a member: add, remove (a removal that hits me tears the space down). */
+  private onGroupMeta(cid: string, o: Record<string, unknown>) {
+    const gid = o.conv; if (typeof gid !== "string" || !ID.test(gid)) return;
+    const conv = this.groupConv(gid); if (!conv) return;
+    const cur = conv.members ?? []; if (!cur.includes(cid)) return; // only members may touch the roster
+    let members = [...cur]; let removedMe = false;
+    if (Array.isArray(o.add)) for (const x of o.add) if (typeof x === "string" && ID.test(x) && !members.includes(x) && members.length < 50) members.push(x);
+    if (Array.isArray(o.remove)) for (const x of o.remove) if (typeof x === "string" && ID.test(x)) { if (x === this.snap.fp) removedMe = true; members = members.filter((y) => y !== x); }
+    if (removedMe) { this.host.removeGroup(gid); return; }
+    const patch: Partial<Conversation> = { members };
+    if (typeof o.title === "string" && cleanName(o.title)) patch.title = cleanName(o.title).slice(0, 60);
+    if (o.names && typeof o.names === "object") {
+      const names = { ...(conv.names ?? {}) };
+      for (const [k, v] of Object.entries(o.names as Record<string, unknown>)) if (ID.test(k) && typeof v === "string") names[k] = cleanName(v);
+      patch.names = names;
+    }
+    this.host.updateGroup(gid, patch);
+  }
 
   /* ---------- frame handling, shared by the direct link and the relays ----------
      direct frames arrive with their owning link; relayed frames come from onRelayFrame */
@@ -691,20 +893,55 @@ export class P2PManager {
     if (!f || typeof f !== "object") return; const o = f as Record<string, unknown>;
     if (this.snap.contacts.find((c) => c.id === cid)?.blocked) return; // blocked contacts are fully silenced
     if (o.k === "call") { this.onCallFrame(cid, o); return; }
-    const conv = this.host.getConversations().find((c) => c.contactId === cid); if (!conv) return;
+    const ack = (id: string) => {
+      if (this.links.get(cid)?.sess) this.sendFrame(cid, { k: "ack", id }); else void this.sendRelayAck(cid, id);
+    };
+    // group frames route by their conv id; everything else stays 1:1 (the peer owns one DM conversation)
+    const gid = typeof o.conv === "string" && o.conv ? o.conv : "";
+    let conv: Conversation | undefined;
+    if (gid) {
+      conv = this.host.getConversations().find((c) => c.id === gid);
+      if (!conv || conv.mode !== "group") {
+        if (o.k === "g-invite") { this.onGroupInvite(cid, o); if (typeof o.id === "string") ack(o.id); } // the ack stops the sender's retry loop
+        return;
+      }
+      if (cid === this.snap.fp || !(conv.members ?? []).includes(cid)) return; // my own echo, or a non-member, may not speak
+      if (o.k === "g-invite") { if (typeof o.id === "string") ack(o.id); return; } // already a member: receipt only
+    } else {
+      conv = this.host.getConversations().find((c) => c.contactId === cid); if (!conv) return;
+    }
     if (o.k === "ping") { // "burda mısın?" — answered at once, on the very path the question came from
       if (via === "direct") { const link = this.links.get(cid); if (link?.sess) this.sendFrame(cid, { k: "pong" }); }
       else void this.relayPing(cid, "pong");
       return;
     }
     if (o.k === "pong") return; // heartbeat reply: the transport layer already noted the proof of life
-    const ack = (id: string) => {
-      if (this.links.get(cid)?.sess) this.sendFrame(cid, { k: "ack", id }); else void this.sendRelayAck(cid, id);
-    };
     if (o.k === "ack" && typeof o.id === "string") { this.markDelivered(cid, o.id); return; }
+    if (o.k === "g-meta") { this.onGroupMeta(cid, o); if (typeof o.id === "string") ack(o.id); return; }
     if (o.k === "profile") {
       const c = this.snap.contacts.find((x) => x.id === cid); if (!c) return;
       void this.patchContact(cid, { photo: validAvatar(o.photo) ? o.photo : undefined, ...(typeof o.name === "string" && !c.renamed ? { name: cleanName(o.name) } : {}) }); return;
+    }
+    if (o.k === "react" && typeof o.id === "string" && ID.test(o.id) && typeof o.e === "string" && o.e.length <= 16) {
+      const m = this.host.getMessages().find((x) => x.id === o.id && x.conversationId === conv.id); if (!m) return;
+      this.host.reactMessage(o.id, o.e, cid, o.on !== false); ack(o.id); return;
+    }
+    if (o.k === "retract" && typeof o.id === "string" && ID.test(o.id)) {
+      const m = this.host.getMessages().find((x) => x.id === o.id && x.conversationId === conv.id); if (!m) return;
+      if (gid ? m.from !== cid : m.direction !== "in") return; // only the original sender may retract
+      this.host.removeMessage(o.id); ack(o.id); return;
+    }
+    if (o.k === "edit" && typeof o.id === "string" && ID.test(o.id) && typeof o.body === "string" && o.body.length <= 4000) {
+      const m = this.host.getMessages().find((x) => x.id === o.id && x.conversationId === conv.id); if (!m) return;
+      if (gid ? m.from !== cid : m.direction !== "in") return; // only the original sender may edit
+      this.host.updateMessage(o.id, { body: o.body, editedAt: Date.now() }); ack(o.id); return;
+    }
+    if (o.k === "seen" && typeof o.id === "string" && ID.test(o.id) && typeof o.upto === "number" && Number.isFinite(o.upto) && o.upto > 0 && o.upto < Date.now() + 60_000) {
+      const upto = o.upto;
+      for (const m of this.host.getMessages().filter((x) => x.conversationId === conv.id && x.direction === "out" && x.status && x.status !== "seen" && x.createdAt <= upto)) {
+        this.host.updateMessage(m.id, { status: "seen" });
+      }
+      ack(o.id); return;
     }
     if (o.k === "vote" && typeof o.id === "string") {
       const m = this.host.getMessages().find((x) => x.id === o.id && x.conversationId === conv.id);
@@ -736,6 +973,7 @@ export class P2PManager {
       this.host.blobReady(); this.orphans.delete(o.id); ack(o.id); return;
     }
     if (o.k !== "msg" || typeof o.id !== "string" || !ID.test(o.id) || typeof o.body !== "string" || o.body.length > 4000 || typeof o.ts !== "number" || !Number.isFinite(o.ts)) return;
+    if (typeof o.from === "string" && o.from !== cid) return; // the claimed sender must be the wire sender
     let meta: LinkMeta | undefined;
     if (o.link && typeof o.link === "object") {
       const l = o.link as Record<string, unknown>; const u = typeof l.url === "string" ? parseHttpsUrl(l.url) : null;
@@ -748,7 +986,7 @@ export class P2PManager {
     if (expiresAt <= now) { ack(o.id); return; }
     const exists = this.host.getMessages().some((x) => x.id === o.id);
     if (!exists) {
-      this.host.addMessage({ id: o.id, conversationId: conv.id, body: o.body, createdAt, expiresAt, link: meta, att: att ?? undefined, replyToId: typeof o.replyTo === "string" && ID.test(o.replyTo) ? o.replyTo : undefined, direction: "in" });
+      this.host.addMessage({ id: o.id, conversationId: conv.id, body: o.body, createdAt, expiresAt, link: meta, att: att ?? undefined, replyToId: typeof o.replyTo === "string" && ID.test(o.replyTo) ? o.replyTo : undefined, direction: "in", from: gid ? cid : undefined });
       if (this.active !== conv.id) this.host.bumpUnread(conv.id);
     }
     if (att?.t === "file") {
