@@ -37,7 +37,7 @@ interface Link {
   pc: PeerLink; expectPub?: string; name?: string; ek?: string; contactId?: string; hs?: HandshakeState; sess?: Session; silent: boolean; last: number;
   hsReady: Promise<void>; resolveHs: () => void; tx: Promise<void>; rx: Promise<void>; timer?: ReturnType<typeof setTimeout>;
 }
-interface OutboxEntry { cid: string; kind: string; obj: unknown; file?: { att: Extract<Attachment, { t: "file" }> }; next: number; tries: number }
+interface OutboxEntry { cid: string; kind: string; obj: unknown; file?: { att: Extract<Attachment, { t: "file" }> }; added: number; next: number; tries: number }
 interface Knock { link: Link; targetCode: string; expectPub?: string; done: ReturnType<typeof setTimeout>; iv: ReturnType<typeof setInterval>; topicR: string }
 const ID = /^[\w-]{1,64}$/;
 const IDLE: PairingState = { kind: "idle" };
@@ -460,7 +460,7 @@ export class P2PManager {
   private outKey(cid: string, kind: string, id: string) { return `${cid}~${kind}~${id}`; }
   private enqueue(cid: string, kind: string, obj: unknown, file?: { att: Extract<Attachment, { t: "file" }> }) {
     const id = typeof (obj as { id?: unknown }).id === "string" ? (obj as { id: string }).id : randomHex(8);
-    this.outbox.set(this.outKey(cid, kind, id), { cid, kind, obj, ...(file ? { file } : {}), next: 0, tries: 0 });
+    this.outbox.set(this.outKey(cid, kind, id), { cid, kind, obj, ...(file ? { file } : {}), added: Date.now(), next: 0, tries: 0 });
     void this.outTick();
   }
   private async outTick() {
@@ -471,7 +471,9 @@ export class P2PManager {
         const conv = convs.find((c) => c.contactId === e.cid);
         const mid = (e.obj as { id?: unknown }).id;
         const alive = conv && typeof mid === "string" && this.host.getMessages().some((m) => m.conversationId === conv.id && m.id === mid);
-        if (!alive) { this.outbox.delete(key); continue; }             // expired, deleted or never persisted
+        // expired, deleted or never persisted — the grace window absorbs the moment between
+        // addMessage and the next React render, so a brand-new message is never mistaken for a gone one
+        if (!alive && now - e.added > 15_000) { this.outbox.delete(key); continue; }
         if (this.links.get(e.cid)?.sess) continue;                     // the direct transport owns delivery while it is open
         if (e.next > now) continue;
         if (this.relay.connected === 0) { e.next = now + 4_000; continue; }
@@ -670,12 +672,11 @@ export class P2PManager {
   }
   /** Q7RP path: sealed + signed frames into the live topic and the peer's retained mailbox. */
   private relayTransmit(contactId: string, m: Message) {
-    if (!this.relay?.connected) return; // stays "queued" until a relay shares the frame or a direct link opens
+    // enqueued even while the relays are down — outTick waits for them and delivers on reconnect;
+    // the status stays "queued" until a frame is actually published (outTick flips it to "sent")
     const big = m.att?.t === "file" && m.att.size > INLINE_MAX;
     this.enqueue(contactId, "msg", { k: "msg", id: m.id, ts: m.createdAt, body: m.body, link: m.link, replyTo: m.replyToId, att: m.att, inl: m.att?.t === "file" && !big ? true : undefined },
       m.att?.t === "file" && !big ? { att: m.att } : undefined);
-    const conv = this.host.getConversations().find((c) => c.id === m.conversationId);
-    if (m.status === "queued" && conv) this.host.updateMessage(m.id, { status: "sent" });
   }
   private flush(contactId: string) {
     const conv = this.host.getConversations().find((c) => c.contactId === contactId); if (!conv) return;

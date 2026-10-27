@@ -22,6 +22,9 @@ interface Store {
   exportLocal: () => Promise<string>;
   importLocal: (text: string) => Promise<{ conversations: number; messages: number; skipped: number }>;
   setSettings: (patch: Partial<Settings>) => void;
+  /** Synchronous reads for non-React consumers (P2P): reflect the very latest mutations, not the last render. */
+  peekConversations: () => Conversation[];
+  peekMessages: () => Message[];
   spaces: Space[];
   createSpace: (name: string) => string;
   deleteSpace: (id: string) => void;
@@ -194,6 +197,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const spaceRemove = useCallback((id: string, contactId: string) => mutateSpaces((l) => l.map((s) => (s.id === id ? { ...s, members: s.members.filter((m) => m !== contactId) } : s))), [mutateSpaces]);
 
   const live = useMemo(() => messages.filter((m) => m.expiresAt > now), [messages, now]);
-  const value: Store = { ready, now, storageError, blobTick, bumpBlobs, conversations, messages: live, settings, createLocal, update, send, remove, createP2P, addMessage, updateMessage, removeConversation, clearConversation, wipeLocal, exportLocal, importLocal, setSettings, spaces, createSpace, deleteSpace, renameSpace, spaceAdd, spaceRemove };
+  const peekConversations = useCallback(() => convRef.current, []);
+  const peekMessages = useCallback(() => { const t = Date.now(); return msgRef.current.filter((m) => m.expiresAt > t); }, []);
+  const value: Store = { ready, now, storageError, blobTick, bumpBlobs, conversations, messages: live, settings, createLocal, update, send, remove, createP2P, addMessage, updateMessage, removeConversation, clearConversation, wipeLocal, exportLocal, importLocal, setSettings, peekConversations, peekMessages, spaces, createSpace, deleteSpace, renameSpace, spaceAdd, spaceRemove };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

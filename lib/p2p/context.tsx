@@ -9,8 +9,8 @@ export function P2PProvider({ children }: { children: ReactNode }) {
   const s = useStore();
   const ref = useRef(s); ref.current = s;
   const mgr = useMemo(() => new P2PManager({
-    getConversations: () => ref.current.conversations,
-    getMessages: () => ref.current.messages,
+    getConversations: () => ref.current.peekConversations(),
+    getMessages: () => ref.current.peekMessages(),
     ensureConversation: (cid, title) => ref.current.createP2P(cid, title),
     addMessage: (m, blob) => ref.current.addMessage(m, blob),
     blobReady: () => ref.current.bumpBlobs(),
