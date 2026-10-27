@@ -2,8 +2,8 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
-  Bell, Check, ChevronDown, CircleHelp, Copy, GraduationCap, Grip, Image as ImageIcon, LifeBuoy, Lock, Menu as MenuIcon,
-  Palette, PersonStanding, Search, Settings as Cog, ShieldOff, SlidersHorizontal, type LucideIcon,
+  Bell, Check, ChevronDown, CircleHelp, Copy, GraduationCap, Grip, Image as ImageIcon, KeyRound, LifeBuoy, Lock, Menu as MenuIcon,
+  MonitorSmartphone, Palette, PersonStanding, Search, Settings as Cog, ShieldOff, SlidersHorizontal, type LucideIcon,
 } from "lucide-react";
 import type { K } from "@/lib/i18n";
 import { useI18n } from "@/lib/i18n";
@@ -29,6 +29,8 @@ export const SETTINGS_SECTIONS: { id: SettingsSection; icon: LucideIcon; label: 
   { id: "a11y", icon: PersonStanding, label: "set.sec.a11y" },
   { id: "restrict", icon: ShieldOff, label: "set.sec.restrict" },
   { id: "privacy", icon: Lock, label: "set.sec.privacy" },
+  { id: "devices", icon: MonitorSmartphone, label: "set.sec.devices" },
+  { id: "lock", icon: KeyRound, label: "set.sec.lock" },
 ];
 
 interface Props {

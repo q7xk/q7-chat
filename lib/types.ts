@@ -2,7 +2,7 @@ export type Mode = "local" | "p2p" | "group";
 export type View = "chats" | "contacts" | "connect" | "calls" | "settings" | "mentions" | "starred" | "spaces";
 export type PreviewPolicy = "ask" | "block" | "allow";
 export type Presence = "online" | "dnd" | "away";
-export type SettingsSection = "general" | "notifications" | "media" | "look" | "a11y" | "restrict" | "privacy";
+export type SettingsSection = "general" | "notifications" | "media" | "look" | "a11y" | "restrict" | "privacy" | "devices" | "lock";
 
 /** A user-made group of contacts ("Alan") — local organisation, no network. */
 export interface Space { id: string; name: string; hue: number; members: string[] }

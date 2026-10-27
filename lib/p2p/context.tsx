@@ -24,6 +24,7 @@ export function P2PProvider({ children }: { children: ReactNode }) {
     removeMessage: (id) => ref.current.remove(id),
   }), []);
   useEffect(() => { if (s.ready) void mgr.init(); }, [s.ready, mgr]);
+  useEffect(() => () => mgr.shutdown(), [mgr]); // unmount kills the session: the lock gate re-mounts a fresh manager on unlock
   return <Ctx.Provider value={mgr}>{children}</Ctx.Provider>;
 }
 

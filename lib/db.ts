@@ -102,6 +102,8 @@ export const putContact = (c: Contact) => run([STORES.contacts], "readwrite", (t
 export const deleteContact = (id: string) => run([STORES.contacts], "readwrite", (tx) => { tx.objectStore(STORES.contacts).delete(id); });
 export const getIdentity = () => run([STORES.identity], "readonly", (tx) => req(tx.objectStore(STORES.identity).get("identity") as IDBRequest<StoredIdentity | undefined>));
 export const putIdentity = (i: StoredIdentity) => run([STORES.identity], "readwrite", (tx) => { tx.objectStore(STORES.identity).put(i); });
+export const delIdentity = () => run([STORES.identity], "readwrite", (tx) => { tx.objectStore(STORES.identity).delete("identity"); });
+export const delFlag = (key: string) => run([STORES.settings], "readwrite", (tx) => { tx.objectStore(STORES.settings).delete(key); });
 
 /* ---------- export / import ---------- */
 

@@ -164,9 +164,9 @@ describe("Q7RP simulated end to end", () => {
     const fpA = await fp(A), fpB = await fp(B), fpC = await fp(C);
     const contact = (id: string, pub: string, ek: string, name: string) => ({ id, pub, ek, name, code: "", addedAt: 1, verified: true });
     // three mutual contacts: every group member can seal frames to every other member
-    (A.mgr as unknown as { set(p: unknown): void }).set({ contacts: [contact(fpB, B.ident.pub, B.ident.ecdhPub, "Bee"), contact(fpC, C.ident.pub, C.ident.ecdhPub, "Cee")] });
-    (B.mgr as unknown as { set(p: unknown): void }).set({ contacts: [contact(fpA, A.ident.pub, A.ident.ecdhPub, "Ay"), contact(fpC, C.ident.pub, C.ident.ecdhPub, "Cee")] });
-    (C.mgr as unknown as { set(p: unknown): void }).set({ contacts: [contact(fpA, A.ident.pub, A.ident.ecdhPub, "Ay"), contact(fpB, B.ident.pub, B.ident.ecdhPub, "Bee")] });
+    (A.mgr as unknown as { set(p: unknown): void }).set({ contacts: [contact(fpB, B.ident.pub, B.ident.ecdhPub!, "Bee"), contact(fpC, C.ident.pub, C.ident.ecdhPub!, "Cee")] });
+    (B.mgr as unknown as { set(p: unknown): void }).set({ contacts: [contact(fpA, A.ident.pub, A.ident.ecdhPub!, "Ay"), contact(fpC, C.ident.pub, C.ident.ecdhPub!, "Cee")] });
+    (C.mgr as unknown as { set(p: unknown): void }).set({ contacts: [contact(fpA, A.ident.pub, A.ident.ecdhPub!, "Ay"), contact(fpB, B.ident.pub, B.ident.ecdhPub!, "Bee")] });
 
     const gid = A.mgr.createGroup("Ekip", [fpB, fpC])!;
     expect(gid).toBeTruthy();
@@ -208,4 +208,81 @@ describe("Q7RP simulated end to end", () => {
     await waitFor(() => !(B.host.getConversations().find((c) => c.id === gid)?.members ?? []).includes(fpC));
     expect(C.host.getConversations().some((c) => c.id === gid)).toBe(false);
   }, 45000);
+
+  /* ---------- device adoption: a working pair of fake peer connections ---------- */
+  class DuoDC {
+    readyState: RTCDataChannelState = "connecting"; peer: DuoDC | null = null; bufferedAmount = 0; binaryType = "arraybuffer";
+    onopen: (() => void) | null = null; onclose: (() => void) | null = null; onmessage: ((e: { data: string | ArrayBuffer }) => void) | null = null;
+    open() { this.readyState = "open"; this.onopen?.(); }
+    send(d: string | ArrayBuffer) { if (this.readyState !== "open" || !this.peer) return; const p = this.peer; setTimeout(() => p.readyState === "open" && p.onmessage?.({ data: d }), 0); }
+    close() { if (this.readyState === "closed") return; this.readyState = "closed"; this.onclose?.(); this.peer?.close(); this.peer = null; }
+  }
+  class DuoPC {
+    private static offers = new Map<string, { offerer: DuoPC; dc: DuoDC }>(); private static n = 0;
+    ondatachannel: ((e: { channel: DuoDC }) => void) | null = null; onconnectionstatechange: unknown = null;
+    localDescription: { type: RTCSdpType; sdp: string } | null = null; private dc: DuoDC | null = null;
+    createDataChannel(_label: string, _opts?: unknown) { if (!this.dc) this.dc = new DuoDC(); return this.dc; }
+    async createOffer() { return { type: "offer" as RTCSdpType, sdp: `v=0 duo-offer-${++DuoPC.n}` }; }
+    async createAnswer() { return { type: "answer" as RTCSdpType, sdp: "v=0 duo-answer" }; }
+    async setLocalDescription(d: { type: RTCSdpType; sdp: string }) {
+      this.localDescription = d;
+      if (d.type === "offer") { if (!this.dc) this.dc = new DuoDC(); DuoPC.offers.set(d.sdp, { offerer: this, dc: this.dc }); }
+      return d;
+    }
+    async setRemoteDescription(d: { type: RTCSdpType; sdp: string }) {
+      if (d.type === "offer") {                     // the answerer joins: wire both data channels together
+        const entry = DuoPC.offers.get(d.sdp);
+        if (entry) {
+          const a = new DuoDC(); this.dc = a; entry.dc.peer = a; a.peer = entry.dc;
+          this.ondatachannel?.({ channel: a });
+          setTimeout(() => { entry.dc.open(); a.open(); }, 5);
+        }
+      }
+      return d;
+    }
+    get connectionState() { return "connected"; }
+    get iceGatheringState() { return "complete"; }
+    addEventListener() {} removeEventListener() {}
+    close() { this.dc?.close(); }
+  }
+
+  it("device adoption: a fresh device takes over the identity, contacts ride along", async () => {
+    const S = await openSide("q7-sim-dev-src");
+    const N = await openSide("q7-sim-dev-new");
+    vi.stubGlobal("RTCPeerConnection", DuoPC);      // both new links (and only these) use the working loopback pair
+    const { hex, sha256 } = await import("../lib/p2p/crypto");
+    const fpX = hex(await sha256(Buffer.from("deadbeefdeadbeefcafe", "hex")));
+    const contacts = [
+      { id: fpX, pub: "BPubX".repeat(13), name: "Xee", code: "000000000001", addedAt: 1, verified: true },
+      { id: fpX.slice(0, 20) + "y", pub: "BPubY".repeat(13), name: "Why", code: "000000000002", addedAt: 2, verified: false },
+    ];
+    (S.mgr as unknown as { set(p: unknown): void }).set({ contacts });
+    await S.mgr.beginDevicePairing();
+    expect(await waitFor(() => S.mgr.getSnapshot().devicePairing.kind === "open")).toBe(true);
+
+    await N.mgr.startDevicePairing(S.mgr.getSnapshot().code);
+    expect(await waitFor(() => S.mgr.getSnapshot().devicePairing.kind === "confirm")).toBe(true);
+    expect(await waitFor(() => {
+      const p = N.mgr.getSnapshot().pairing;
+      return p.kind === "device" && p.phase === "connected" && !!p.safety;
+    })).toBe(true);
+    const sDp = S.mgr.getSnapshot().devicePairing, nPair = N.mgr.getSnapshot().pairing;
+    if (sDp.kind !== "confirm" || nPair.kind !== "device") throw new Error("pairing states drifted");
+    expect(sDp.safety.length).toBeGreaterThan(10);
+    expect(sDp.safety).toBe(nPair.safety);          // both screens show the same number — MITM would break this
+
+    S.mgr.confirmDevicePair();
+    expect(await waitFor(() => {
+      const p = N.mgr.getSnapshot().pairing;
+      return p.kind === "device" && p.phase === "done";
+    })).toBe(true);
+
+    const dbm = await import("../lib/db");
+    const id = await dbm.getIdentity();
+    expect(id?.pub).toBe(S.ident.pub);              // the adopting device IS the source identity now
+    expect((await dbm.getFlag("p2p-settings") as { name: string }).name).toBe(S.mgr.getSnapshot().settings.name);
+    const got = await dbm.getContacts();
+    expect(got.map((c) => c.name).sort()).toEqual(["Why", "Xee"]);
+    expect(S.host.conversations.length).toBe(0);    // a device pair is never a conversation
+  }, 40000);
 });

@@ -70,18 +70,18 @@ async function hkdfKey(ikm: string, info: string, usage: KeyUsage[]) {
   const base = await crypto.subtle.importKey("raw", B(utf8(ikm)), "HKDF", false, ["deriveKey"]);
   return crypto.subtle.deriveKey({ name: "HKDF", hash: "SHA-256", salt: B(utf8("q7-salt-v1")), info: B(utf8(info)) }, base, { name: "AES-GCM", length: 256 }, false, usage);
 }
-export async function seal(secret: string, obj: unknown) {
-  const k = await hkdfKey(secret, "relay-v1", ["encrypt"]); const iv = crypto.getRandomValues(new Uint8Array(12));
+export async function seal(secret: string, obj: unknown, info = "relay-v1") {
+  const k = await hkdfKey(secret, info, ["encrypt"]); const iv = crypto.getRandomValues(new Uint8Array(12));
   return concat(iv, new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv: B(iv) }, k, B(utf8(JSON.stringify(obj))))));
 }
-export async function unseal(secret: string, data: Uint8Array): Promise<unknown | null> {
+export async function unseal(secret: string, data: Uint8Array, info = "relay-v1"): Promise<unknown | null> {
   try {
     if (data.length < 29) return null;
-    const k = await hkdfKey(secret, "relay-v1", ["decrypt"]);
+    const k = await hkdfKey(secret, info, ["decrypt"]);
     return JSON.parse(dec.decode(await crypto.subtle.decrypt({ name: "AES-GCM", iv: B(data.slice(0, 12)) }, k, B(data.slice(12)))));
   } catch { return null; }
 }
-export async function topicFor(kind: "k" | "r", id: string) { return `q7/v1/${kind}/${hex(await sha256(`${kind}|${id}`)).slice(0, 32)}`; }
+export async function topicFor(kind: "k" | "r" | "d", id: string) { return `q7/v1/${kind}/${hex(await sha256(`${kind}|${id}`)).slice(0, 32)}`; }
 
 /* ----- signed offer/answer envelopes (authenticate the SDP, including its DTLS fingerprint) ----- */
 export interface Envelope { t: "offer" | "answer"; rid: string; pub: string; name: string; sdp: string; ts: number; sig: string; to?: string; ek?: string }

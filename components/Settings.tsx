@@ -12,6 +12,7 @@ import { cn } from "@/lib/cn";
 import { Avatar, clipShape } from "./Badges";
 import { btn, field } from "./Connect";
 import { SETTINGS_SECTIONS } from "./TopBar";
+import { DevicesSection, LockSection } from "./Security";
 import { Box, Page } from "./ui";
 
 export function SettingsPanel({ section, onContacts, onSectionSeen }: { section?: SettingsSection | null; onContacts?: () => void; onSectionSeen?: () => void }) {
@@ -174,6 +175,12 @@ export function SettingsPanel({ section, onContacts, onSectionSeen }: { section?
             : <div role="alertdialog" className="space-y-3 rounded-3xl bg-danger/10 p-4"><p className="text-sm">{t("set.wipeAsk")}</p>
               <div className="flex gap-2"><button onClick={() => { void mgr.wipe(wipeLocal); setConfirm(false); setMsg(null); }} className="rounded-full bg-danger px-5 py-2 text-sm font-medium text-bg">{t("set.wipe")}</button><button onClick={() => setConfirm(false)} className="rounded-full px-4 py-2 text-sm text-muted">{t("c.cancel")}</button></div></div>}
         </Box>
+      </section>
+      <section ref={(el) => { refs.current.devices = el; }} className="scroll-mt-6 space-y-3"><Sec id="devices" />
+        <DevicesSection />
+      </section>
+      <section ref={(el) => { refs.current.lock = el; }} className="scroll-mt-6 space-y-3"><Sec id="lock" />
+        <LockSection />
       </section>
     </Page>
   );
