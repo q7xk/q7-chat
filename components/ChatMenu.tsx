@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   Archive, ArrowLeftRight, Ban, Bell, BellOff, ChevronRight, Eraser, FileText, FolderOpen, Link2, LogOut, Mic,
-  MoreVertical, Palette, Pencil, Phone, Pin, PinOff, Star, StarOff, Trash2, User as UserIcon, UserMinus, UserPlus, Users, Video, Download,
+  MoreVertical, Palette, Pencil, Pin, PinOff, Star, StarOff, Trash2, User as UserIcon, UserMinus, UserPlus, Users, Download,
 } from "lucide-react";
 import type { Conversation, Contact, LinkMeta, Message } from "@/lib/types";
 import { useStore } from "@/lib/store";
@@ -67,12 +67,6 @@ export function ChatMenu({ conv, contact, p2p, onOpenConv }: { conv: Conversatio
   }, [open]);
 
   const flash = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 2500); };
-  const call = async (video: boolean) => {
-    setOpen(false);
-    if (!conv.contactId) return;
-    const ok = await mgr.placeCall(conv.contactId, video);
-    if (!ok) flash(snap.status[conv.contactId] !== "online" ? t("thread.offline") : t("err.noMedia"));
-  };
   const exportChat = () => {
     const name = (m: Message) => (m.direction === "in" ? (group ? memberName(conv, m.from, snap.contacts, t("group.unknown")) : contact?.name ?? conv.title) : t("chats.you"));
     const body = (m: Message) => m.body || (m.att?.t === "file" ? (m.att.kind === "voice" ? "🎤" : m.att.kind === "image" ? "🖼" : `📄 ${m.att.name}`) : m.att?.t === "gif" ? "GIF" : m.att?.t === "poll" ? `📊 ${m.att.q}` : m.att?.t === "event" ? `📅 ${m.att.title}` : m.att?.t === "location" ? "📍" : m.att?.t === "contact" ? `👤 ${m.att.name}` : m.link?.title || t("chats.link"));
@@ -93,16 +87,11 @@ export function ChatMenu({ conv, contact, p2p, onOpenConv }: { conv: Conversatio
   return (
     <div ref={root} className="relative flex items-center gap-0.5">
       {toast && <p role="status" className="absolute end-0 -top-9 whitespace-nowrap rounded-full bg-highest px-3 py-1.5 text-xs shadow">{toast}</p>}
-      {p2p && <>
-        <button onClick={() => void call(true)} disabled={!online} aria-label={t("call.video")} title={t("call.video")} className={cn(iconBtn, !online && "opacity-40")}><Video size={19} /></button>
-        <button onClick={() => void call(false)} disabled={!online} aria-label={t("call.audio")} title={t("call.audio")} className={cn(iconBtn, !online && "opacity-40")}><Phone size={19} /></button>
-      </>}
-      <button onClick={() => setOpen((v) => !v)} aria-label={t("menu.more")} aria-expanded={open} className={cn(iconBtn, open && "bg-raised text-ink")}><MoreVertical size={19} /></button>
+      {p2p && <button onClick={() => setOpen((v) => !v)} aria-label={t("menu.more")} aria-expanded={open} className={cn(iconBtn, open && "bg-raised text-ink")}><MoreVertical size={19} /></button>}
       {open && (
         <div className="m3-pop absolute end-0 top-12 z-20 w-64 space-y-0.5 rounded-3xl bg-highest p-2 shadow-xl" role="menu">
           {p2p && <>
             <button role="menuitem" onClick={() => { setOpen(false); setPanel("info"); }} className={item}><UserIcon size={18} />{t("menu.contact")}</button>
-            <button role="menuitem" onClick={() => void call(false)} className={item}><Phone size={18} />{t("menu.call")}</button>
           </>}
           {group && <button role="menuitem" onClick={() => { setOpen(false); setPanel("members"); }} className={item}><Users size={18} />{t("group.members", { n: (conv.members ?? []).length })}</button>}
           {group && <button role="menuitem" onClick={() => { setOpen(false); setPanel("rename"); }} className={item}><Pencil size={18} />{t("group.rename")}</button>}

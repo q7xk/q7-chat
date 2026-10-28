@@ -37,15 +37,7 @@ const lessons: { no: string; title: string; goal: string; steps: string[]; tip?:
     tip: "Bir mesaja uzun basarak yanıtlayabilirsin; yanıt orijinalin üstünde görünür.",
   },
   {
-    no: "4", title: "Aramalar", goal: "Sesli ve görüntülü arama yapmayı öğren.",
-    steps: [
-      "Kişi kartından ya da sohbet başlığından arama başlat.",
-      "Tarayıcı mikrofon/kamera iznini iste; bir kez vermen yeterli.",
-      "Arama bitince Aramalar sekmesinden geçmişi görebilirsin.",
-    ],
-  },
-  {
-    no: "5", title: "Gizlilik ayarların", goal: "Kimin sana ulaşabildiğini sen yönet.",
+    no: "4", title: "Gizlilik ayarların", goal: "Kimin sana ulaşabildiğini sen yönet.",
     steps: [
       "Ayarlar ▸ Erişim kısıtlamaları: yalnızca kişilerin bağlanabilsin.",
       "Rahatsız eden kişiyi Engelle; artık yazamaz, arayamaz, bağlanamaz.",
@@ -54,7 +46,7 @@ const lessons: { no: string; title: string; goal: string; steps: string[]; tip?:
     ],
   },
   {
-    no: "6", title: "Verilerini yönetmek", goal: "Yedekle, taşı, sil.",
+    no: "5", title: "Verilerini yönetmek", goal: "Yedekle, taşı, sil.",
     steps: [
       "Ayarlar ▸ Veri gizliliği ▸ Dışa aktar: tek JSON yedek dosyası al.",
       "Yeni cihazda İçe aktar ile her şeyi geri yükle.",

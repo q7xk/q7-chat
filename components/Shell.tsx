@@ -1,14 +1,12 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AtSign, Home, MessageSquare, Phone, Plus, ScanLine, Settings as Cog, Star, Users, type LucideIcon } from "lucide-react";
+import { AtSign, Home, MessageSquare, Plus, ScanLine, Settings as Cog, Star, Users, type LucideIcon } from "lucide-react";
 import type { SettingsSection, View } from "@/lib/types";
 import { cn } from "@/lib/cn";
 import { useI18n, type K } from "@/lib/i18n";
 import { useP2P } from "@/lib/p2p/context";
 import { useStore } from "@/lib/store";
 import { Avatar, ShapeDefs } from "./Badges";
-import { CallOverlay } from "./Call";
-import { CallsPanel } from "./Calls";
 import { ChatList } from "./ChatList";
 import { ConnectPanel } from "./Connect";
 import { ContactsPanel } from "./Contacts";
@@ -18,16 +16,16 @@ import { Thread } from "./Thread";
 import { TopBar } from "./TopBar";
 
 /** Rail order, used for the direction-aware view transition. */
-const ORDER: View[] = ["chats", "mentions", "starred", "spaces", "contacts", "connect", "calls", "settings"];
+const ORDER: View[] = ["chats", "mentions", "starred", "spaces", "contacts", "connect", "settings"];
 const SHORTCUTS: { id: View; label: K; icon: LucideIcon }[] = [
   { id: "chats", label: "rail.home", icon: Home }, { id: "mentions", label: "rail.mentions", icon: AtSign }, { id: "starred", label: "rail.starred", icon: Star },
 ];
 const BOTTOM: { id: View; label: K; icon: LucideIcon }[] = [
-  { id: "settings", label: "nav.settings", icon: Cog }, { id: "calls", label: "nav.calls", icon: Phone }, { id: "contacts", label: "nav.contacts", icon: Users },
+  { id: "settings", label: "nav.settings", icon: Cog }, { id: "contacts", label: "nav.contacts", icon: Users },
 ];
 const MOBILE_NAV: { id: View; label: K; icon: LucideIcon }[] = [
   { id: "chats", label: "nav.chats", icon: MessageSquare }, { id: "contacts", label: "nav.contacts", icon: Users }, { id: "connect", label: "nav.connect", icon: ScanLine },
-  { id: "calls", label: "nav.calls", icon: Phone }, { id: "settings", label: "nav.settings", icon: Cog },
+  { id: "settings", label: "nav.settings", icon: Cog },
 ];
 
 /** System notifications for messages that arrive while the tab is hidden. */
@@ -210,15 +208,12 @@ export function Shell() {
                 {view === "spaces" && <SpacesPanel spaceId={spaceId} onPick={setSpaceId} onOpenChat={openChat} />}
                 {view === "contacts" && <ContactsPanel onOpenChat={openChat} onAdd={() => go("connect")} />}
                 {view === "connect" && <ConnectPanel onOpenChat={openChat} />}
-                {view === "calls" && <CallsPanel onOpenChat={openChat} />}
                 {view === "settings" && <SettingsPanel section={section} onContacts={() => go("contacts")} onSectionSeen={clearSection} />}
               </div>
             </section>
           )}
         </main>
       </div>
-
-      <CallOverlay />
 
       <nav aria-label="Q7 Chat" className={cn("bg-container pb-[env(safe-area-inset-bottom)] md:hidden", chat && activeId && "hidden")}>
         <ul className="grid grid-cols-5 px-1 pb-2 pt-3">

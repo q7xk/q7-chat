@@ -4,7 +4,7 @@ import { LogoMark } from "@/components/Logo";
 
 export const metadata: Metadata = {
   title: "Q7 Chat — Yardım ve Dokümantasyon",
-  description: "Q7 Chat kullanım kılavuzu: bağlanma, sohbet, aramalar, gizlilik ve sorun giderme.",
+  description: "Q7 Chat kullanım kılavuzu: bağlanma, sohbet, gizlilik ve sorun giderme.",
 };
 
 const H2 = ({ id, children }: { id: string; children: string }) => (
@@ -41,7 +41,7 @@ export default function HelpPage() {
           <ol className="grid gap-2 text-sm text-muted sm:grid-cols-2">
             {[
               ["#nedir", "Q7 Chat nedir?"], ["#baslangic", "Hızlı başlangıç"], ["#baglanma", "Bağlanmanın yolları"],
-              ["#sohbet", "Sohbet özellikleri"], ["#aramalar", "Aramalar"], ["#gizlilik", "Gizlilik ve güvenlik"],
+              ["#sohbet", "Sohbet özellikleri"], ["#gizlilik", "Gizlilik ve güvenlik"],
               ["#durum", "Durum ve bildirimler"], ["#sorunlar", "Bağlantı sorunları"], ["#veriler", "Verilerin ve yedekler"],
               ["#sss", "Sık sorulan sorular"],
             ].map(([h, l]) => <li key={h}><a href={h} className="text-accent hover:underline">{l}</a></li>)}
@@ -85,11 +85,6 @@ export default function HelpPage() {
             <LI b="Etkinlik ve konum:">Tarih/yer bildiren etkinlik kartı ya da konum paylaş.</LI>
             <LI b="Sohbet menüsü:">Sabitleme, sessize alma, arşiv, duvar kâğıdı ve sohbeti silme.</LI>
           </UL>
-        </section>
-
-        <section className="space-y-4">
-          <H2 id="aramalar">Aramalar</H2>
-          <P>Kişilerinden birini açıp sesli ya da görüntülü arayabilirsin. Aramalar WebRTC ile doğrudan cihazlar arasında kurulur; gerekirse röle/TURN yardımıyla bağlanır. Gelen ve giden aramalar <strong className="text-ink">Aramalar</strong> sekmesinde kayıtlı kalır.</P>
         </section>
 
         <section className="space-y-4">
