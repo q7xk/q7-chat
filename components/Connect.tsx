@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Camera, Check, Copy, FileUp, Save, UserPlus, Wifi, WifiOff } from "lucide-react";
+import { Camera, Check, ClipboardPaste, Copy, FileUp, Save, UserPlus, Wifi, WifiOff } from "lucide-react";
 import { useP2P } from "@/lib/p2p/context";
 import { useI18n } from "@/lib/i18n";
 import { formatCode, parseCode } from "@/lib/p2p/crypto";
@@ -41,6 +41,15 @@ export function ConnectPanel({ onOpenChat }: { onOpenChat: (convId: string) => v
   const { t, tk } = useI18n(); const { mgr, snap } = useP2P();
   const [codeIn, setCodeIn] = useState(""), [paste, setPaste] = useState(""), [scan, setScan] = useState(false);
   const file = useRef<HTMLInputElement>(null); const p = snap.pairing;
+  const inviteLink = typeof location !== "undefined" && snap.code ? `${location.origin}/?kod=${snap.code}` : "";
+  useEffect(() => {                                                  // an invite link (?kod=123456789012) prefills the code box
+    if (typeof location === "undefined") return;
+    const q = new URLSearchParams(location.search);
+    const k = parseCode(q.get("kod") ?? q.get("code") ?? "");
+    if (!k) return;
+    setCodeIn(formatCode(k));
+    history.replaceState(null, "", location.pathname + location.hash);
+  }, []);
   const submit = (x: string) => { setScan(false); setPaste(""); void mgr.acceptManual(x); };
   const saveInvite = () => {
     if (p.kind !== "manual-offer" && p.kind !== "manual-answer") return;
@@ -56,6 +65,7 @@ export function ConnectPanel({ onOpenChat }: { onOpenChat: (convId: string) => v
         <p className="text-center text-[34px] font-semibold tabular-nums tracking-wider" dir="ltr">{formatCode(snap.code)}</p>
         <p className="text-xs leading-relaxed text-muted">{t("connect.codeNote")}</p>
         <div className="flex flex-wrap items-center gap-2"><CopyBtn text={formatCode(snap.code)} label={t("connect.copyCode")} />
+          {inviteLink && <CopyBtn text={inviteLink} label={t("connect.copyLink")} />}
           <span className={cn("inline-flex items-center gap-1.5 text-xs", snap.relay.connected ? "text-muted" : "text-danger")}>{snap.relay.enabled && snap.relay.connected ? <Wifi size={14} /> : <WifiOff size={14} />}
             {snap.relay.enabled ? t("connect.relay", { n: snap.relay.connected, total: snap.relay.total }) : t("connect.relayOff")}</span></div>
       </Box>
@@ -69,9 +79,10 @@ export function ConnectPanel({ onOpenChat }: { onOpenChat: (convId: string) => v
         </Box>
       )}
       <Box className="space-y-3"><p className="text-sm font-medium">{t("connect.byCode")}</p>
-        <div className="flex gap-2">
-          <input dir="ltr" value={codeIn} onChange={(e) => setCodeIn(formatCode(e.target.value.replace(/\D/g, "").slice(0, 12)))} inputMode="numeric" placeholder="0000 0000 0000" aria-label={t("connect.codeLabel")} className={cn(field, "tabular-nums")} />
+        <div className="flex flex-wrap gap-2">
+          <input dir="ltr" value={codeIn} onChange={(e) => setCodeIn(formatCode(e.target.value.replace(/\D/g, "").slice(0, 12)))} inputMode="numeric" placeholder="0000 0000 0000" aria-label={t("connect.codeLabel")} className={cn(field, "w-auto min-w-0 flex-1 tabular-nums")} />
           <button onClick={() => mgr.connectByCode(codeIn)} disabled={!parseCode(codeIn)} className={cn(btn, "bg-accent text-bg disabled:opacity-40")}><UserPlus size={15} />{t("connect.go")}</button>
+          <button onClick={async () => { try { const k = parseCode((await navigator.clipboard.readText()) ?? ""); if (k) setCodeIn(formatCode(k)); } catch { /* clipboard access denied: leave the box as is */ } }} className={cn(btn, "bg-sc text-onsc")}><ClipboardPaste size={15} />{t("connect.pasteCode")}</button>
         </div>
       </Box>
       <Box className="space-y-4"><p className="text-sm font-medium">{t("connect.qrTitle")}</p>

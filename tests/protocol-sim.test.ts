@@ -260,7 +260,9 @@ describe("Q7RP simulated end to end", () => {
     await S.mgr.beginDevicePairing();
     expect(await waitFor(() => S.mgr.getSnapshot().devicePairing.kind === "open")).toBe(true);
 
-    await N.mgr.startDevicePairing(S.mgr.getSnapshot().code);
+    const dp = S.mgr.getSnapshot().devicePairing;      // the door: code plus its one-time PIN
+    if (dp.kind !== "open") throw new Error("door not open");
+    await N.mgr.startDevicePairing(S.mgr.getSnapshot().code, dp.pin);
     expect(await waitFor(() => S.mgr.getSnapshot().devicePairing.kind === "confirm")).toBe(true);
     expect(await waitFor(() => {
       const p = N.mgr.getSnapshot().pairing;
@@ -296,7 +298,9 @@ describe("Q7RP simulated end to end", () => {
     await S.mgr.beginDevicePairing();
     expect(await waitFor(() => S.mgr.getSnapshot().devicePairing.kind === "open")).toBe(true);
 
-    await N.mgr.startDevicePairing(S.mgr.getSnapshot().code);
+    const dp = S.mgr.getSnapshot().devicePairing;      // the door: code plus its one-time PIN
+    if (dp.kind !== "open") throw new Error("door not open");
+    await N.mgr.startDevicePairing(S.mgr.getSnapshot().code, dp.pin);
     if (!(await waitFor(() => S.mgr.getSnapshot().devicePairing.kind === "confirm"))) {
       throw new Error("no confirm: S=" + JSON.stringify(S.mgr.getSnapshot().devicePairing) + " N=" + JSON.stringify(N.mgr.getSnapshot().pairing));
     }

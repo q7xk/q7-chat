@@ -141,7 +141,7 @@ export function LockSection() {
 
 export function DevicesSection() {
   const { t, tk } = useI18n(); const { mgr, snap } = useP2P();
-  const [code, setCode] = useState(""); const [takeOver, setTakeOver] = useState(false);
+  const [code, setCode] = useState(""); const [pin, setPin] = useState(""); const [takeOver, setTakeOver] = useState(false);
   const dp = snap.devicePairing;
   const pairing = snap.pairing.kind === "device" ? snap.pairing : null;
   return (
@@ -152,10 +152,14 @@ export function DevicesSection() {
       {/* source: open the door, confirm the request, hand the identity over */}
       {dp.kind === "idle" && <button onClick={() => void mgr.beginDevicePairing()} className={cn(btn, "bg-sc text-onsc")}>{t("device.open")}</button>}
       {dp.kind === "open" && (
-        <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-highest p-4">
-          <span className="relative flex h-2.5 w-2.5"><span className="absolute h-full w-full animate-ping rounded-full bg-accent opacity-60" /><span className="h-2.5 w-2.5 rounded-full bg-accent" /></span>
-          <span className="flex-1 text-sm">{t("device.windowOpen")}</span>
-          <button onClick={() => void mgr.cancelDevicePairing()} className={cn(btn, "bg-tc text-ontc")}>{t("c.cancel")}</button>
+        <div className="space-y-2 rounded-2xl bg-highest p-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="relative flex h-2.5 w-2.5"><span className="absolute h-full w-full animate-ping rounded-full bg-accent opacity-60" /><span className="h-2.5 w-2.5 rounded-full bg-accent" /></span>
+            <span className="flex-1 text-sm">{t("device.windowOpen")}</span>
+            <button onClick={() => void mgr.cancelDevicePairing()} className={cn(btn, "bg-tc text-ontc")}>{t("c.cancel")}</button>
+          </div>
+          <p className="text-xs text-muted">{t("device.doorPin")}</p>
+          <p dir="ltr" className="font-mono text-lg font-semibold tracking-wider">{formatCode(snap.code)} <span className="text-accent">{dp.pin.replace(/(\d{3})(?=\d)/, "$1 ")}</span></p>
         </div>
       )}
       {dp.kind === "confirm" && (
@@ -181,9 +185,11 @@ export function DevicesSection() {
           <button onClick={() => setTakeOver(true)} className={cn(btn, "bg-sc text-onsc")}>{t("device.start")}</button>
         ) : (
           <div className="flex flex-wrap gap-2">
-            <input dir="ltr" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 12))} placeholder={t("device.codePh")} aria-label={t("device.codePh")} inputMode="numeric" className={cn(field, "font-mono")} />
-            <button onClick={() => void mgr.startDevicePairing(code)} disabled={code.length !== 12} className={cn(btn, "bg-accent text-bg disabled:opacity-40")}>{t("device.start")}</button>
+            <input dir="ltr" value={code} onChange={(e) => setCode(formatCode(e.target.value.replace(/\D/g, "").slice(0, 12)))} placeholder="0000 0000 0000" aria-label={t("device.codePh")} inputMode="numeric" className={cn(field, "w-auto min-w-0 flex-1 font-mono tabular-nums")} />
+            <input dir="ltr" value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="· · · · · ·" aria-label={t("device.pinPh")} inputMode="numeric" className={cn(field, "w-32 font-mono tabular-nums")} />
+            <button onClick={() => void mgr.startDevicePairing(code, pin)} disabled={code.length !== 12 || pin.length !== 6} className={cn(btn, "bg-accent text-bg disabled:opacity-40")}>{t("device.start")}</button>
             <button onClick={() => setTakeOver(false)} className={cn(btn, "bg-sc text-onsc")}>{t("c.cancel")}</button>
+            <p className="w-full text-xs text-muted">{t("device.pinHelp")}</p>
           </div>
         )}
         {pairing?.phase === "waiting" && <p className="text-sm text-muted">{t("device.waiting")}</p>}

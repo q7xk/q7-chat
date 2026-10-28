@@ -28,7 +28,7 @@ export type PairingState =
   | { kind: "connecting" } | { kind: "done"; name: string; convId: string } | { kind: "error"; message: string };
 /** Device adoption: the source device's pairing door and the pending hand-off. */
 export type DevicePairingState =
-  | { kind: "idle" } | { kind: "open"; until: number }
+  | { kind: "idle" } | { kind: "open"; until: number; pin: string }
   | { kind: "confirm"; name: string; safety: string; rid: string }
   | { kind: "sent" } | { kind: "error"; message: string };
 export interface Snapshot {
@@ -72,7 +72,7 @@ export class P2PManager {
   private seenSent = new Map<string, number>();                   // last "seen" watermark we sent per conversation
   private active: string | null = null; private tick?: ReturnType<typeof setInterval>; private vis = () => { if (document.visibilityState === "visible") this.reconnectAll(); };
   private stored?: StoredIdentity;                                 // the raw identity keys, kept for vault creation and device hand-off
-  private pairWindow?: { topicD: string; until: number; timer: ReturnType<typeof setTimeout> };
+  private pairWindow?: { topicD: string; until: number; timer: ReturnType<typeof setTimeout>; knocks: Set<string>; pin: string };
   private pairLinks = new Map<string, Link>();                     // incoming device-adoption links awaiting confirmation
   private pairCode?: string;                                       // the code we knock when adopting from another device
   private pairRid = "";                                            // (adopting side) the rid of our hand-off knock
@@ -245,14 +245,14 @@ export class P2PManager {
   /** (adopting side) stop listening for the relay-borne hand-off payload. */
   private dropPairListen() { if (this.pairTopicR) { this.relay?.unsubscribe(this.pairTopicR); this.pairTopicR = ""; } this.pairExpectPub = ""; }
 
-  private async startKnock(code: string, silent: boolean, expectPub?: string, via: "k" | "d" = "k"): Promise<string> {
+  private async startKnock(code: string, silent: boolean, expectPub?: string, via: "k" | "d" = "k", door?: string): Promise<string> {
     if (!this.id || !this.relay) throw new Error("err.relayOff");
     if (this.relay.connected === 0) throw new Error("err.relayDown");
     const relay = this.relay, rid = randomHex(16), link = this.newLink(silent);
     if (via === "d") link.devicePair = true;                          // identity hand-off knock: the session is not a conversation
     const sdp = await link.pc.makeOffer();
     const env = await signEnvelope(this.id, { t: "offer", rid, to: code, name: this.snap.settings.name, sdp, ts: Date.now() });
-    const topicK = await topicFor(via, code), topicR = await topicFor("r", rid), payload = await seal(code, env);
+    const topicK = await topicFor(via, door ?? code), topicR = await topicFor("r", rid), payload = await seal(code, env);
     if (via === "d") this.pairTopicR = topicR;                        // kept open: the hand-off payload may arrive here without WebRTC
     relay.subscribe(topicR, (p) => void this.onAnswer(rid, p));
     relay.publish(topicK, payload);
@@ -345,16 +345,19 @@ export class P2PManager {
      fingerprint, same code, same conversations. */
   /** The raw identity keys, for the vault to seal. */
   exportIdentity(): StoredIdentity | undefined { return this.stored; }
-  /** Opens the 2-minute door another device may knock to adopt this identity. */
+  /** Opens the 2-minute door another device may knock to adopt this identity.
+      The door listens on a one-time topic — the static code plus a fresh PIN shown
+      only on this screen — so a leaked code alone can never trigger an adoption prompt. */
   async beginDevicePairing() {
     if (!this.id || !this.relay) { this.set({ devicePairing: { kind: "error", message: "err.relayOff" } }); return; }
     await this.cancelDevicePairing();
-    const topicD = await topicFor("d", this.id.code);
+    const pin = String(crypto.getRandomValues(new Uint32Array(1))[0]! % 1_000_000).padStart(6, "0");
+    const topicD = await topicFor("d", this.id.code + pin);
     const until = Date.now() + 2 * 60_000;
     const timer = setTimeout(() => void this.cancelDevicePairing(), 2 * 60_000 + 1500);
-    this.pairWindow = { topicD, until, timer };
+    this.pairWindow = { topicD, until, timer, knocks: new Set(), pin };
     this.relay.subscribe(topicD, (p) => void this.onDeviceKnock(p));
-    this.set({ devicePairing: { kind: "open", until } });
+    this.set({ devicePairing: { kind: "open", until, pin } });
   }
   async cancelDevicePairing() {
     if (this.pairWindow) { this.relay?.unsubscribe(this.pairWindow.topicD); clearTimeout(this.pairWindow.timer); this.pairWindow = undefined; }
@@ -375,13 +378,16 @@ export class P2PManager {
     if (cur.kind !== "confirm") return;
     this.pairLinks.get(cur.rid)?.pc.close();
     this.pairLinks.delete(cur.rid);
-    this.set({ devicePairing: this.pairWindow ? { kind: "open", until: this.pairWindow.until } : { kind: "idle" } });
+    this.set({ devicePairing: this.pairWindow ? { kind: "open", until: this.pairWindow.until, pin: this.pairWindow.pin } : { kind: "idle" } });
   }
   private async onDeviceKnock(payload: Uint8Array) {
     if (!this.id || !this.pairWindow) return;
+    if (this.snap.devicePairing.kind === "confirm") return;           // one hand-off at a time: a knock flood cannot swap the dialog
     const env = await checkEnvelope(await unseal(this.id.code, payload), Date.now());
     if (!env || env.t !== "offer" || env.to !== this.id.code || env.pub === this.id.pubB64) return;
     if (this.pairLinks.has(env.rid)) return;                          // duplicate knock from another broker
+    if (this.pairWindow.knocks.size >= 8) return;                     // rate limit: unique knocks per door window
+    this.pairWindow.knocks.add(env.rid);
     const link = this.newLink(true); link.devicePair = true;
     this.pairLinks.set(env.rid, link);
     try { await this.acceptOffer(env, true, link); } catch { this.pairLinks.delete(env.rid); link.pc.close(); return; }
@@ -448,15 +454,16 @@ export class P2PManager {
     if (!payload) return;
     await this.onPairFrame(payload);
   }
-  /** Adopting side: knock the source device's pairing door with its 12-digit code. */
-  async startDevicePairing(input: string) {
+  /** Adopting side: knock the source device's pairing door — its 12-digit code plus the one-time door PIN shown on its screen. */
+  async startDevicePairing(input: string, pinInput?: string) {
     const code = parseCode(input);
-    if (!code) { this.setPairing({ kind: "device", code: input, phase: "failed", detail: "err.short" }); return; }
+    const pin = (pinInput ?? "").replace(/\D/g, "");
+    if (!code || pin.length !== 6) { this.setPairing({ kind: "device", code: input, phase: "failed", detail: "err.short" }); return; }
     this.pairApplied = false;
     this.dropPairListen();
     this.pairCode = code;
     this.setPairing({ kind: "device", code, phase: "waiting" });
-    try { this.pairRid = await this.startKnock(code, false, undefined, "d"); } catch (e) { this.setPairing({ kind: "device", code, phase: "failed", detail: e instanceof Error ? e.message : "err.generic" }); }
+    try { this.pairRid = await this.startKnock(code, false, undefined, "d", code + pin); } catch (e) { this.setPairing({ kind: "device", code, phase: "failed", detail: e instanceof Error ? e.message : "err.generic" }); }
   }
 
   /* ---------- manual pairing (QR, invite file, copy/paste) ---------- */
