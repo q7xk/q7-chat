@@ -4,7 +4,7 @@ import { CHUNK, cleanAtt, validAvatar, validVote } from "../attach";
 import { LIFETIME_MS } from "../time";
 import { isDirectImageUrl, parseHttpsUrl } from "../links";
 import {
-  checkEnvelope, cleanName, codeFromFp, codeOfPub, createStoredIdentity, finishHandshake, fromB64, hex, loadIdentity, parseCode, randomHex,
+  checkEnvelope, cleanName, codeFromFp, codeOfPub, createStoredIdentity, ecdhSecret, finishHandshake, fromB64, hex, loadIdentity, parseCode, randomHex,
   safetyNumber, seal, sha256, signEnvelope, startHandshake, toB64, topicFor, unseal, utf8, verify, withStaticEcdh,
   type Envelope, type HandshakeState, type Identity, type Session, type StoredIdentity,
 } from "./crypto";
@@ -47,6 +47,7 @@ export interface Host {
 interface Link {
   pc: PeerLink; expectPub?: string; name?: string; ek?: string; contactId?: string; hs?: HandshakeState; sess?: Session; silent: boolean; last: number;
   devicePair?: boolean;                                            // identity hand-off link (adopted by/onto another device)
+  pairRid?: string; pairEk?: string;                               // source side: the knock this hand-off answers (relay fallback path)
   hsReady: Promise<void>; resolveHs: () => void; tx: Promise<void>; rx: Promise<void>; timer?: ReturnType<typeof setTimeout>;
 }
 interface OutboxEntry { cid: string; kind: string; obj: unknown; file?: { att: Extract<Attachment, { t: "file" }> }; added: number; next: number; tries: number }
@@ -79,6 +80,10 @@ export class P2PManager {
   private pairWindow?: { topicD: string; until: number; timer: ReturnType<typeof setTimeout> };
   private pairLinks = new Map<string, Link>();                     // incoming device-adoption links awaiting confirmation
   private pairCode?: string;                                       // the code we knock when adopting from another device
+  private pairRid = "";                                            // (adopting side) the rid of our hand-off knock
+  private pairExpectPub = "";                                      // (adopting side) the source identity the answer promised
+  private pairTopicR = "";                                         // (adopting side) answer topic kept open for the relay-borne payload
+  private pairApplied = false;                                     // (adopting side) hand-off payload applied exactly once
 
   constructor(private host: Host) {}
   subscribe = (l: () => void) => { this.listeners.add(l); return () => { this.listeners.delete(l); }; };
@@ -125,6 +130,7 @@ export class P2PManager {
     this.links.forEach((l) => l.pc.close()); this.manualOffers.forEach((l) => l.pc.close()); [...this.knocks.keys()].forEach((r) => { this.knocks.get(r)?.link.pc.close(); this.finishKnock(r); });
     this.links.clear(); this.manualOffers.clear(); clearInterval(this.tick); clearInterval(this.outTickTimer); clearInterval(this.hbTimer);
     if (this.pairWindow) { this.relay?.unsubscribe(this.pairWindow.topicD); clearTimeout(this.pairWindow.timer); this.pairWindow = undefined; }
+    this.dropPairListen();
     this.relay?.stop(); this.relay = undefined;
     this.pairLinks.forEach((l) => l.pc.close()); this.pairLinks.clear();
     this.lastSeen.clear(); this.lastPing.clear();
@@ -194,7 +200,7 @@ export class P2PManager {
   }
   private onClose(link: Link) {
     clearTimeout(link.timer);
-    for (const [rid, k] of this.knocks) if (k.link === link && !link.sess) { this.finishKnock(rid); if (!link.silent && this.snap.pairing.kind !== "done") this.setPairing({ kind: "error", message: "err.link" }); }
+    for (const [rid, k] of this.knocks) if (k.link === link && !link.sess) { this.finishKnock(rid); if (!link.silent && !link.devicePair && this.snap.pairing.kind !== "done") this.setPairing({ kind: "error", message: "err.link" }); }
     for (const [rid, l] of this.manualOffers) if (l === link) this.manualOffers.delete(rid);
     if (link.contactId && this.links.get(link.contactId) === link) {
       this.links.delete(link.contactId); this.setStatus(link.contactId, "offline"); this.dropMode(link.contactId);
@@ -213,7 +219,7 @@ export class P2PManager {
       link.sess = sess; await this.onReady(link, sess); return;
     }
     if (!link.sess) { link.pc.close(); return; }
-    if (link.devicePair) { this.onPairFrame(link, await link.sess.decrypt(d)); return; } // identity hand-off, not a conversation
+    if (link.devicePair) { this.onPairFrame(await link.sess.decrypt(d)); return; } // identity hand-off, not a conversation
     if (!link.contactId) { link.pc.close(); return; }
     this.apply(link.contactId, await link.sess.decrypt(d), "direct");
   }
@@ -241,9 +247,12 @@ export class P2PManager {
   }
 
   /* ---------- relay pairing (by code) ---------- */
-  private finishKnock(rid: string) { const k = this.knocks.get(rid); if (!k) return; clearInterval(k.iv); clearTimeout(k.done); this.relay?.unsubscribe(k.topicR); this.knocks.delete(rid); }
+  private finishKnock(rid: string) { const k = this.knocks.get(rid); if (!k) return; clearInterval(k.iv); clearTimeout(k.done); if (k.topicR !== this.pairTopicR) this.relay?.unsubscribe(k.topicR); this.knocks.delete(rid); }
 
-  private async startKnock(code: string, silent: boolean, expectPub?: string, via: "k" | "d" = "k") {
+  /** (adopting side) stop listening for the relay-borne hand-off payload. */
+  private dropPairListen() { if (this.pairTopicR) { this.relay?.unsubscribe(this.pairTopicR); this.pairTopicR = ""; } this.pairExpectPub = ""; }
+
+  private async startKnock(code: string, silent: boolean, expectPub?: string, via: "k" | "d" = "k"): Promise<string> {
     if (!this.id || !this.relay) throw new Error("err.relayOff");
     if (this.relay.connected === 0) throw new Error("err.relayDown");
     const relay = this.relay, rid = randomHex(16), link = this.newLink(silent);
@@ -251,25 +260,33 @@ export class P2PManager {
     const sdp = await link.pc.makeOffer();
     const env = await signEnvelope(this.id, { t: "offer", rid, to: code, name: this.snap.settings.name, sdp, ts: Date.now() });
     const topicK = await topicFor(via, code), topicR = await topicFor("r", rid), payload = await seal(code, env);
+    if (via === "d") this.pairTopicR = topicR;                        // kept open: the hand-off payload may arrive here without WebRTC
     relay.subscribe(topicR, (p) => void this.onAnswer(rid, p));
     relay.publish(topicK, payload);
     let tries = 0; const iv = setInterval(() => { if (++tries >= 5 || link.sess) clearInterval(iv); else relay.publish(topicK, payload); }, 10_000);
     const done = setTimeout(() => {
       if (!this.knocks.has(rid)) return; this.finishKnock(rid); link.pc.close();
       if (!silent) {
-        if (this.snap.pairing.kind === "device") this.setPairing({ kind: "device", code, phase: "failed", detail: "err.noReply" });
+        if (this.snap.pairing.kind === "device") { this.dropPairListen(); this.setPairing({ kind: "device", code, phase: "failed", detail: "err.noReply" }); }
         else this.setPairing({ kind: "code", code, phase: "failed", detail: "err.noReply" });
       }
     }, 55_000);
     this.knocks.set(rid, { link, targetCode: code, expectPub, done, iv, topicR });
+    return rid;
   }
   private async onAnswer(rid: string, payload: Uint8Array) {
-    const k = this.knocks.get(rid); if (!k) return;
+    const k = this.knocks.get(rid);
+    if (!k && rid !== this.pairRid) return;                          // unknown topic frame — unless our kept-open hand-off topic
     const env = await checkEnvelope(await unseal(rid, payload), Date.now());
-    if (!env || env.t !== "answer" || env.rid !== rid || (await codeOfPub(env.pub)) !== k.targetCode || (k.expectPub && env.pub !== k.expectPub)) return;
+    if (!env) return;
+    if (env.t === "pair") return void this.onPairRelay(env);          // hand-off payload arriving over the relays
+    if (!k || env.t !== "answer" || env.rid !== rid || (await codeOfPub(env.pub)) !== k.targetCode || (k.expectPub && env.pub !== k.expectPub)) return;
     this.finishKnock(rid); k.link.expectPub = env.pub; k.link.name = env.name; if (env.ek) k.link.ek = env.ek;
-    if (!k.link.silent && this.snap.pairing.kind !== "device") this.setPairing({ kind: "connecting" }); // device hand-off keeps its own state
-    try { await k.link.pc.acceptAnswer(env.sdp); } catch { k.link.pc.close(); }
+    if (this.snap.pairing.kind === "device") {                        // hand-off: the safety check needs no direct connection
+      this.pairExpectPub = env.pub;
+      this.setPairing({ kind: "device", code: k.targetCode, phase: "connected", safety: await safetyNumber(this.id!.pub, fromB64(env.pub)) });
+    } else if (!k.link.silent) this.setPairing({ kind: "connecting" });
+    try { await k.link.pc.acceptAnswer(env.sdp!); } catch { k.link.pc.close(); }
   }
   private async onKnock(payload: Uint8Array) {
     if (!this.id) return;
@@ -288,7 +305,7 @@ export class P2PManager {
   private async acceptOffer(env: Envelope, silent: boolean, existing?: Link) {
     if (!this.id) return;
     const link = existing ?? this.newLink(silent); link.expectPub = env.pub; link.name = env.name; if (env.ek) link.ek = env.ek;
-    const sdp = await link.pc.acceptOffer(env.sdp);
+    const sdp = await link.pc.acceptOffer(env.sdp!);
     const reply = await signEnvelope(this.id, { t: "answer", rid: env.rid, name: this.snap.settings.name, sdp, ts: Date.now() });
     if (env.to) this.relay?.publish(await topicFor("r", env.rid), await seal(env.rid, reply));
     else if (!silent) this.setPairing({ kind: "manual-answer", text: await packEnvelope(reply) });
@@ -348,6 +365,7 @@ export class P2PManager {
   }
   async cancelDevicePairing() {
     if (this.pairWindow) { this.relay?.unsubscribe(this.pairWindow.topicD); clearTimeout(this.pairWindow.timer); this.pairWindow = undefined; }
+    this.dropPairListen();
     this.pairLinks.forEach((l) => l.pc.close()); this.pairLinks.clear();
     this.set({ devicePairing: { kind: "idle" } });
   }
@@ -357,7 +375,7 @@ export class P2PManager {
     const link = this.pairLinks.get(cur.rid);
     this.pairLinks.delete(cur.rid);
     this.set({ devicePairing: { kind: "sent" } });
-    if (link?.sess) this.sendPairPayload(link);
+    if (link) void this.sendPairPayload(link);                        // direct session or sealed relay envelope, whichever can carry it
   }
   declineDevicePair() {
     const cur = this.snap.devicePairing;
@@ -374,25 +392,36 @@ export class P2PManager {
     const link = this.newLink(true); link.devicePair = true;
     this.pairLinks.set(env.rid, link);
     try { await this.acceptOffer(env, true, link); } catch { this.pairLinks.delete(env.rid); link.pc.close(); return; }
+    link.pairRid = env.rid; if (env.ek) link.pairEk = env.ek;         // remembered for the relay-borne payload after confirmation
     this.set({ devicePairing: { kind: "confirm", name: cleanName(env.name), safety: await safetyNumber(this.id.pub, fromB64(env.pub)), rid: env.rid } });
   }
-  /** Hands this identity over: keys, profile, relays and the whole contact book. */
-  private sendPairPayload(link: Link) {
-    if (!link.sess || !this.stored) return;
-    const sess = link.sess;
-    void (link.tx = link.tx.then(async () => {
-      await link.pc.send(await sess.encrypt({
-        k: "pair", at: Date.now(), name: this.snap.settings.name, photo: this.snap.settings.photo,
-        settings: this.snap.settings, id: this.stored, contacts: this.snap.contacts,
-      }));
-      setTimeout(() => { link.pc.close(); void this.cancelDevicePairing(); }, 1500);
-    }).catch(() => link.pc.close()));
+  /** Hands this identity over: keys, profile, relays and the whole contact book — via the direct session, or sealed over the relays. */
+  private async sendPairPayload(link: Link) {
+    if (!this.stored || !this.id) return;
+    const stored = this.stored, id = this.id;
+    const payload = {
+      k: "pair", at: Date.now(), name: this.snap.settings.name, photo: this.snap.settings.photo,
+      settings: this.snap.settings, id: stored, contacts: this.snap.contacts,
+    };
+    const wrapUp = () => setTimeout(() => { link.pc.close(); void this.cancelDevicePairing(); }, 1500);
+    if (link.sess) {                                                  // direct path: the established end-to-end session
+      const sess = link.sess;
+      void (link.tx = link.tx.then(async () => { await link.pc.send(await sess.encrypt(payload)); wrapUp(); }).catch(() => link.pc.close()));
+      return;
+    }
+    if (!link.pairRid || !link.pairEk) return;                        // no session and no knock reference: undeliverable
+    const secret = await ecdhSecret(id, link.pairEk);                 // relay path: sealed to the adopting device's static key
+    const data = secret && toB64(await seal(secret, payload, "q7-pair-relay-v1"));
+    if (!data) return;
+    const env = await signEnvelope(id, { t: "pair", rid: link.pairRid, name: this.snap.settings.name, data, ts: Date.now() });
+    this.relay?.publish(await topicFor("r", link.pairRid), await seal(link.pairRid, env));
+    wrapUp();
   }
-  /** The adopting side receives and installs the handed-over identity, then reloads into it. */
-  private async onPairFrame(link: Link, f: unknown) {
+  /** The adopting side receives and installs the handed-over identity, then reloads into it — exactly once. */
+  private async onPairFrame(f: unknown) {
     const o = (f && typeof f === "object" ? f : {}) as Record<string, unknown>;
-    const fail = () => { if (this.snap.pairing.kind === "device") this.setPairing({ kind: "device", code: this.pairCode ?? "", phase: "failed", detail: "err.generic" }); };
-    if (o.k !== "pair") return;
+    if (o.k !== "pair" || this.pairApplied || this.snap.pairing.kind !== "device") return;
+    const fail = () => { this.pairApplied = true; this.dropPairListen(); this.setPairing({ kind: "device", code: this.pairCode ?? "", phase: "failed", detail: "err.generic" }); };
     const id = o.id as StoredIdentity | undefined;
     if (!id || id.key !== "identity" || typeof id.pub !== "string" || typeof id.privJwk !== "object" || typeof id.ecdhPub !== "string" || typeof id.ecdhJwk !== "object") return fail();
     const contacts = Array.isArray(o.contacts) ? o.contacts.filter((c): c is Contact => {
@@ -408,19 +437,33 @@ export class P2PManager {
       ...(s.giphy ? { giphy: s.giphy } : {}),
       ...(s.onlyContacts === true ? { onlyContacts: true } : {}),
     };
+    this.pairApplied = true;                                          // set synchronously before the first await: relay fan-out cannot double-apply
+    this.dropPairListen();
     await db.putIdentity(id);
     await db.setFlag("p2p-settings", settings);
     for (const c of contacts) await db.putContact(c);
     this.setPairing({ kind: "device", code: this.pairCode ?? "", phase: "done" });
     if (typeof location !== "undefined" && typeof location.reload === "function") setTimeout(() => location.reload(), 900); // boot into the adopted identity
   }
+  /** Relay-borne hand-off payload (the fallback when the direct connection cannot form). */
+  private async onPairRelay(env: Envelope) {
+    if (this.pairApplied || this.snap.pairing.kind !== "device" || this.snap.pairing.phase === "done") return;
+    if (env.rid !== this.pairRid || env.pub !== this.pairExpectPub || typeof env.ek !== "string" || typeof env.data !== "string" || !this.id) return;
+    const secret = await ecdhSecret(this.id, env.ek);                 // the same static-static secret the source sealed with
+    if (!secret) return;
+    const payload = await unseal(secret, fromB64(env.data), "q7-pair-relay-v1");
+    if (!payload) return;
+    await this.onPairFrame(payload);
+  }
   /** Adopting side: knock the source device's pairing door with its 12-digit code. */
   async startDevicePairing(input: string) {
     const code = parseCode(input);
     if (!code) { this.setPairing({ kind: "device", code: input, phase: "failed", detail: "err.short" }); return; }
+    this.pairApplied = false;
+    this.dropPairListen();
     this.pairCode = code;
     this.setPairing({ kind: "device", code, phase: "waiting" });
-    try { await this.startKnock(code, false, undefined, "d"); } catch (e) { this.setPairing({ kind: "device", code, phase: "failed", detail: e instanceof Error ? e.message : "err.generic" }); }
+    try { this.pairRid = await this.startKnock(code, false, undefined, "d"); } catch (e) { this.setPairing({ kind: "device", code, phase: "failed", detail: e instanceof Error ? e.message : "err.generic" }); }
   }
 
   /* ---------- manual pairing (QR, invite file, copy/paste) ---------- */
@@ -440,7 +483,7 @@ export class P2PManager {
       if (env.t === "offer") { await this.acceptOffer(env, false); return; }
       const link = this.manualOffers.get(env.rid); if (!link) throw new Error("err.invalid");
       this.manualOffers.delete(env.rid); link.expectPub = env.pub; link.name = env.name; if (env.ek) link.ek = env.ek; this.setPairing({ kind: "connecting" });
-      await link.pc.acceptAnswer(env.sdp);
+      await link.pc.acceptAnswer(env.sdp!);
     } catch (e) { this.setPairing({ kind: "error", message: e instanceof Error ? e.message : "err.generic" }); }
   }
   clearPairing() { this.setPairing(IDLE); }

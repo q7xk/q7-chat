@@ -65,6 +65,15 @@ export async function safetyNumber(a: Uint8Array, b: Uint8Array) {
   return groups.join(" ");
 }
 
+/** Static-static ECDH against a peer's public key → hex secret for one-off sealed payloads (device hand-off over relays). */
+export async function ecdhSecret(id: Identity, peerEkB64: string): Promise<string | null> {
+  try {
+    if (!id.ecdh) return null;
+    const pub = await crypto.subtle.importKey("raw", B(fromB64(peerEkB64)), { name: "ECDH", namedCurve: "P-256" }, false, []);
+    return hex(new Uint8Array(await crypto.subtle.deriveBits({ name: "ECDH", public: pub }, id.ecdh, 256)));
+  } catch { return null; }
+}
+
 /* ----- relay sealing: hides signaling content from the relay (key derives from the code) ----- */
 async function hkdfKey(ikm: string, info: string, usage: KeyUsage[]) {
   const base = await crypto.subtle.importKey("raw", B(utf8(ikm)), "HKDF", false, ["deriveKey"]);
@@ -84,20 +93,22 @@ export async function unseal(secret: string, data: Uint8Array, info = "relay-v1"
 export async function topicFor(kind: "k" | "r" | "d", id: string) { return `q7/v1/${kind}/${hex(await sha256(`${kind}|${id}`)).slice(0, 32)}`; }
 
 /* ----- signed offer/answer envelopes (authenticate the SDP, including its DTLS fingerprint) ----- */
-export interface Envelope { t: "offer" | "answer"; rid: string; pub: string; name: string; sdp: string; ts: number; sig: string; to?: string; ek?: string }
-const envBytes = (e: Omit<Envelope, "sig">) => utf8(JSON.stringify(["q7-env-v1", e.t, e.rid, e.pub, e.name, e.ts, e.to ?? null, e.sdp, e.ek ?? null]));
+export interface Envelope { t: "offer" | "answer" | "pair"; rid: string; pub: string; name: string; ts: number; sig: string; sdp?: string; data?: string; to?: string; ek?: string }
+const envBytes = (e: Omit<Envelope, "sig">) => utf8(JSON.stringify(["q7-env-v1", e.t, e.rid, e.pub, e.name, e.ts, e.to ?? null, e.sdp ?? null, e.data ?? null, e.ek ?? null]));
 export const cleanName = (n: string) => n.replace(/[\u0000-\u001f\u007f\u202a-\u202e\u2066-\u2069]/g, "").trim().slice(0, 40) || "Unknown";
 
-export async function signEnvelope(id: Identity, e: { t: "offer" | "answer"; rid: string; name: string; sdp: string; ts: number; to?: string; ek?: string }): Promise<Envelope> {
+export async function signEnvelope(id: Identity, e: { t: "offer" | "answer" | "pair"; rid: string; name: string; sdp?: string; data?: string; ts: number; to?: string; ek?: string }): Promise<Envelope> {
   const body = { ...e, pub: id.pubB64, ...(id.spk ? { ek: id.spk } : {}) };
   return { ...body, sig: toB64(await id.sign(envBytes(body))) };
 }
 export async function checkEnvelope(raw: unknown, now: number, maxAgeMs = 600_000): Promise<Envelope | null> {
   if (!raw || typeof raw !== "object") return null;
   const e = raw as Record<string, unknown>;
-  if ((e.t !== "offer" && e.t !== "answer") || typeof e.rid !== "string" || !/^[0-9a-f]{32}$/.test(e.rid) || typeof e.pub !== "string" || typeof e.name !== "string"
-    || typeof e.sdp !== "string" || typeof e.ts !== "number" || typeof e.sig !== "string" || (e.to !== undefined && typeof e.to !== "string")) return null;
-  if (e.sdp.length > 12000 || e.name.length > 80 || Math.abs(now - e.ts) > maxAgeMs) return null;
+  if ((e.t !== "offer" && e.t !== "answer" && e.t !== "pair") || typeof e.rid !== "string" || !/^[0-9a-f]{32}$/.test(e.rid) || typeof e.pub !== "string" || typeof e.name !== "string"
+    || typeof e.ts !== "number" || typeof e.sig !== "string" || (e.to !== undefined && typeof e.to !== "string")) return null;
+  const sdp = e.t === "pair" ? "" : e.sdp;                          // pair frames carry the sealed payload instead of an SDP
+  if (typeof sdp !== "string" || sdp.length > 12000 || e.name.length > 80 || Math.abs(now - e.ts) > maxAgeMs) return null;
+  if (e.t === "pair" && (typeof e.data !== "string" || e.data.length > 300_000)) return null;
   let pub: Uint8Array, sig: Uint8Array, ek: Uint8Array | undefined;
   try { pub = fromB64(e.pub); sig = fromB64(e.sig); } catch { return null; }
   if (pub.length !== 65) return null;

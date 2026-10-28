@@ -63,7 +63,7 @@ class FakePC {
   createDataChannel() { return { bufferedAmount: 0, readyState: "connecting", close() {}, send() {} }; }
   onconnectionstatechange: unknown = null; ondatachannel: unknown = null;
   makeOfferBound = false;
-  async setLocalDescription(d: unknown) { return d; }
+  async setLocalDescription(d: unknown) { this.localDescription = d; return d; }
   async setRemoteDescription(d: unknown) { return d; }
   async createOffer() { return { type: "offer", sdp: "v=0 offer" }; }
   async createAnswer() { return { type: "answer", sdp: "v=0 answer" }; }
@@ -284,5 +284,42 @@ describe("Q7RP simulated end to end", () => {
     const got = await dbm.getContacts();
     expect(got.map((c) => c.name).sort()).toEqual(["Why", "Xee"]);
     expect(S.host.conversations.length).toBe(0);    // a device pair is never a conversation
+  }, 40000);
+
+  it("device adoption completes over the relays alone when the direct connection cannot form", async () => {
+    vi.stubGlobal("RTCPeerConnection", FakePC);     // back to the broken peer connection: data channels never open
+    const S = await openSide("q7-sim-devr-src");
+    const N = await openSide("q7-sim-devr-new");
+    const { hex, sha256 } = await import("../lib/p2p/crypto");
+    const fpZ = hex(await sha256(Buffer.from("cafebabecafebabe1234", "hex")));
+    (S.mgr as unknown as { set(p: unknown): void }).set({ contacts: [{ id: fpZ, pub: "BPubZ".repeat(13), name: "Zoe", code: "000000000003", addedAt: 1, verified: true }] });
+    await S.mgr.beginDevicePairing();
+    expect(await waitFor(() => S.mgr.getSnapshot().devicePairing.kind === "open")).toBe(true);
+
+    await N.mgr.startDevicePairing(S.mgr.getSnapshot().code);
+    if (!(await waitFor(() => S.mgr.getSnapshot().devicePairing.kind === "confirm"))) {
+      throw new Error("no confirm: S=" + JSON.stringify(S.mgr.getSnapshot().devicePairing) + " N=" + JSON.stringify(N.mgr.getSnapshot().pairing));
+    }
+    expect(await waitFor(() => {                    // safety number appears without any data channel
+      const p = N.mgr.getSnapshot().pairing;
+      return p.kind === "device" && p.phase === "connected" && !!p.safety;
+    })).toBe(true);
+    const sDp = S.mgr.getSnapshot().devicePairing, nPair = N.mgr.getSnapshot().pairing;
+    if (sDp.kind !== "confirm" || nPair.kind !== "device") throw new Error("pairing states drifted");
+    expect(sDp.safety).toBe(nPair.safety);
+
+    S.mgr.confirmDevicePair();                      // no session yet → the payload travels as a sealed relay envelope
+    expect(await waitFor(() => {
+      const p = N.mgr.getSnapshot().pairing;
+      return p.kind === "device" && p.phase === "done";
+    })).toBe(true);
+    await new Promise((r) => setTimeout(r, 400));   // let the broker fan-out deliver its duplicate copies
+
+    const dbm = await import("../lib/db");
+    const id = await dbm.getIdentity();
+    expect(id?.pub).toBe(S.ident.pub);
+    expect((await dbm.getContacts()).map((c) => c.name)).toEqual(["Zoe"]); // applied exactly once despite the fan-out
+    const p = N.mgr.getSnapshot().pairing;
+    expect(p.kind === "device" && p.phase === "done").toBe(true);
   }, 40000);
 });
