@@ -58,7 +58,7 @@ export function TopBar({ railOpen, onRail, query, onQuery, onSection, view, goCh
   const name = snap.settings.name || "Q7";
 
   return (
-    <header ref={bar} className="relative z-40 hidden h-16 shrink-0 items-center gap-2 bg-panel px-4 md:flex">
+    <header ref={bar} className="relative z-40 hidden h-16 shrink-0 items-center gap-2 bg-panel px-4 md:mx-2 md:mt-2 md:flex md:rounded-[28px]">
       {/* rail toggle + brand */}
       <button onClick={onRail} aria-expanded={railOpen} aria-label={t(railOpen ? "top.railClose" : "top.railOpen")} title={t(railOpen ? "top.railClose" : "top.railOpen")} className={iconBtn}>
         <MenuIcon size={20} />

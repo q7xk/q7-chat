@@ -104,12 +104,7 @@ export function Shell() {
       <div className="flex min-h-0 flex-1">
         {/* Rail: same tonal surface as the top bar — reads as one continuous frame. Grows on hover. */}
         <nav aria-label="Q7 Chat" onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
-          className={cn("relative hidden shrink-0 select-none flex-col bg-panel p-3 pb-4 transition-[width] duration-300 ease-spring md:flex", expanded ? "w-[260px]" : "w-[84px]")}>
-          {/* Soft inverted corner where the rail's edge curves into the top bar's bottom edge: the
-              background gutter pokes into the panel corner as a quarter disc, panel wraps around it. */}
-          <div aria-hidden className="absolute start-full top-0 h-6 w-6 bg-panel">
-            <div aria-hidden className="h-full w-full rounded-br-3xl bg-bg" />
-          </div>
+          className={cn("relative hidden shrink-0 select-none flex-col bg-panel p-3 pb-4 transition-[width] duration-300 ease-spring md:my-2 md:flex md:rounded-[28px]", expanded ? "w-[260px]" : "w-[84px]")}>
           {/* Yeni sohbet → Bağlan */}
           <button onClick={() => go("connect")} title={t("rail.newChat")} aria-label={t("rail.newChat")}
             className={cn("m3-press flex shrink-0 items-center gap-3 bg-pc text-onpc transition-[filter,transform] duration-200 ease-spring hover:brightness-110 active:scale-95",
