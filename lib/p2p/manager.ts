@@ -114,7 +114,7 @@ export class P2PManager {
       this.stored = stored;
       this.id = await loadIdentity(stored);
       const saved = ((await db.getFlag("p2p-settings")) ?? {}) as Partial<P2PSettings>;
-      const settings: P2PSettings = { name: saved.name || `Q7 ${this.id.code.slice(-4)}`, relayEnabled: saved.relayEnabled !== false, customRelays: saved.customRelays ?? [], turn: saved.turn, photo: saved.photo, giphy: saved.giphy, onlyContacts: saved.onlyContacts === true };
+      const settings: P2PSettings = { name: saved.name || "", relayEnabled: saved.relayEnabled !== false, customRelays: saved.customRelays ?? [], turn: saved.turn, photo: saved.photo, giphy: saved.giphy, onlyContacts: saved.onlyContacts === true };
       this.set({ ready: true, code: this.id.code, pub: this.id.pubB64, fp: hex(this.id.fp), settings, contacts: await db.getContacts(), fresh: (await db.getFlag(ONBOARD_FLAG)) === true });
       await this.startRelay();
       this.tick = setInterval(() => this.reconnectAll(), 45_000);
@@ -440,7 +440,7 @@ export class P2PManager {
     const vaultOk = !!vv && vv.v === 1 && typeof vv.salt === "string" && typeof vv.wrap === "string" && typeof vv.check === "string" && typeof vv.idleMin === "number"
       && (vv.totp === undefined || typeof vv.totp === "string") && typeof v.sealedId === "string" && (v.sealedId as string).length < 400_000;
     const settings: P2PSettings = {
-      name: cleanName(s.name || "Q7"), relayEnabled: s.relayEnabled !== false,
+      name: s.name ? cleanName(s.name) : "", relayEnabled: s.relayEnabled !== false,
       customRelays: Array.isArray(s.customRelays) ? s.customRelays.filter((u): u is string => typeof u === "string" && /^wss:\/\/\S+$/.test(u)).slice(0, 5) : [],
       ...(validAvatar(s.photo) ? { photo: s.photo } : {}),
       ...(s.turn && typeof s.turn === "object" && typeof (s.turn as { urls?: unknown }).urls === "string" ? { turn: s.turn } : {}),

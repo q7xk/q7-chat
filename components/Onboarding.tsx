@@ -1,6 +1,6 @@
 "use client";
 import { useRef, useState } from "react";
-import { Camera, Check, ChevronLeft, ChevronRight, ImagePlus, Loader2 } from "lucide-react";
+import { Camera, Check, ChevronLeft, ChevronRight, ImagePlus, Loader2, Smartphone } from "lucide-react";
 import { useP2P } from "@/lib/p2p/context";
 import { useI18n, type K } from "@/lib/i18n";
 import { createVault } from "@/lib/vault";
@@ -15,7 +15,7 @@ import { Hello } from "./Hello";
  * hello → name → photo → password. The password seals the identity right away and
  * later travels with device adoption, so every device opens with the same secret.
  */
-export function Onboarding() {
+export function Onboarding({ onAdopt }: { onAdopt?: () => void }) {
   const { t } = useI18n(); const { mgr, snap } = useP2P();
   const [step, setStep] = useState(0);                              // 0 hello · 1 name · 2 photo · 3 password
   const [name, setName] = useState(snap.settings.name);
@@ -51,6 +51,11 @@ export function Onboarding() {
         {step === 1 && (
           <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder={t("ob.namePh")} maxLength={40}
             className={cn(field, "text-center text-lg")} onKeyDown={(e) => { if (e.key === "Enter") setStep(2); }} />
+        )}
+        {step === 1 && onAdopt && (
+          <button onClick={onAdopt} className="inline-flex items-center gap-2 text-sm text-muted transition-colors hover:text-ink">
+            <Smartphone size={15} />{t("ob.haveAccount")}
+          </button>
         )}
         {step === 2 && (
           <button onClick={() => file.current?.click()} className={cn(btn, "bg-pc text-onpc")}>

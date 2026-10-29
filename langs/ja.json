@@ -228,6 +228,7 @@
  "notif.new": "新しいメッセージがあります",
  "ob.back": "戻る",
  "ob.finish": "設定を完了",
+ "ob.haveAccount": "すでにアカウントがあります",
  "ob.nameNote": "この名前はチャット相手に表示されます。いつでも変更できます。",
  "ob.namePh": "名前",
  "ob.nameTitle": "お名前は？",

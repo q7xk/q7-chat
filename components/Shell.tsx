@@ -57,7 +57,7 @@ function useNotifier() {
 }
 
 export function Shell() {
-  const { t } = useI18n(); const { snap } = useP2P();
+  const { t } = useI18n(); const { mgr, snap } = useP2P();
   const { conversations, messages, spaces } = useStore();
   const [view, setView] = useState<View>("chats"); const [activeId, setActiveId] = useState<string | null>(null);
   const [pin, setPin] = useState(false); // hamburger: keep the rail expanded
@@ -223,7 +223,7 @@ export function Shell() {
           ))}
         </ul>
       </nav>
-      {snap.fresh && <Onboarding />}                    {/* first-run setup wizard covers the app until it finishes */}
+      {snap.fresh && <Onboarding onAdopt={() => { void mgr.completeOnboarding(); openSection("devices"); }} />}                    {/* first-run setup wizard covers the app until it finishes */}
     </div>
   );
 }

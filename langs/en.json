@@ -228,6 +228,7 @@
  "notif.new": "You have a new message",
  "ob.back": "Back",
  "ob.finish": "Finish setup",
+ "ob.haveAccount": "I already have an account",
  "ob.nameNote": "This name is shown to the people you chat with; you can change it anytime.",
  "ob.namePh": "Your name",
  "ob.nameTitle": "What should we call you?",

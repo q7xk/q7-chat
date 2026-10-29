@@ -15,7 +15,7 @@ export function Hello({ onDone }: { onDone: () => void }) {
   }, [onDone]);
   return (
     <div className={cn("fixed inset-0 z-50 flex items-center justify-center bg-bg", leave && "hello-leave")}>
-      <svg viewBox="0 0 340 190" className="hello-svg w-80 max-w-[75vw]" role="img" aria-label="hello">
+      <svg viewBox="0 0 390 240" className="hello-svg w-80 max-w-[75vw]" role="img" aria-label="hello">
         <defs>
           <linearGradient id="hello-g" x1="0" y1="0" x2="1" y2="0">
             <stop offset="0" stopColor="#3b82f6" /><stop offset=".24" stopColor="#06b6d4" />
@@ -23,12 +23,38 @@ export function Hello({ onDone }: { onDone: () => void }) {
             <stop offset=".87" stopColor="#ec4899" /><stop offset="1" stopColor="#8b5cf6" />
           </linearGradient>
         </defs>
-        <path pathLength={1} className="hello-stroke" fill="none" stroke="url(#hello-g)" strokeWidth="9.5" strokeLinecap="round" strokeLinejoin="round"
-          d="M40 148 C44 112 52 66 66 40 C71 31 78 33 76 44 C71 72 68 104 78 126 C86 144 100 142 108 126 C114 114 118 104 127 104 C135 104 138 118 134 134 C131 144 130 148 133 151
-             C144 161 162 157 168 141 C172 129 166 122 157 127 C146 133 143 152 152 163 C157 169 166 170 173 164
-             C175 150 183 102 189 76 C192 64 200 62 202 73 C204 88 196 122 194 141 C193 151 196 157 203 157
-             C211 157 216 112 224 82 C228 68 236 66 238 78 C240 94 232 126 230 143 C229 153 232 159 239 158
-             C250 157 259 148 263 136 C266 126 262 117 253 122 C242 128 239 147 248 161 C255 172 270 173 280 163 C288 155 292 144 295 130" />
+        <path pathLength={1} className="hello-stroke" fill="none" stroke="url(#hello-g)" strokeWidth="10" strokeLinecap="round" strokeLinejoin="round"
+          d="M45 188
+             C52 140 68 78 84 40
+             C88 31 95 31 94 42
+             C90 90 92 145 96 178
+             C97 189 102 192 106 188
+             C110 160 118 138 128 136
+             C139 134 144 146 142 160
+             C140 174 138 184 144 188
+             C152 172 162 152 168 142
+             C171 132 162 126 155 132
+             C148 141 148 158 154 174
+             C158 184 168 189 180 188
+             C186 187 191 186 196 185
+             C202 180 212 150 220 112
+             C224 88 228 52 234 40
+             C240 34 246 40 244 54
+             C240 92 232 148 228 172
+             C226 184 228 192 236 189
+             C248 184 258 150 266 112
+             C270 88 274 52 280 40
+             C286 34 292 40 290 54
+             C286 92 278 148 274 172
+             C272 184 274 192 282 189
+             C290 182 302 162 308 146
+             C312 133 302 126 293 133
+             C283 141 282 158 290 172
+             C298 184 314 184 323 172
+             C332 160 332 142 324 135
+             C318 130 312 133 310 139
+             C320 146 324 162 324 176
+             C324 185 328 192 338 190" />
       </svg>
     </div>
   );

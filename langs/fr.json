@@ -228,6 +228,7 @@
  "notif.new": "Tu as un nouveau message",
  "ob.back": "Retour",
  "ob.finish": "Terminer la configuration",
+ "ob.haveAccount": "J'ai déjà un compte",
  "ob.nameNote": "Ce nom est visible par vos contacts ; vous pouvez le modifier à tout moment.",
  "ob.namePh": "Votre nom",
  "ob.nameTitle": "Comment t'appeler ?",
