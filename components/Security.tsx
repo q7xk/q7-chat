@@ -186,7 +186,7 @@ export function DevicesSection() {
         ) : (
           <div className="flex flex-wrap gap-2">
             <input dir="ltr" value={code} onChange={(e) => setCode(formatCode(e.target.value.replace(/\D/g, "").slice(0, 12)))} placeholder="0000 0000 0000" aria-label={t("device.codePh")} inputMode="numeric" className={cn(field, "w-auto min-w-0 flex-1 font-mono tabular-nums")} />
-            <input dir="ltr" value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="· · · · · ·" aria-label={t("device.pinPh")} inputMode="numeric" className={cn(field, "w-32 font-mono tabular-nums")} />
+            <input dir="ltr" value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="· · · · · ·" aria-label={t("device.pinPh")} inputMode="numeric" className={cn(field, "max-w-40 font-mono tabular-nums")} />
             <button onClick={() => void mgr.startDevicePairing(code, pin)} disabled={code.length !== 12 || pin.length !== 6} className={cn(btn, "bg-accent text-bg disabled:opacity-40")}>{t("device.start")}</button>
             <button onClick={() => setTakeOver(false)} className={cn(btn, "bg-sc text-onsc")}>{t("c.cancel")}</button>
             <p className="w-full text-xs text-muted">{t("device.pinHelp")}</p>
