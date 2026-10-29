@@ -29,7 +29,6 @@ export const SETTINGS_SECTIONS: { id: SettingsSection; icon: LucideIcon; label: 
   { id: "a11y", icon: PersonStanding, label: "set.sec.a11y" },
   { id: "restrict", icon: ShieldOff, label: "set.sec.restrict" },
   { id: "privacy", icon: Lock, label: "set.sec.privacy" },
-  { id: "devices", icon: MonitorSmartphone, label: "set.sec.devices" },
   { id: "lock", icon: KeyRound, label: "set.sec.lock" },
 ];
 

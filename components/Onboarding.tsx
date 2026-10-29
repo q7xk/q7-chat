@@ -1,12 +1,12 @@
 "use client";
-import { useRef, useState } from "react";
-import { Camera, Check, ChevronLeft, ChevronRight, ImagePlus, Loader2, PlusCircle, Smartphone } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Camera, Check, ChevronLeft, ChevronRight, ImagePlus, Loader2, PlusCircle, QrCode, Smartphone } from "lucide-react";
 import { useP2P } from "@/lib/p2p/context";
 import { useI18n, type K } from "@/lib/i18n";
 import { createVault } from "@/lib/vault";
 import { prepareAvatar } from "@/lib/attach";
 import { Avatar, clipShape, type M3Shape } from "./Badges";
-import { btn, field } from "./Connect";
+import { btn, field, QR } from "./Connect";
 import { cn } from "@/lib/cn";
 
 /** The opening hero: our M3 Expressive shapes taking turns, melting slowly one into the next. */
@@ -30,12 +30,19 @@ function ShapeMorph() {
  */
 export function Onboarding({ onAdopt }: { onAdopt?: () => void }) {
   const { t } = useI18n(); const { mgr, snap } = useP2P();
-  const [step, setStep] = useState(0);                              // 0 choice · 1 name · 2 photo · 3 password
+  const [step, setStep] = useState<number | "adopt">(0);            // 0 choice · 1 name · 2 photo · 3 password · adopt QR
   const [name, setName] = useState(snap.settings.name);
   const [photo, setPhoto] = useState<string | undefined>(undefined); // undefined = untouched
   const [p1, setP1] = useState(""), [p2, setP2] = useState("");
   const [err, setErr] = useState<K | "">(""); const [busy, setBusy] = useState(false);
+  const [qrData, setQrData] = useState<{ qrText: string; code: string; pin: string } | null>(null);
   const file = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (step === "adopt") {
+      void mgr.beginDeviceSetupReceive().then(setQrData);
+    }
+  }, [step, mgr]);
 
   const finish = async () => {
     if (p1.length < 6) { setErr("ob.passShort"); return; }
@@ -50,6 +57,52 @@ export function Onboarding({ onAdopt }: { onAdopt?: () => void }) {
     } catch { setErr("err.generic"); setBusy(false); return; }
   };
 
+  if (step === "adopt") {
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-bg px-6">
+        <div className="m3-fade flex w-full max-w-md flex-col items-center gap-6 text-center">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-pc text-onpc">
+            <QrCode size={28} />
+          </div>
+          <div>
+            <p className="text-2xl font-semibold text-ink">Cihazı Hesaba Bağla</p>
+            <p className="mt-2 text-sm leading-relaxed text-muted">
+              Hesabınızın açık olduğu cihazdan sol alttaki <span className="font-semibold text-ink">Cihazlarım</span> menüsünü açın ve <span className="font-semibold text-accent">QR Kodu Tara</span> ile bu kodu okutun.
+            </p>
+          </div>
+
+          <div className="space-y-3 rounded-3xl bg-highest p-4">
+            {qrData ? (
+              <QR text={qrData.qrText} />
+            ) : (
+              <div className="mx-auto flex h-72 w-72 items-center justify-center rounded-2xl bg-container">
+                <Loader2 size={32} className="animate-spin text-muted" />
+              </div>
+            )}
+            <div className="flex items-center justify-center gap-2 text-xs text-muted">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute h-full w-full animate-ping rounded-full bg-accent opacity-75" />
+                <span className="h-2 w-2 rounded-full bg-accent" />
+              </span>
+              Diğer cihazınızdan taranması bekleniyor…
+            </div>
+          </div>
+
+          <button
+            onClick={() => {
+              void mgr.cancelDevicePairing();
+              setStep(0);
+            }}
+            className={cn(btn, "bg-sc text-onsc")}
+          >
+            <ChevronLeft size={15} />
+            {t("ob.back")}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (step === 0) {
     return (
       <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-bg px-6">
@@ -62,13 +115,11 @@ export function Onboarding({ onAdopt }: { onAdopt?: () => void }) {
               <span className="text-sm font-medium text-ink">{t("ob.startFresh")}</span>
               <span className="text-xs leading-relaxed text-muted">{t("ob.startFreshNote")}</span>
             </button>
-            {onAdopt && (
-              <button onClick={onAdopt} className="m3-press flex flex-col items-center gap-2 rounded-3xl bg-sc p-6 text-center hover:brightness-110">
-                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-pc text-onpc"><Smartphone size={20} /></span>
-                <span className="text-sm font-medium text-ink">{t("ob.haveAccount")}</span>
-                <span className="text-xs leading-relaxed text-muted">{t("ob.haveAccountNote")}</span>
-              </button>
-            )}
+            <button onClick={() => setStep("adopt")} className="m3-press flex flex-col items-center gap-2 rounded-3xl bg-sc p-6 text-center hover:brightness-110">
+              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-pc text-onpc"><Smartphone size={20} /></span>
+              <span className="text-sm font-medium text-ink">{t("ob.haveAccount")}</span>
+              <span className="text-xs leading-relaxed text-muted">QR kod ile mevcut hesabınıza bu cihazı ekleyin</span>
+            </button>
           </div>
         </div>
       </div>

@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AtSign, Home, MessageSquare, Plus, ScanLine, Settings as Cog, Star, Users, type LucideIcon } from "lucide-react";
+import { AtSign, Boxes, Home, MessageSquare, MonitorSmartphone, Plus, ScanLine, Settings as Cog, Star, Users, type LucideIcon } from "lucide-react";
 import type { SettingsSection, View } from "@/lib/types";
 import { cn } from "@/lib/cn";
 import { useI18n, type K } from "@/lib/i18n";
@@ -10,6 +10,8 @@ import { Avatar, ShapeDefs } from "./Badges";
 import { ChatList } from "./ChatList";
 import { ConnectPanel } from "./Connect";
 import { ContactsPanel } from "./Contacts";
+import { DevicesPanel } from "./Devices";
+import { ExtensionsPanel } from "./Extensions";
 import { Onboarding } from "./Onboarding";
 import { MentionsPanel, SpacesPanel, StarredPanel } from "./Shortcuts";
 import { SettingsPanel } from "./Settings";
@@ -17,15 +19,21 @@ import { Thread } from "./Thread";
 import { TopBar } from "./TopBar";
 
 /** Rail order, used for the direction-aware view transition. */
-const ORDER: View[] = ["chats", "mentions", "starred", "spaces", "contacts", "connect", "settings"];
+const ORDER: View[] = ["chats", "mentions", "starred", "spaces", "contacts", "connect", "devices", "extensions", "settings"];
 const SHORTCUTS: { id: View; label: K; icon: LucideIcon }[] = [
   { id: "chats", label: "rail.home", icon: Home }, { id: "mentions", label: "rail.mentions", icon: AtSign }, { id: "starred", label: "rail.starred", icon: Star },
 ];
 const BOTTOM: { id: View; label: K; icon: LucideIcon }[] = [
-  { id: "settings", label: "nav.settings", icon: Cog }, { id: "contacts", label: "nav.contacts", icon: Users },
+  { id: "devices", label: "nav.devices", icon: MonitorSmartphone },
+  { id: "extensions", label: "nav.extensions", icon: Boxes },
+  { id: "settings", label: "nav.settings", icon: Cog },
+  { id: "contacts", label: "nav.contacts", icon: Users },
 ];
 const MOBILE_NAV: { id: View; label: K; icon: LucideIcon }[] = [
-  { id: "chats", label: "nav.chats", icon: MessageSquare }, { id: "contacts", label: "nav.contacts", icon: Users }, { id: "connect", label: "nav.connect", icon: ScanLine },
+  { id: "chats", label: "nav.chats", icon: MessageSquare },
+  { id: "devices", label: "nav.devices", icon: MonitorSmartphone },
+  { id: "extensions", label: "nav.extensions", icon: Boxes },
+  { id: "connect", label: "nav.connect", icon: ScanLine },
   { id: "settings", label: "nav.settings", icon: Cog },
 ];
 
@@ -203,6 +211,8 @@ export function Shell() {
                 {view === "starred" && <StarredPanel onOpenChat={openChat} />}
                 {view === "spaces" && <SpacesPanel spaceId={spaceId} onPick={setSpaceId} onOpenChat={openChat} />}
                 {view === "contacts" && <ContactsPanel onOpenChat={openChat} onAdd={() => go("connect")} />}
+                {view === "devices" && <DevicesPanel />}
+                {view === "extensions" && <ExtensionsPanel />}
                 {view === "connect" && <ConnectPanel onOpenChat={openChat} />}
                 {view === "settings" && <SettingsPanel section={section} onContacts={() => go("contacts")} onSectionSeen={clearSection} />}
               </div>
@@ -223,7 +233,7 @@ export function Shell() {
           ))}
         </ul>
       </nav>
-      {snap.fresh && <Onboarding onAdopt={() => { void mgr.completeOnboarding(); openSection("devices"); }} />}                    {/* first-run setup wizard covers the app until it finishes */}
+      {snap.fresh && <Onboarding />}                    {/* first-run setup wizard covers the app until it finishes */}
     </div>
   );
 }

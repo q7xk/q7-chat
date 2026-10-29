@@ -1,5 +1,5 @@
 import * as db from "../db";
-import type { Attachment, Contact, Conversation, LinkMeta, Message } from "../types";
+import type { Attachment, Contact, Conversation, LinkedDevice, LinkMeta, Message } from "../types";
 import { CHUNK, cleanAtt, validAvatar, validVote } from "../attach";
 import { LIFETIME_MS } from "../time";
 import { isDirectImageUrl, parseHttpsUrl } from "../links";
@@ -349,6 +349,83 @@ export class P2PManager {
      fingerprint, same code, same conversations. */
   /** The raw identity keys, for the vault to seal. */
   exportIdentity(): StoredIdentity | undefined { return this.stored; }
+
+  /** Setup on new device: Generates a QR code and listens for account sync from an existing device. */
+  async beginDeviceSetupReceive(): Promise<{ qrText: string; code: string; pin: string } | null> {
+    if (!this.id || !this.relay) return null;
+    await this.cancelDevicePairing();
+    const pin = String(crypto.getRandomValues(new Uint32Array(1))[0]! % 1_000_000).padStart(6, "0");
+    const topicD = await topicFor("d", this.id.code + pin);
+    const until = Date.now() + 10 * 60_000;
+    const timer = setTimeout(() => void this.cancelDevicePairing(), 10 * 60_000);
+    this.pairWindow = { topicD, until, timer, knocks: new Set(), pin };
+    this.pairApplied = false;
+    this.pairCode = this.id.code;
+    this.setPairing({ kind: "device", code: this.id.code, phase: "waiting" });
+
+    this.relay.subscribe(topicD, async (payload) => {
+      try {
+        const raw = await unseal(this.id!.code + pin, payload);
+        if (raw && typeof raw === "object" && (raw as Record<string, unknown>).k === "pair") {
+          await this.onPairFrame(raw);
+          return;
+        }
+      } catch {}
+      void this.onDeviceKnock(payload);
+    });
+    return { qrText: `Q7DEV:${this.id.code}:${pin}`, code: this.id.code, pin };
+  }
+
+  /** Existing device: Sends account identity to the new device scanned via QR. */
+  async addDeviceByQr(qrText: string): Promise<{ ok: boolean; message?: string }> {
+    if (!this.stored || !this.id || !this.relay) return { ok: false, message: "err.relayOff" };
+    const clean = qrText.trim();
+    let targetCode = "", pin = "";
+    if (clean.startsWith("Q7DEV:")) {
+      const parts = clean.slice(6).split(":");
+      targetCode = parts[0] ?? "";
+      pin = parts[1] ?? "";
+    } else if (clean.includes(":")) {
+      const parts = clean.split(":");
+      targetCode = parts[0] ?? "";
+      pin = parts[1] ?? "";
+    }
+    targetCode = parseCode(targetCode) ?? "";
+    pin = pin.replace(/\D/g, "");
+    if (!targetCode || pin.length !== 6) return { ok: false, message: "err.invalid" };
+
+    const topicD = await topicFor("d", targetCode + pin);
+    const vault = await getVault();
+    const sealedId = vault ? ((await db.getFlag(VAULT_ID_FLAG)) as string | undefined) : undefined;
+    const payload = {
+      k: "pair", at: Date.now(), name: this.snap.settings.name, photo: this.snap.settings.photo,
+      settings: this.snap.settings, id: this.stored, contacts: this.snap.contacts,
+      ...(vault && sealedId ? { vault: { v: vault, sealedId } } : {}),
+    };
+
+    const sealedData = await seal(targetCode + pin, payload);
+    this.relay.publish(topicD, sealedData);
+
+    const list = ((await db.getFlag("linked-devices")) as LinkedDevice[]) || [];
+    const newDev: LinkedDevice = {
+      id: randomHex(8),
+      name: `Cihaz #${list.length + 1}`,
+      addedAt: Date.now(),
+    };
+    await db.setFlag("linked-devices", [...list, newDev]);
+
+    return { ok: true };
+  }
+
+  async getLinkedDevices(): Promise<LinkedDevice[]> {
+    return ((await db.getFlag("linked-devices")) as LinkedDevice[]) || [];
+  }
+
+  async removeLinkedDevice(id: string): Promise<void> {
+    const list = ((await db.getFlag("linked-devices")) as LinkedDevice[]) || [];
+    await db.setFlag("linked-devices", list.filter((d) => d.id !== id));
+  }
+
   /** Opens the 2-minute door another device may knock to adopt this identity.
       The door listens on a one-time topic — the static code plus a fresh PIN shown
       only on this screen — so a leaked code alone can never trigger an adoption prompt. */
