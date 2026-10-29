@@ -11,7 +11,7 @@ import {
 import { packEnvelope, unpackEnvelope } from "./pack";
 import { PeerLink } from "./rtc";
 import { RelayClient } from "./mqtt";
-import { getVault, takeRuntimeIdentity, VAULT_FLAG, VAULT_ID_FLAG } from "../vault";
+import { getVault, takeRuntimeIdentity, VAULT_FLAG, VAULT_ID_FLAG, type Vault } from "../vault";
 import { ackRoot, liveTopic, mailRoot, makeRFrame, openFrom, openRFrame, pairKey, SeqWindow, sealTo, unHex } from "./q7rp";
 
 export const DEFAULT_RELAYS = ["wss://broker.emqx.io:8084/mqtt", "wss://broker.hivemq.com:8884/mqtt", "wss://test.mosquitto.org:8081"];
@@ -23,7 +23,7 @@ export interface Request { rid: string; name: string; code: string; safety: stri
 export interface P2PSettings { name: string; photo?: string; relayEnabled: boolean; customRelays: string[]; turn?: { urls: string; username?: string; credential?: string }; giphy?: string; onlyContacts?: boolean }
 export type PairingState =
   | { kind: "idle" } | { kind: "code"; code: string; phase: "waiting" | "failed"; detail?: string }
-  | { kind: "device"; code: string; phase: "waiting" | "connected" | "failed" | "done"; detail?: string; safety?: string }
+  | { kind: "device"; code: string; phase: "waiting" | "connected" | "failed" | "done"; detail?: string; safety?: string; vaulted?: boolean }
   | { kind: "manual-offer"; text: string } | { kind: "manual-answer"; text: string }
   | { kind: "connecting" } | { kind: "done"; name: string; convId: string } | { kind: "error"; message: string };
 /** Device adoption: the source device's pairing door and the pending hand-off. */
@@ -32,7 +32,7 @@ export type DevicePairingState =
   | { kind: "confirm"; name: string; safety: string; rid: string }
   | { kind: "sent" } | { kind: "error"; message: string };
 export interface Snapshot {
-  ready: boolean; error?: string; code: string; pub: string; fp: string; settings: P2PSettings; contacts: Contact[];
+  ready: boolean; error?: string; code: string; pub: string; fp: string; settings: P2PSettings; contacts: Contact[]; fresh: boolean;
   status: Record<string, LinkState>; modes: Record<string, P2PMode>; requests: Request[]; relay: { enabled: boolean; connected: number; total: number }; pairing: PairingState; devicePairing: DevicePairingState;
 }
 export interface Host {
@@ -52,10 +52,11 @@ interface OutboxEntry { cid: string; kind: string; obj: unknown; file?: { att: E
 interface Knock { link: Link; targetCode: string; expectPub?: string; done: ReturnType<typeof setTimeout>; iv: ReturnType<typeof setInterval>; topicR: string }
 const ID = /^[\w-]{1,64}$/;
 const IDLE: PairingState = { kind: "idle" };
+const ONBOARD_FLAG = "q7.onboard";                                // set on first-run boot: the setup wizard must run
 
 export class P2PManager {
   private listeners = new Set<() => void>();
-  private snap: Snapshot = { ready: false, code: "", pub: "", fp: "", settings: { name: "", relayEnabled: true, customRelays: [] }, contacts: [], status: {}, modes: {}, requests: [], relay: { enabled: true, connected: 0, total: 0 }, pairing: IDLE, devicePairing: { kind: "idle" } };
+  private snap: Snapshot = { ready: false, code: "", pub: "", fp: "", settings: { name: "", relayEnabled: true, customRelays: [] }, contacts: [], fresh: false, status: {}, modes: {}, requests: [], relay: { enabled: true, connected: 0, total: 0 }, pairing: IDLE, devicePairing: { kind: "idle" } };
   private id?: Identity; private relay?: RelayClient; private started = false;
   private links = new Map<string, Link>(); private knocks = new Map<string, Knock>(); private manualOffers = new Map<string, Link>();
   private seen = new Set<string>(); private lastTry = new Map<string, number>(); private declined = new Map<string, number>();
@@ -107,13 +108,14 @@ export class P2PManager {
       if (!stored) {
         if (vaulted) { this.set({ ready: true }); return; }         // locked boot: the lock screen brings the identity, never fabricate one
         stored = await createStoredIdentity(); await db.putIdentity(stored);
+        await db.setFlag(ONBOARD_FLAG, true);                       // brand-new identity: the first-run setup wizard takes over
       }
       if (!stored.ecdhJwk) { stored = await withStaticEcdh(stored); if (!vaulted) await db.putIdentity(stored); } // v1 identities upgrade in place
       this.stored = stored;
       this.id = await loadIdentity(stored);
       const saved = ((await db.getFlag("p2p-settings")) ?? {}) as Partial<P2PSettings>;
       const settings: P2PSettings = { name: saved.name || `Q7 ${this.id.code.slice(-4)}`, relayEnabled: saved.relayEnabled !== false, customRelays: saved.customRelays ?? [], turn: saved.turn, photo: saved.photo, giphy: saved.giphy, onlyContacts: saved.onlyContacts === true };
-      this.set({ ready: true, code: this.id.code, pub: this.id.pubB64, fp: hex(this.id.fp), settings, contacts: await db.getContacts() });
+      this.set({ ready: true, code: this.id.code, pub: this.id.pubB64, fp: hex(this.id.fp), settings, contacts: await db.getContacts(), fresh: (await db.getFlag(ONBOARD_FLAG)) === true });
       await this.startRelay();
       this.tick = setInterval(() => this.reconnectAll(), 45_000);
       this.hbTimer = setInterval(() => this.hbTick(), 10_000); // heartbeats are checked every 10 s, sent every 30 s per contact
@@ -166,6 +168,8 @@ export class P2PManager {
   async setName(name: string) { await this.saveSettings({ name: cleanName(name) }); this.broadcastProfile(); this.relayBroadcastProfile(); }
   async setPhoto(photo?: string) { await this.saveSettings({ photo }); this.broadcastProfile(); this.relayBroadcastProfile(); }
   async setGiphyKey(key: string) { await this.saveSettings({ giphy: key.trim() || undefined }); }
+  /** The first-run setup wizard finished: clear its flag so the app shows normally. */
+  async completeOnboarding() { await db.delFlag(ONBOARD_FLAG); this.set({ fresh: false }); }
   /** Pushes our profile to every reachable contact over the relays. */
   private relayBroadcastProfile() {
     if (!this.relay?.connected) return;
@@ -398,9 +402,12 @@ export class P2PManager {
   private async sendPairPayload(link: Link) {
     if (!this.stored || !this.id) return;
     const stored = this.stored, id = this.id;
+    const vault = await getVault();                                   // the lock travels with the identity: the new device opens with the same password
+    const sealedId = vault ? ((await db.getFlag(VAULT_ID_FLAG)) as string | undefined) : undefined;
     const payload = {
       k: "pair", at: Date.now(), name: this.snap.settings.name, photo: this.snap.settings.photo,
       settings: this.snap.settings, id: stored, contacts: this.snap.contacts,
+      ...(vault && sealedId ? { vault: { v: vault, sealedId } } : {}),
     };
     const wrapUp = () => setTimeout(() => { link.pc.close(); void this.cancelDevicePairing(); }, 1500);
     if (link.sess) {                                                  // direct path: the established end-to-end session
@@ -428,6 +435,10 @@ export class P2PManager {
       return !!x && typeof x.id === "string" && ID.test(x.id) && typeof x.pub === "string" && typeof x.name === "string" && typeof x.code === "string" && typeof x.addedAt === "number" && typeof x.verified === "boolean";
     }).slice(0, 500) : [];
     const s = (o.settings && typeof o.settings === "object" ? o.settings : {}) as Partial<P2PSettings>;
+    const v = (o.vault && typeof o.vault === "object" ? o.vault : {}) as { v?: Partial<Vault>; sealedId?: unknown };
+    const vv = v.v;
+    const vaultOk = !!vv && vv.v === 1 && typeof vv.salt === "string" && typeof vv.wrap === "string" && typeof vv.check === "string" && typeof vv.idleMin === "number"
+      && (vv.totp === undefined || typeof vv.totp === "string") && typeof v.sealedId === "string" && (v.sealedId as string).length < 400_000;
     const settings: P2PSettings = {
       name: cleanName(s.name || "Q7"), relayEnabled: s.relayEnabled !== false,
       customRelays: Array.isArray(s.customRelays) ? s.customRelays.filter((u): u is string => typeof u === "string" && /^wss:\/\/\S+$/.test(u)).slice(0, 5) : [],
@@ -441,7 +452,12 @@ export class P2PManager {
     await db.putIdentity(id);
     await db.setFlag("p2p-settings", settings);
     for (const c of contacts) await db.putContact(c);
-    this.setPairing({ kind: "device", code: this.pairCode ?? "", phase: "done" });
+    if (vaultOk) {                                                    // install the transferred lock: no plaintext identity stays on disk
+      await db.setFlag(VAULT_FLAG, vv as Vault);
+      await db.setFlag(VAULT_ID_FLAG, v.sealedId as string);
+      await db.delIdentity();
+    }
+    this.setPairing({ kind: "device", code: this.pairCode ?? "", phase: "done", ...(vaultOk ? { vaulted: true } : {}) });
     if (typeof location !== "undefined" && typeof location.reload === "function") setTimeout(() => location.reload(), 900); // boot into the adopted identity
   }
   /** Relay-borne hand-off payload (the fallback when the direct connection cannot form). */

@@ -246,7 +246,7 @@ describe("Q7RP simulated end to end", () => {
     close() { this.dc?.close(); }
   }
 
-  it("device adoption: a fresh device takes over the identity, contacts ride along", async () => {
+  it("device adoption: a fresh device takes over the identity, contacts and the lock ride along", async () => {
     const S = await openSide("q7-sim-dev-src");
     const N = await openSide("q7-sim-dev-new");
     vi.stubGlobal("RTCPeerConnection", DuoPC);      // both new links (and only these) use the working loopback pair
@@ -257,6 +257,11 @@ describe("Q7RP simulated end to end", () => {
       { id: fpX.slice(0, 20) + "y", pub: "BPubY".repeat(13), name: "Why", code: "000000000002", addedAt: 2, verified: false },
     ];
     (S.mgr as unknown as { set(p: unknown): void }).set({ contacts });
+    const active = process.env.Q7_DB;                                 // the vault must be created inside the SOURCE's module graph (and its db)
+    process.env.Q7_DB = "q7-sim-dev-src"; vi.resetModules();
+    const { createVault } = await import("../lib/vault");
+    await createVault("deneme-parola-1", S.mgr.exportIdentity()!);    // the source is locked: its password must ride along to the new device
+    process.env.Q7_DB = active; vi.resetModules();
     await S.mgr.beginDevicePairing();
     expect(await waitFor(() => S.mgr.getSnapshot().devicePairing.kind === "open")).toBe(true);
 
@@ -278,10 +283,16 @@ describe("Q7RP simulated end to end", () => {
       const p = N.mgr.getSnapshot().pairing;
       return p.kind === "device" && p.phase === "done";
     })).toBe(true);
+    expect(N.mgr.getSnapshot().pairing).toMatchObject({ kind: "device", phase: "done", vaulted: true });
 
     const dbm = await import("../lib/db");
-    const id = await dbm.getIdentity();
-    expect(id?.pub).toBe(S.ident.pub);              // the adopting device IS the source identity now
+    const { getVault, openVault, vaultIdentity } = await import("../lib/vault");
+    expect(await dbm.getIdentity()).toBeUndefined(); // no plaintext keys on disk: the transferred lock replaced them
+    expect(await getVault()).not.toBeNull();
+    const opened = await openVault("deneme-parola-1");
+    if (!opened) throw new Error("the transferred password did not open the new device");
+    const id = await vaultIdentity(opened.master);
+    expect(id?.pub).toBe(S.ident.pub);              // the adopting device IS the source identity now, unsealed by the same password
     expect((await dbm.getFlag("p2p-settings") as { name: string }).name).toBe(S.mgr.getSnapshot().settings.name);
     const got = await dbm.getContacts();
     expect(got.map((c) => c.name).sort()).toEqual(["Why", "Xee"]);

@@ -201,6 +201,7 @@ export function DevicesSection() {
           </div>
         )}
         {pairing?.phase === "done" && <p className="text-sm text-accent">{t("device.done")}</p>}
+        {pairing?.phase === "done" && pairing.vaulted && <p className="text-sm text-muted">{t("device.doneVault")}</p>}
         {pairing?.phase === "failed" && <p className="text-sm text-danger">{tk(pairing.detail ?? "device.fail")}</p>}
       </div>
       {snap.code && <p className="text-xs text-muted">{t("connect.yourCode")} <span dir="ltr" className="font-mono">{formatCode(snap.code)}</span></p>}

@@ -90,3 +90,13 @@ body { background: rgb(var(--bg)); color: rgb(var(--text)); -webkit-font-smoothi
   animation-iteration-count: 1 !important;
   transition-duration: 0.01ms !important;
 }
+
+/* First-run hello: the script is drawn in one rainbow stroke, held, then faded away. */
+@keyframes hello-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes hello-gone { to { opacity: 0; transform: scale(1.04); } }
+.hello-stroke { stroke-dasharray: 1; stroke-dashoffset: 1; animation: hello-draw 1.5s cubic-bezier(0.55, 0.06, 0.28, 0.99) 0.25s forwards; }
+.hello-leave { animation: hello-gone 0.55s ease forwards; }
+@media (prefers-reduced-motion: reduce) {
+  .hello-stroke { animation: none; stroke-dasharray: none; stroke-dashoffset: 0; }
+  .hello-leave { animation: none; }
+}
