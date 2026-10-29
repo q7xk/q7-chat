@@ -15,7 +15,7 @@ export function Hello({ onDone }: { onDone: () => void }) {
   }, [onDone]);
   return (
     <div className={cn("fixed inset-0 z-50 flex items-center justify-center bg-bg", leave && "hello-leave")}>
-      <svg viewBox="0 0 340 190" className="hello-svg w-64 max-w-[70vw]" role="img" aria-label="hello">
+      <svg viewBox="0 0 340 190" className="hello-svg w-80 max-w-[75vw]" role="img" aria-label="hello">
         <defs>
           <linearGradient id="hello-g" x1="0" y1="0" x2="1" y2="0">
             <stop offset="0" stopColor="#3b82f6" /><stop offset=".24" stopColor="#06b6d4" />
