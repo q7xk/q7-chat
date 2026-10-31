@@ -1,0 +1,48 @@
+Q7 Chat
+Copyright © 2026 Q7 Chat contributors
+
+This Source Code Form is subject to the terms of the Mozilla Public
+License, v. 2.0. If a copy of the MPL was not distributed with this
+file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+The full license text is in the LICENSE file.
+
+Third-party components
+======================
+
+Q7 Chat depends on open-source packages. The direct dependencies and their
+licenses are listed below. Transitive dependencies and their full license
+texts are recorded in package-lock.json and in each package's distribution.
+
+Runtime dependencies
+--------------------
+
+- next (MIT)
+- react (MIT)
+- react-dom (MIT)
+- lucide-react (ISC)
+- qrcode (MIT)
+- jsqr (Apache-2.0)
+
+Development dependencies
+------------------------
+
+- typescript (Apache-2.0)
+- vitest (MIT)
+- fake-indexeddb (Apache-2.0)
+- tailwindcss (MIT)
+- postcss (MIT)
+- autoprefixer (MIT)
+- @types/node, @types/qrcode, @types/react, @types/react-dom (MIT)
+
+Fonts
+-----
+
+- Roboto Flex, loaded through next/font, is licensed under the
+  SIL Open Font License 1.1.
+
+Trademarks
+----------
+
+Q7 Chat, the Q7 logo and the names of contributors are not licensed under
+the MPL. No trademark or service-mark rights are granted by the license.

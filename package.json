@@ -2,6 +2,22 @@
   "name": "q7-message",
   "version": "0.1.0",
   "private": true,
+  "description": "Private, serverless, end-to-end encrypted messaging with 72-hour message expiry.",
+  "license": "MPL-2.0",
+  "author": "Q7 Chat contributors",
+  "keywords": [
+    "messaging",
+    "p2p",
+    "e2ee",
+    "privacy",
+    "nextjs",
+    "webrtc",
+    "mqtt"
+  ],
+  "engines": {
+    "node": ">=18.17.0",
+    "npm": ">=9"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",

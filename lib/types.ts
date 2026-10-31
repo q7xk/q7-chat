@@ -1,5 +1,5 @@
 export type Mode = "local" | "p2p" | "group";
-export type View = "chats" | "contacts" | "connect" | "settings" | "mentions" | "starred" | "spaces" | "devices" | "extensions";
+export type View = "chats" | "contacts" | "connect" | "settings" | "mentions" | "starred" | "spaces" | "devices";
 export type PreviewPolicy = "ask" | "block" | "allow";
 export type Presence = "online" | "dnd" | "away";
 export type SettingsSection = "general" | "notifications" | "media" | "look" | "a11y" | "restrict" | "privacy" | "lock";

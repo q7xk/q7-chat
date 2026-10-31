@@ -51,7 +51,7 @@ export default function HelpPage() {
         <section className="space-y-4">
           <H2 id="nedir">Q7 Chat nedir?</H2>
           <P>Q7 Chat, iki cihaz arasında doğrudan (P2P) çalışan bir mesajlaşma uygulamasıdır. Mesajların bir sunucuda birikmez: cihazlar birbirini bulun ve mesajlar yalnızca uçtan uca şifrelenmiş olarak taşınır. Uygulama sunucusuz çalışabildiği için hesap da e-posta da yoktur — kimliğin, cihazında üretilen 12 haneli bir <strong className="text-ink">Q7 kodudur</strong>.</P>
-          <P>İki sohbet türü vardır: <strong className="text-ink">Kişiler</strong> ile kurulan uçtan uca şifreli sohbetler ve sadece senin cihazında duran <strong className="text-ink">Yerel notlar</strong> sohbetleri.</P>
+          <P>Üç sohbet türü vardır: <strong className="text-ink">Kişiler</strong> ile kurulan uçtan uca şifreli birebir sohbetler, kişilerinden oluşturduğun şifreli <strong className="text-ink">gruplar</strong> ve sadece senin cihazında duran <strong className="text-ink">Yerel notlar</strong> sohbetleri.</P>
         </section>
 
         <section className="space-y-4">
@@ -83,6 +83,7 @@ export default function HelpPage() {
             <LI b="Dosya ve görsel:">Fotoğraf, belge ve sesli mesaj gönder.</LI>
             <LI b="Anket:">Tek ya da çok seçimli anket kur; oylar canlı güncellenir.</LI>
             <LI b="Etkinlik ve konum:">Tarih/yer bildiren etkinlik kartı ya da konum paylaş.</LI>
+            <LI b="Gruplar:">Sohbetler ekranındaki artı menüsünden grup oluştur; üye ekle, adı değiştir veya gruptan ayrıl.</LI>
             <LI b="Sohbet menüsü:">Sabitleme, sessize alma, arşiv, duvar kâğıdı ve sohbeti silme.</LI>
           </UL>
         </section>
@@ -116,7 +117,7 @@ export default function HelpPage() {
 
         <section className="space-y-4">
           <H2 id="veriler">Verilerin ve yedekler</H2>
-          <P>Her şey cihazındadır. Ayarlar ▸ Veri gizliliği'nden tüm sohbetlerini ve ayarlarını tek JSON dosyası olarak yedekleyebilir, başka cihazda içe aktarabilir ya da <strong className="text-ink">her şeyi sil</strong> ile sıfırdan başlayabilirsin. Yedek dosyası şifrelidir; yalnızca Q7 Chat geri yükleyebilir.</P>
+          <P>Her şey cihazındadır. Ayarlar ▸ Veri gizliliği'nden tüm sohbetlerini ve ayarlarını tek JSON dosyası olarak yedekleyebilir, başka cihazda içe aktarabilir ya da <strong className="text-ink">her şeyi sil</strong> ile sıfırdan başlayabilirsin. Yedek dosyası <strong className="text-ink">şifreli değildir</strong>; mesaj içeriklerini taşıyabileceği için güvenli bir yerde sakla.</P>
         </section>
 
         <section className="space-y-4">
@@ -127,7 +128,7 @@ export default function HelpPage() {
               ["Mesajlar neden 72 saatte siliniyor?", "Gizlilik varsayılanı: uzun ömürlü arşiv yerine taze konuşma. İstediğin an yedek alıp saklayabilirsin."],
               ["İki cihazda aynı hesap?", "Hesap cihaza bağlıdır; kodu ikinci cihaza eşleyerek kişilerinle yeniden bağlanabilirsin."],
               ["Biri beni rahatsız ediyor?", "Kişisini aç ve Engelle; erişim kısıtlamalarını da açarsan yabancıların istekleri hiç gelmez."],
-              ["Grup sohbeti var mı?", "Şu an Q7 Chat birebir sohbetlere odaklıdır; gruplar yol haritasında."],
+              ["Grup sohbeti var mı?", "Evet. Sohbetler ekranındaki artı menüsünden Grup Oluştur'u seç, gruba ad ver ve kişilerini ekle."],
             ].map(([q, a]) => (
               <div key={q} className="rounded-3xl bg-panel p-5">
                 <p className="font-medium text-ink">{q}</p>

@@ -224,6 +224,7 @@
  "nav.chats": "Obrolan",
  "nav.connect": "Hubungkan",
  "nav.contacts": "Kontak",
+ "nav.devices": "Perangkat Saya",
  "nav.settings": "Pengaturan",
  "notif.new": "Kamu punya pesan baru",
  "ob.back": "Kembali",
@@ -380,5 +381,14 @@
  "voice.rec": "Merekam…",
  "voice.send": "Kirim",
  "welcome.text": "Obrolan lokal, hanya disimpan di browser ini. Pesan dihapus setelah 72 jam.",
- "welcome.title": "Catatan pribadi"
+ "welcome.title": "Catatan pribadi",
+ "devices.title": "Perangkat Saya",
+ "devices.desc": "Perangkat yang terhubung ke akun Anda",
+ "devices.scanQr": "Pindai Kode QR",
+ "devices.thisDevice": "Perangkat Ini (Aktif)",
+ "devices.connectedDevices": "Perangkat Terhubung",
+ "devices.empty": "Belum ada perangkat lain yang terhubung.",
+ "devices.setupInfo": "Saat menyiapkan perangkat baru, pilih 'Saya sudah punya akun' lalu pindai kode QR yang ditampilkan di sini.",
+ "devices.remove": "Hapus",
+ "devices.success": "Perangkat berhasil terhubung!"
 }

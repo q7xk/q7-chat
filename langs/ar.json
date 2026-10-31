@@ -224,6 +224,7 @@
  "nav.chats": "الدردشات",
  "nav.connect": "اتصال",
  "nav.contacts": "جهات الاتصال",
+ "nav.devices": "أجهزتي",
  "nav.settings": "الإعدادات",
  "notif.new": "لديك رسالة جديدة",
  "ob.back": "رجوع",
@@ -380,5 +381,14 @@
  "voice.rec": "جارٍ التسجيل…",
  "voice.send": "إرسال",
  "welcome.text": "دردشة محلية محفوظة في هذا المتصفح فقط. تُحذف الرسائل بعد 72 ساعة.",
- "welcome.title": "ملاحظات لنفسي"
+ "welcome.title": "ملاحظات لنفسي",
+ "devices.title": "أجهزتي",
+ "devices.desc": "الأجهزة المرتبطة بحسابك",
+ "devices.scanQr": "مسح رمز QR",
+ "devices.thisDevice": "هذا الجهاز (نشط)",
+ "devices.connectedDevices": "الأجهزة المرتبطة",
+ "devices.empty": "لا توجد أجهزة أخرى مرتبطة بعد.",
+ "devices.setupInfo": "عند إعداد الجهاز الجديد، اختر «لدي حساب بالفعل» ثم امسح رمز QR المعروض هنا.",
+ "devices.remove": "إزالة",
+ "devices.success": "تم ربط الجهاز بنجاح!"
 }

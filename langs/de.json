@@ -224,6 +224,7 @@
  "nav.chats": "Chats",
  "nav.connect": "Verbinden",
  "nav.contacts": "Kontakte",
+ "nav.devices": "Meine Geräte",
  "nav.settings": "Einstellungen",
  "notif.new": "Du hast eine neue Nachricht",
  "ob.back": "Zurück",
@@ -380,5 +381,14 @@
  "voice.rec": "Aufnahme läuft…",
  "voice.send": "Senden",
  "welcome.text": "Ein lokaler Chat, nur in diesem Browser gespeichert. Nachrichten werden nach 72 Stunden gelöscht.",
- "welcome.title": "Notizen an mich"
+ "welcome.title": "Notizen an mich",
+ "devices.title": "Meine Geräte",
+ "devices.desc": "Mit deinem Konto verknüpfte Geräte",
+ "devices.scanQr": "QR-Code scannen",
+ "devices.thisDevice": "Dieses Gerät (aktiv)",
+ "devices.connectedDevices": "Verknüpfte Geräte",
+ "devices.empty": "Noch keine weiteren Geräte verknüpft.",
+ "devices.setupInfo": "Wähle bei der Einrichtung des neuen Geräts „Ich habe bereits ein Konto“ und scanne hier den angezeigten QR-Code.",
+ "devices.remove": "Entfernen",
+ "devices.success": "Gerät erfolgreich verknüpft!"
 }

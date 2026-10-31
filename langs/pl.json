@@ -224,6 +224,7 @@
  "nav.chats": "Czaty",
  "nav.connect": "Połącz",
  "nav.contacts": "Kontakty",
+ "nav.devices": "Moje urządzenia",
  "nav.settings": "Ustawienia",
  "notif.new": "Masz nową wiadomość",
  "ob.back": "Wstecz",
@@ -380,5 +381,14 @@
  "voice.rec": "Nagrywanie…",
  "voice.send": "Wyślij",
  "welcome.text": "Czat lokalny, zapisany tylko w tej przeglądarce. Wiadomości są usuwane po 72 godzinach.",
- "welcome.title": "Notatki dla siebie"
+ "welcome.title": "Notatki dla siebie",
+ "devices.title": "Moje urządzenia",
+ "devices.desc": "Urządzenia powiązane z Twoim kontem",
+ "devices.scanQr": "Skanuj kod QR",
+ "devices.thisDevice": "To urządzenie (aktywne)",
+ "devices.connectedDevices": "Powiązane urządzenia",
+ "devices.empty": "Brak innych powiązanych urządzeń.",
+ "devices.setupInfo": "Podczas konfiguracji nowego urządzenia wybierz „Mam już konto” i zeskanuj tutaj wyświetlony kod QR.",
+ "devices.remove": "Usuń",
+ "devices.success": "Urządzenie zostało pomyślnie powiązane!"
 }

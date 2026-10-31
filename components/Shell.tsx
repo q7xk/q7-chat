@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AtSign, Boxes, Home, MessageSquare, MonitorSmartphone, Plus, ScanLine, Settings as Cog, Star, Users, type LucideIcon } from "lucide-react";
+import { AtSign, Home, MessageSquare, MonitorSmartphone, Plus, ScanLine, Settings as Cog, Star, Users, type LucideIcon } from "lucide-react";
 import type { SettingsSection, View } from "@/lib/types";
 import { cn } from "@/lib/cn";
 import { useI18n, type K } from "@/lib/i18n";
@@ -11,7 +11,6 @@ import { ChatList } from "./ChatList";
 import { ConnectPanel } from "./Connect";
 import { ContactsPanel } from "./Contacts";
 import { DevicesPanel } from "./Devices";
-import { ExtensionsPanel } from "./Extensions";
 import { Onboarding } from "./Onboarding";
 import { MentionsPanel, SpacesPanel, StarredPanel } from "./Shortcuts";
 import { SettingsPanel } from "./Settings";
@@ -19,20 +18,18 @@ import { Thread } from "./Thread";
 import { TopBar } from "./TopBar";
 
 /** Rail order, used for the direction-aware view transition. */
-const ORDER: View[] = ["chats", "mentions", "starred", "spaces", "contacts", "connect", "devices", "extensions", "settings"];
+const ORDER: View[] = ["chats", "mentions", "starred", "spaces", "contacts", "connect", "devices", "settings"];
 const SHORTCUTS: { id: View; label: K; icon: LucideIcon }[] = [
   { id: "chats", label: "rail.home", icon: Home }, { id: "mentions", label: "rail.mentions", icon: AtSign }, { id: "starred", label: "rail.starred", icon: Star },
 ];
 const BOTTOM: { id: View; label: K; icon: LucideIcon }[] = [
   { id: "devices", label: "nav.devices", icon: MonitorSmartphone },
-  { id: "extensions", label: "nav.extensions", icon: Boxes },
   { id: "settings", label: "nav.settings", icon: Cog },
   { id: "contacts", label: "nav.contacts", icon: Users },
 ];
 const MOBILE_NAV: { id: View; label: K; icon: LucideIcon }[] = [
   { id: "chats", label: "nav.chats", icon: MessageSquare },
   { id: "devices", label: "nav.devices", icon: MonitorSmartphone },
-  { id: "extensions", label: "nav.extensions", icon: Boxes },
   { id: "connect", label: "nav.connect", icon: ScanLine },
   { id: "settings", label: "nav.settings", icon: Cog },
 ];
@@ -212,7 +209,6 @@ export function Shell() {
                 {view === "spaces" && <SpacesPanel spaceId={spaceId} onPick={setSpaceId} onOpenChat={openChat} />}
                 {view === "contacts" && <ContactsPanel onOpenChat={openChat} onAdd={() => go("connect")} />}
                 {view === "devices" && <DevicesPanel />}
-                {view === "extensions" && <ExtensionsPanel />}
                 {view === "connect" && <ConnectPanel onOpenChat={openChat} />}
                 {view === "settings" && <SettingsPanel section={section} onContacts={() => go("contacts")} onSectionSeen={clearSection} />}
               </div>
@@ -222,7 +218,7 @@ export function Shell() {
       </div>
 
       <nav aria-label="Q7 Chat" className={cn("bg-container pb-[env(safe-area-inset-bottom)] md:hidden", chat && activeId && "hidden")}>
-        <ul className="grid grid-cols-5 px-1 pb-2 pt-3">
+        <ul className="grid grid-cols-4 px-1 pb-2 pt-3">
           {MOBILE_NAV.map(({ id, label, icon: Icon }) => (
             <li key={id}>
               <button onClick={() => go(id)} aria-label={t(label)} aria-current={view === id ? "page" : undefined} className="m3-press flex w-full flex-col items-center gap-1 text-xs font-medium">

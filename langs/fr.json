@@ -224,6 +224,7 @@
  "nav.chats": "Discussions",
  "nav.connect": "Connexion",
  "nav.contacts": "Contacts",
+ "nav.devices": "Mes appareils",
  "nav.settings": "Réglages",
  "notif.new": "Tu as un nouveau message",
  "ob.back": "Retour",
@@ -380,5 +381,14 @@
  "voice.rec": "Enregistrement…",
  "voice.send": "Envoyer",
  "welcome.text": "Une discussion locale, stockée uniquement dans ce navigateur. Les messages sont supprimés après 72 heures.",
- "welcome.title": "Notes personnelles"
+ "welcome.title": "Notes personnelles",
+ "devices.title": "Mes appareils",
+ "devices.desc": "Appareils liés à votre compte",
+ "devices.scanQr": "Scanner un QR code",
+ "devices.thisDevice": "Cet appareil (actif)",
+ "devices.connectedDevices": "Appareils liés",
+ "devices.empty": "Aucun autre appareil lié pour le moment.",
+ "devices.setupInfo": "Lors de la configuration du nouvel appareil, choisissez « J'ai déjà un compte » et scannez ici le QR code affiché.",
+ "devices.remove": "Retirer",
+ "devices.success": "Appareil lié avec succès !"
 }

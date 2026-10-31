@@ -75,7 +75,7 @@ export default function LearnPage() {
       <main className="mx-auto max-w-3xl space-y-10 px-6 py-10">
         <div className="space-y-3">
           <h1 className="text-4xl font-semibold tracking-tight">Eğitim</h1>
-          <p className="text-lg text-muted">Altı kısa dersle Q7 Chat'in tamamı. Her ders birkaç dakika sürer; uygulamayı açık tutup adım adım deneyebilirsin.</p>
+          <p className="text-lg text-muted">Beş kısa dersle Q7 Chat'in temelleri. Her ders birkaç dakika sürer; uygulamayı açık tutup adım adım deneyebilirsin.</p>
         </div>
 
         <div className="space-y-6">

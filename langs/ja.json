@@ -224,6 +224,7 @@
  "nav.chats": "チャット",
  "nav.connect": "接続",
  "nav.contacts": "連絡先",
+ "nav.devices": "マイデバイス",
  "nav.settings": "設定",
  "notif.new": "新しいメッセージがあります",
  "ob.back": "戻る",
@@ -380,5 +381,14 @@
  "voice.rec": "録音中…",
  "voice.send": "送信",
  "welcome.text": "このブラウザ内にのみ保存されるローカルチャット。メッセージは72時間後に削除されます。",
- "welcome.title": "自分用メモ"
+ "welcome.title": "自分用メモ",
+ "devices.title": "マイデバイス",
+ "devices.desc": "アカウントにリンクされたデバイス",
+ "devices.scanQr": "QRコードをスキャン",
+ "devices.thisDevice": "このデバイス（アクティブ）",
+ "devices.connectedDevices": "リンク済みデバイス",
+ "devices.empty": "まだ他のデバイスはリンクされていません。",
+ "devices.setupInfo": "新しいデバイスのセットアップで「すでにアカウントを持っています」を選び、表示されたQRコードをここでスキャンしてください。",
+ "devices.remove": "削除",
+ "devices.success": "デバイスをリンクしました！"
 }

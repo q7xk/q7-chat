@@ -224,6 +224,7 @@
  "nav.chats": "Conversas",
  "nav.connect": "Ligar",
  "nav.contacts": "Contactos",
+ "nav.devices": "Meus dispositivos",
  "nav.settings": "Definições",
  "notif.new": "Você tem uma nova mensagem",
  "ob.back": "Voltar",
@@ -380,5 +381,14 @@
  "voice.rec": "Gravando…",
  "voice.send": "Enviar",
  "welcome.text": "Uma conversa local, guardada apenas neste navegador. As mensagens são eliminadas após 72 horas.",
- "welcome.title": "Notas pessoais"
+ "welcome.title": "Notas pessoais",
+ "devices.title": "Meus dispositivos",
+ "devices.desc": "Dispositivos vinculados à sua conta",
+ "devices.scanQr": "Escanear código QR",
+ "devices.thisDevice": "Este dispositivo (ativo)",
+ "devices.connectedDevices": "Dispositivos vinculados",
+ "devices.empty": "Nenhum outro dispositivo vinculado ainda.",
+ "devices.setupInfo": "Na configuração do novo dispositivo, escolha “Já tenho uma conta” e escaneie aqui o código QR exibido.",
+ "devices.remove": "Remover",
+ "devices.success": "Dispositivo vinculado com sucesso!"
 }

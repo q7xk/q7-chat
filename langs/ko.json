@@ -224,6 +224,7 @@
  "nav.chats": "채팅",
  "nav.connect": "연결",
  "nav.contacts": "연락처",
+ "nav.devices": "내 기기",
  "nav.settings": "설정",
  "notif.new": "새 메시지가 있어요",
  "ob.back": "뒤로",
@@ -380,5 +381,14 @@
  "voice.rec": "녹음 중…",
  "voice.send": "보내기",
  "welcome.text": "이 브라우저에만 저장되는 로컬 채팅입니다. 메시지는 72시간 후 삭제됩니다.",
- "welcome.title": "나에게 쓰는 메모"
+ "welcome.title": "나에게 쓰는 메모",
+ "devices.title": "내 기기",
+ "devices.desc": "계정에 연결된 기기",
+ "devices.scanQr": "QR 코드 스캔",
+ "devices.thisDevice": "이 기기(활성)",
+ "devices.connectedDevices": "연결된 기기",
+ "devices.empty": "아직 연결된 다른 기기가 없습니다.",
+ "devices.setupInfo": "새 기기 설정에서 '이미 계정이 있습니다'를 선택한 후 표시된 QR 코드를 여기에서 스캔하세요.",
+ "devices.remove": "제거",
+ "devices.success": "기기가 연결되었습니다!"
 }

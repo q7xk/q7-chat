@@ -224,6 +224,7 @@
  "nav.chats": "Chats",
  "nav.connect": "Verbinden",
  "nav.contacts": "Contacten",
+ "nav.devices": "Mijn apparaten",
  "nav.settings": "Instellingen",
  "notif.new": "Je hebt een nieuw bericht",
  "ob.back": "Terug",
@@ -380,5 +381,14 @@
  "voice.rec": "Opnemen…",
  "voice.send": "Verzenden",
  "welcome.text": "Een lokale chat, alleen in deze browser opgeslagen. Berichten worden na 72 uur verwijderd.",
- "welcome.title": "Notities aan mezelf"
+ "welcome.title": "Notities aan mezelf",
+ "devices.title": "Mijn apparaten",
+ "devices.desc": "Apparaten gekoppeld aan je account",
+ "devices.scanQr": "QR-code scannen",
+ "devices.thisDevice": "Dit apparaat (actief)",
+ "devices.connectedDevices": "Gekoppelde apparaten",
+ "devices.empty": "Nog geen andere apparaten gekoppeld.",
+ "devices.setupInfo": "Kies bij het instellen van het nieuwe apparaat voor 'Ik heb al een account' en scan hier de getoonde QR-code.",
+ "devices.remove": "Verwijderen",
+ "devices.success": "Apparaat succesvol gekoppeld!"
 }

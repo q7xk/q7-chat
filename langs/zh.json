@@ -224,6 +224,7 @@
  "nav.chats": "聊天",
  "nav.connect": "连接",
  "nav.contacts": "联系人",
+ "nav.devices": "我的设备",
  "nav.settings": "设置",
  "notif.new": "你有一条新消息",
  "ob.back": "返回",
@@ -380,5 +381,14 @@
  "voice.rec": "正在录音…",
  "voice.send": "发送",
  "welcome.text": "仅保存在此浏览器中的本地聊天。消息将在 72 小时后删除。",
- "welcome.title": "给自己的笔记"
+ "welcome.title": "给自己的笔记",
+ "devices.title": "我的设备",
+ "devices.desc": "与您账户关联的设备",
+ "devices.scanQr": "扫描二维码",
+ "devices.thisDevice": "此设备（活动）",
+ "devices.connectedDevices": "已关联设备",
+ "devices.empty": "尚未关联其他设备。",
+ "devices.setupInfo": "在新设备设置时选择“我已有账户”，然后在此扫描显示的二维码。",
+ "devices.remove": "移除",
+ "devices.success": "设备关联成功！"
 }

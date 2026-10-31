@@ -224,6 +224,7 @@
  "nav.chats": "चैट",
  "nav.connect": "कनेक्ट",
  "nav.contacts": "संपर्क",
+ "nav.devices": "मेरे डिवाइस",
  "nav.settings": "सेटिंग्स",
  "notif.new": "आपके लिए एक नया संदेश है",
  "ob.back": "वापस",
@@ -380,5 +381,14 @@
  "voice.rec": "रिकॉर्डिंग…",
  "voice.send": "भेजें",
  "welcome.text": "केवल इसी ब्राउज़र में सहेजी गई लोकल चैट। संदेश 72 घंटे बाद हटा दिए जाते हैं।",
- "welcome.title": "खुद के लिए नोट्स"
+ "welcome.title": "खुद के लिए नोट्स",
+ "devices.title": "मेरे डिवाइस",
+ "devices.desc": "आपके खाते से जुड़े डिवाइस",
+ "devices.scanQr": "QR कोड स्कैन करें",
+ "devices.thisDevice": "यह डिवाइस (सक्रिय)",
+ "devices.connectedDevices": "जुड़े हुए डिवाइस",
+ "devices.empty": "अभी तक कोई अन्य डिवाइस नहीं जुड़ा है।",
+ "devices.setupInfo": "नए डिवाइस के सेटअप में 'मेरा पहले से खाता है' चुनें और दिखाया गया QR कोड यहाँ स्कैन करें।",
+ "devices.remove": "हटाएँ",
+ "devices.success": "डिवाइस सफलतापूर्वक जुड़ गया!"
 }
