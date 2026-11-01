@@ -8,6 +8,7 @@ Q7 Chat is a browser-based, end-to-end encrypted messenger built with Next.js, T
 
 <p>
   <img alt="Next.js" src="https://img.shields.io/badge/Next.js-14-black?logo=next.js" />
+  <img alt="Kotlin" src="https://img.shields.io/badge/Kotlin-7F52FF?logo=kotlin&logoColor=white" />
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white" />
   <img alt="Tailwind CSS" src="https://img.shields.io/badge/Tailwind_CSS-3-06B6D4?logo=tailwindcss&logoColor=white" />
   <img alt="License: MPL 2.0" src="https://img.shields.io/badge/license-MPL--2.0-blue" />
