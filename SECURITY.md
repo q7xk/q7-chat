@@ -31,6 +31,8 @@ The project is pre-1.0 and ships from `main`. Security fixes are applied to the 
 
 - Cryptographic protocol flaws in `lib/p2p/` (identity, envelopes, Q7RP frames, replay handling, key derivation, signatures).
 - Vault weaknesses in `lib/vault.ts` (password wrapping, key sealing, TOTP handling, idle lock bypass).
+- Backup format weaknesses in `lib/backup.ts` (KDF parameters, header parsing, authentication bypass, identity replacement).
+- Multi-device sync weaknesses in `lib/sync.ts` (key derivation, snapshot forgery, stale-snapshot rollback, tombstone bypass).
 - Message expiry bypass or storage of expired content beyond the intended window.
 - Cross-site scripting or injection through message bodies, names, link previews, attachments or group metadata.
 - Attachment validation bypass, path traversal in file names, or unsafe MIME handling.
@@ -41,7 +43,7 @@ The project is pre-1.0 and ships from `main`. Security fixes are applied to the 
 ### Out of scope
 
 - Issues in third-party dependencies that are already publicly known and fixed upstream. Report them upstream and open a normal issue here for the update.
-- Missing security features that are documented as not implemented (for example, encrypted backups).
+- Missing features that are documented as not implemented (for example, attachment blobs inside backups or sync snapshots).
 - Attacks requiring a compromised device, a malicious browser extension, or control of the app origin.
 - Denial of service by overwhelming public MQTT brokers.
 - Findings produced only by automated scanners without a demonstrated impact.
@@ -56,14 +58,16 @@ The project is pre-1.0 and ships from `main`. Security fixes are applied to the 
 
 **Protected:** message confidentiality and integrity in transit, sender authenticity, replay resistance, local identity confidentiality when a vault is enabled.
 
-**Not protected:** traffic analysis by relays (timing, approximate size, hashed topics), compromised endpoints, plaintext backups, metadata already leaked by the user, and availability of public relays.
+**Not protected:** traffic analysis by relays (timing, approximate size, hashed topics), compromised endpoints, legacy plaintext backup files created before 0.2.0, metadata already leaked by the user, and availability of public relays.
 
-Read [PROTOCOL.md](PROTOCOL.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for details.
+Read [PROTOCOL.md](PROTOCOL.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/SECURITY-AUDIT.md](docs/SECURITY-AUDIT.md) for details. No independent audit has been completed; the audit page records the scope and current status.
 
 ## Security-relevant defaults
 
 - Messages expire after 72 hours and are purged from IndexedDB.
 - The vault uses PBKDF2-SHA256 with 310,000 iterations and AES-GCM.
+- Encrypted backups use PBKDF2-SHA256 with 600,000 iterations and AES-256-GCM; the cost is stored in the file header.
+- Device sync uses a self-ECDH secret, AES-GCM, last-writer-wins timestamps and 72-hour tombstones. Snapshots are capped below 200 KB and may be partial for very large histories.
 - The CSP forbids framing and restricts script sources.
 - External link previews are opt-in (`ask` by default).
 - Image metadata is stripped by re-encoding still images.
@@ -72,18 +76,18 @@ Read [PROTOCOL.md](PROTOCOL.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 ## Hardening recommendations for operators
 
 - Serve only over HTTPS.
-- Self-host an MQTT broker with WebSocket support if you need availability or retention guarantees.
+- Self-host the Mosquitto + Caddy relay in [`deploy/relay`](deploy/relay) if you need availability or retention guarantees.
 - Keep the CSP and security headers enabled.
 - Review dependency updates promptly.
 - Do not enable third-party scripts on the same origin.
-- Warn users that exported backups are plaintext JSON.
+- Tell users to create encrypted `.q7b` backups and to delete any legacy plaintext export.
 - Consider adding a TURN server rather than disabling relay fallback.
 
 ## Known limitations
 
-- No independent audit.
-- No encrypted backup format yet.
-- No multi-device message sync; linked devices have separate histories.
+- No independent audit. See [docs/SECURITY-AUDIT.md](docs/SECURITY-AUDIT.md).
+- Encrypted backups and sync snapshots exclude attachment blobs.
 - Relay-mode messages use a long-lived pairwise key and therefore lack forward secrecy.
 - Public relays have no service-level agreement.
+- Very large histories may sync partially because snapshots are capped at 200 KB.
 - Voice/video calling is not implemented.

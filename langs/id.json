@@ -390,5 +390,21 @@
  "devices.empty": "Belum ada perangkat lain yang terhubung.",
  "devices.setupInfo": "Saat menyiapkan perangkat baru, pilih 'Saya sudah punya akun' lalu pindai kode QR yang ditampilkan di sini.",
  "devices.remove": "Hapus",
- "devices.success": "Perangkat berhasil terhubung!"
+ "devices.success": "Perangkat berhasil terhubung!",
+ "set.backup.hint": "Cadangan dienkripsi dengan kata sandi ini. Tidak ada pemulihan: tanpa kata sandi file tidak bisa dibuka. Minimal 8 karakter.",
+ "set.backup.pass": "Kata sandi cadangan",
+ "set.backup.pass2": "Ulangi kata sandi",
+ "set.backup.short": "Gunakan minimal 8 karakter.",
+ "set.backup.mismatch": "Kata sandi tidak cocok.",
+ "set.backup.ready": "Cadangan terenkripsi diunduh.",
+ "set.backup.restore": "Dekripsi dan pulihkan",
+ "set.backup.replace": "Ganti identitas perangkat ini jika cadangan memuatnya",
+ "set.backup.noblobs": "Lampiran tidak disertakan; pesan dan metadatanya disertakan. Pulihkan ke perangkat baru atau pertahankan identitas saat ini.",
+ "set.backup.done": "{m} pesan dan {c} kontak dipulihkan ({s} dilewati).",
+ "set.backup.legacyDone": "Cadangan teks biasa lama dipulihkan ({m} pesan, {s} dilewati). Buat cadangan terenkripsi sekarang.",
+ "err.backup.short": "Kata sandi cadangan minimal 8 karakter.",
+ "err.backup.file": "Ini bukan file cadangan Q7.",
+ "err.backup.password": "Kata sandi salah, atau file telah diubah.",
+ "err.backup.corrupt": "Cadangan rusak atau tidak lengkap.",
+ "err.backup.big": "Cadangan ini terlalu besar atau berisi terlalu banyak catatan."
 }

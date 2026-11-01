@@ -22,8 +22,13 @@ export function P2PProvider({ children }: { children: ReactNode }) {
     createGroup: (opts) => ref.current.createGroup(opts),
     reactMessage: (id, emoji, who, on) => ref.current.reactMessage(id, emoji, who, on),
     removeMessage: (id) => ref.current.remove(id),
+    getSyncState: () => ref.current.getSyncState(),
+    getDeviceId: () => ref.current.getDeviceId(),
+    mergeSyncSnapshot: (snap) => ref.current.mergeSyncSnapshot(snap),
+    tombstoneSync: (kind, id) => ref.current.tombstoneSync(kind, id),
   }), []);
   useEffect(() => { if (s.ready) void mgr.init(); }, [s.ready, mgr]);
+  useEffect(() => { s.setSyncNotifier(() => mgr.notifyStoreChange()); return () => s.setSyncNotifier(null); }, [s, mgr]);
   useEffect(() => () => mgr.shutdown(), [mgr]); // unmount kills the session: the lock gate re-mounts a fresh manager on unlock
   return <Ctx.Provider value={mgr}>{children}</Ctx.Provider>;
 }

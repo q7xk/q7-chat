@@ -46,7 +46,7 @@ Most messengers ask you to trust a server. Q7 Chat is built around a different d
 
 - **No account, no sign-up, no email.** Your identity is a key pair generated on your device. Your public address is a 12-digit Q7 code.
 - **No application server.** Public MQTT brokers are used only as dumb, encrypted relays. They see hashed topics and ciphertext, never plaintext.
-- **Local-first storage.** Conversations, contacts, settings and file blobs stay in IndexedDB. There is no cloud sync.
+- **Local-first storage.** Conversations, contacts, settings and file blobs stay in IndexedDB on your devices. Linked devices exchange sealed snapshots and tombstones through the relays; there is no server that can read or hold plaintext history.
 - **72-hour messages.** Every message gets an expiry timestamp at creation. Expired messages are filtered in the UI and purged from IndexedDB.
 - **Works offline-ish.** Devices talk peer-to-peer over WebRTC when possible. If that fails, encrypted frames fall back to a relay mailbox so messages can arrive later.
 - **Open source under MPL 2.0.** You can inspect, modify and self-host it.
@@ -80,7 +80,9 @@ Most messengers ask you to trust a server. Q7 Chat is built around a different d
 
 - **Local vault** — optional password lock using PBKDF2-SHA256 (310,000 iterations), AES-GCM and an optional TOTP authenticator code. The identity keys are sealed at rest; the password never leaves the device.
 - **Idle lock** — automatically locks the vault after a configurable idle period.
-- **Encrypted local backup** — *not yet implemented*. The current export is a plain JSON snapshot; store it somewhere safe.
+- **Encrypted local backup** — a password-protected `.q7b` archive (PBKDF2-SHA256 600k + AES-256-GCM) containing the identity or sealed vault, conversations, contacts, settings and metadata. Attachments are not included. Legacy plaintext exports can still be imported once.
+- **Multi-device sync** — linked devices share P2P and group messages, edits, reactions, deletions and contacts automatically through sealed, retained relay snapshots. Local Mode notes stay on the device that created them. Merging is last-writer-wins with 72-hour deletion tombstones.
+- **Self-hosted relay** — a Docker Compose stack with Mosquitto and Caddy for users who need relay continuity they control.
 - **Reduce motion, text scale, themes, accents** — accessibility and appearance controls.
 - **17 languages** with right-to-left support for Arabic.
 - **Strict Content Security Policy** in `next.config.mjs` (with a documented `unsafe-inline` caveat for Next.js bootstrap scripts).
@@ -126,10 +128,10 @@ The full wire format, topic layout, replay window, mailbox flow and threat model
 - A compromised device, malicious browser extension or XSS in the app origin.
 - Metadata analysis by relays: timing, approximate size and hashed topics remain visible.
 - A future quantum adversary: the current primitives are classical (P-256, AES-GCM).
-- Someone who has your unlocked device or a plaintext JSON backup.
+- Someone who has your unlocked device or an old plaintext backup. New backups are encrypted; delete legacy exports.
 - Legal or coercion scenarios. This is not a whistle-blower-grade tool.
 
-The design is intentionally simple and auditable, but it has **not** received an independent security audit. Read [SECURITY.md](SECURITY.md) for the full policy and reporting instructions.
+The design is intentionally simple and auditable, but it has **not** received an independent security audit. Read [SECURITY.md](SECURITY.md) for the policy and [docs/SECURITY-AUDIT.md](docs/SECURITY-AUDIT.md) for the audit scope, threat model and current status.
 
 ## Tech stack
 
@@ -198,7 +200,7 @@ Recommended production checklist:
 - Serve over HTTPS.
 - Keep the CSP in `next.config.mjs` and review it after adding dependencies.
 - Review `Permissions-Policy`: camera, microphone and geolocation are limited to the app origin and used only for opt-in features (QR scanning, voice notes, location sharing).
-- Add your own MQTT broker if you need predictable retention, and review the default public relays.
+- Add your own MQTT broker if you need predictable retention: [`deploy/relay`](deploy/relay) ships a Mosquitto + Caddy Compose stack with automatic TLS. The client connects to every configured relay in parallel and reports per-relay health in Settings.
 - Enable GitHub private vulnerability reporting for the repository.
 
 ## Project structure
@@ -226,10 +228,12 @@ Recommended production checklist:
 │   ├── p2p/                  # Protocol implementation
 │   │   ├── crypto.ts         # Identity, envelopes, sessions, safety numbers
 │   │   ├── q7rp.ts           # Pairwise keys, signed relay frames, replay window
-│   │   ├── mqtt.ts           # MQTT 3.1.1 over WSS
+│   │   ├── mqtt.ts           # MQTT 3.1.1 over WSS, per-relay health and backoff
 │   │   ├── rtc.ts            # WebRTC DataChannels, STUN/TURN
 │   │   ├── manager.ts        # Protocol state machine
 │   │   └── context.tsx       # React provider for the manager
+│   ├── backup.ts             # Encrypted .q7b export/import and validation
+│   ├── sync.ts               # Multi-device snapshot merge and tombstones
 │   ├── db.ts                 # IndexedDB persistence and purge logic
 │   ├── store.tsx             # React store for conversations/settings
 │   ├── vault.ts              # Password + TOTP vault
@@ -241,6 +245,7 @@ Recommended production checklist:
 ├── public/                   # Logos and static assets
 ├── tests/                    # Vitest suites
 ├── docs/                     # Architecture, deployment, roadmap, translations
+├── deploy/relay/             # Self-hosted Mosquitto + Caddy WSS relay
 ├── .github/                  # CI, issue/PR templates, Dependabot
 ├── Dockerfile                # Multi-stage production image
 ├── .nvmrc                    # Node 20 for local development
@@ -277,6 +282,8 @@ npm test
 The suite covers:
 
 - IndexedDB storage and purge behavior (`tests/db.test.ts`)
+- Encrypted backup round-trip, tampering and password policy (`tests/backup.test.ts`)
+- Multi-device merge, tombstones and wire-size limits (`tests/sync.test.ts`)
 - Translation completeness and language detection (`tests/i18n.test.ts`)
 - Crypto envelopes, identity and sessions (`tests/p2p.test.ts`)
 - End-to-end protocol simulation (`tests/protocol-sim.test.ts`)
@@ -290,11 +297,9 @@ CI runs type checking, tests and a production build on every push and pull reque
 See [docs/ROADMAP.md](docs/ROADMAP.md) for the full list. Current known gaps:
 
 - No voice or video calls yet (the Calls entry is a placeholder).
-- No multi-device message sync; device linking exists, but history is per device.
-- No encrypted backup format yet; exports are plain JSON.
-- No PWA install shell or offline app cache.
-- No independent security audit.
-- Public relays have no uptime or retention guarantee; self-host a broker for serious use.
+- No independent security audit yet. This cannot be self-certified; see [docs/SECURITY-AUDIT.md](docs/SECURITY-AUDIT.md).
+- Public relays are best-effort. For continuity, self-host the relay in [`deploy/relay`](deploy/relay); the client fails over between all configured brokers.
+- 72-hour history sync and encrypted backups exclude attachment blobs; large attachments still require a direct connection.
 - Large files above 160 KB wait for a direct connection when in relay-only mode.
 
 ## Contributing
@@ -307,7 +312,7 @@ Good first contributions:
 - Accessibility fixes (keyboard navigation, focus traps, screen-reader labels).
 - Tests for protocol edge cases.
 - Documentation improvements.
-- Self-hosted relay recipes.
+- Relay hardening recipes (rate limits, monitoring, private deployments).
 
 By contributing, you agree that your contributions are licensed under the Mozilla Public License 2.0.
 

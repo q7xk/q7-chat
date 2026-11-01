@@ -15,7 +15,9 @@ Q7 Chat stores the following in your browser's IndexedDB and localStorage:
 - Attachments (images, documents, voice notes) as local blobs.
 - Spaces and UI preferences such as language, theme and accent.
 
-If you enable the vault, your identity keys are sealed with a password-derived key and the plaintext identity is removed from IndexedDB. Messages and attachments are not encrypted at rest by the current version.
+If you enable the vault, your identity keys are sealed with a password-derived key and the plaintext identity is removed from IndexedDB. Messages and attachments are not encrypted at rest by the current version; use the encrypted backup and your operating system's disk encryption for archival protection.
+
+Linked devices exchange sealed state snapshots through the relays so P2P and group messages and deletions appear on each device. Local Mode notes are excluded and stay in the browser that created them. The broker stores the latest snapshot as a retained message until a device replaces it.
 
 Nothing is uploaded to a Q7 Chat account or application server, because neither exists.
 
@@ -25,11 +27,12 @@ Q7 Chat only talks to the network for these purposes:
 
 1. **Peer-to-peer messaging.** Encrypted frames go directly to a contact over WebRTC when possible.
 2. **Relay fallback.** When a direct connection is unavailable, encrypted and signed frames are published to public MQTT brokers. Brokers see hashed topic names, ciphertext, approximate frame sizes and timing. They do not see plaintext, display names or your contact list.
-3. **Pairing.** Sealed offers and answers travel through the same relays, or through a QR code, invite file or pasted text that you choose to share.
-4. **WebRTC connectivity.** STUN servers (`stun.l.google.com`, `stun.cloudflare.com`) are used to discover a route between peers. They can see your public IP address. If you configure a TURN server, it relays encrypted WebRTC traffic and can see connection metadata.
-5. **GIF search.** Opening the GIF picker sends your search query and IP address to GIPHY's API. GIF images are loaded from GIPHY/Media hosts. You can set your own GIPHY API key in the picker, but the request still goes to GIPHY.
-6. **Link previews.** A preview image is only loaded from the linked site when your privacy setting is `allow`, or after you explicitly choose to show it. The site can then see your IP address. Opening a link navigates to that site.
-7. **Hosting.** Your hosting provider may collect standard request logs (IP address, user agent, timestamps) when it serves the app.
+3. **Multi-device sync.** Linked devices publish a sealed state snapshot to a retention-enabled topic derived from a self-ECDH secret that only devices holding your identity can compute. The broker keeps the latest snapshot and redelivers it to another linked device. It cannot decrypt the snapshot; it can see a hashed topic, its size, timing and your IP address. Deleting a message adds a 72-hour tombstone inside the sealed snapshot.
+4. **Pairing.** Sealed offers and answers travel through the same relays, or through a QR code, invite file or pasted text that you choose to share.
+5. **WebRTC connectivity.** STUN servers (`stun.l.google.com`, `stun.cloudflare.com`) are used to discover a route between peers. They can see your public IP address. If you configure a TURN server, it relays encrypted WebRTC traffic and can see connection metadata.
+6. **GIF search.** Opening the GIF picker sends your search query and IP address to GIPHY's API. GIF images are loaded from GIPHY/Media hosts. You can set your own GIPHY API key in the picker, but the request still goes to GIPHY.
+7. **Link previews.** A preview image is only loaded from the linked site when your privacy setting is `allow`, or after you explicitly choose to show it. The site can then see your IP address. Opening a link navigates to that site.
+8. **Hosting.** Your hosting provider may collect standard request logs (IP address, user agent, timestamps) when it serves the app.
 
 Q7 Chat does not include analytics, advertising SDKs, crash reporters, fingerprinting scripts or third-party tracking pixels.
 
@@ -37,8 +40,8 @@ Q7 Chat does not include analytics, advertising SDKs, crash reporters, fingerpri
 
 End-to-end encryption protects message contents, not all metadata. Relays can observe:
 
-- Hashed topic names derived from fingerprints.
-- Encrypted frame sizes and timing.
+- Hashed topic names. Pairing and mailbox topics derive from fingerprints; the sync topic derives from a secret only linked devices share.
+- Encrypted frame and snapshot sizes and timing.
 - Connection times and IP addresses.
 
 A contact you message can see your IP address when a direct WebRTC connection is used. This is inherent to peer-to-peer networking.
@@ -49,12 +52,12 @@ A contact you message can see your IP address when a direct WebRTC connection is
 - **Previews:** choose ask, block or allow for external images.
 - **Blocking and restrictions:** block contacts or allow only people in your contact list.
 - **Vault:** protect identity keys with a password and optional TOTP.
-- **Export:** download a plain JSON snapshot of local data.
+- **Export:** download a password-protected `.q7b` backup of local data. The file is encrypted with PBKDF2-SHA256 and AES-256-GCM; there is no recovery if you forget the password. Older plaintext exports can still be imported once, after which you should delete them.
 - **Delete:** wipe all local Q7 data from Settings.
 
 ## Retention
 
-Messages expire after 72 hours and are purged from local storage. Retained copies on public MQTT brokers are cleared when the recipient acknowledges them, but broker retention behavior is outside Q7 Chat's control. Self-host a broker if you need predictable retention.
+Messages expire after 72 hours and are purged from local storage. Retained copies on public MQTT brokers are cleared when the recipient acknowledges them, but broker retention behavior is outside Q7 Chat's control. The latest device-sync snapshot remains as a retained message until a linked device replaces it; deletion tombstones are kept for 72 hours. Self-host a broker if you need predictable retention.
 
 ## Children
 

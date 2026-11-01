@@ -390,5 +390,21 @@
  "devices.empty": "Nessun altro dispositivo collegato.",
  "devices.setupInfo": "Durante la configurazione del nuovo dispositivo, scegli «Ho già un account» e scansiona qui il codice QR mostrato.",
  "devices.remove": "Rimuovi",
- "devices.success": "Dispositivo collegato correttamente!"
+ "devices.success": "Dispositivo collegato correttamente!",
+ "set.backup.hint": "Il backup è cifrato con questa password. Non è possibile recuperarla: senza password il file non si apre. Almeno 8 caratteri.",
+ "set.backup.pass": "Password del backup",
+ "set.backup.pass2": "Ripeti la password",
+ "set.backup.short": "Usa almeno 8 caratteri.",
+ "set.backup.mismatch": "Le password non coincidono.",
+ "set.backup.ready": "Backup cifrato scaricato.",
+ "set.backup.restore": "Decifra e ripristina",
+ "set.backup.replace": "Sostituisci l'identità di questo dispositivo se il backup ne contiene una",
+ "set.backup.noblobs": "Gli allegati non sono inclusi; i messaggi e i relativi metadati sì. Ripristina su un dispositivo nuovo o mantieni l'identità esistente.",
+ "set.backup.done": "Ripristinati {m} messaggi e {c} contatti ({s} saltati).",
+ "set.backup.legacyDone": "Vecchio backup in chiaro ripristinato ({m} messaggi, {s} saltati). Crea ora un backup cifrato.",
+ "err.backup.short": "La password deve avere almeno 8 caratteri.",
+ "err.backup.file": "Non è un file di backup Q7.",
+ "err.backup.password": "Password errata o file modificato.",
+ "err.backup.corrupt": "Il backup è danneggiato o incompleto.",
+ "err.backup.big": "Questo backup è troppo grande o contiene troppi record."
 }

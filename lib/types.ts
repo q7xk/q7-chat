@@ -27,6 +27,8 @@ export interface Conversation {
   hue?: number; // group avatar hue
   names?: Record<string, string>; // group: roster names for members who are not my contacts
   left?: boolean; // group: I left — kept only until the next purge
+  /** Last local or synced mutation; used by multi-device last-writer-wins merging. */
+  syncAt?: number;
 }
 export type Attachment =
   | { t: "file"; kind: "image" | "document" | "voice"; name: string; mime: string; size: number; dur?: number }
@@ -46,8 +48,10 @@ export interface Message {
   status?: "queued" | "sent" | "delivered" | "seen"; // p2p/group outgoing only
   reactions?: Record<string, string[]>; // emoji -> member ids
   editedAt?: number; // last edit time, shown as a marker
+  /** Last local or synced mutation; used by multi-device last-writer-wins merging. */
+  syncAt?: number;
 }
-export interface Contact { id: string; pub: string; name: string; code: string; addedAt: number; verified: boolean; photo?: string; renamed?: boolean; ek?: string; blocked?: boolean }
+export interface Contact { id: string; pub: string; name: string; code: string; addedAt: number; verified: boolean; photo?: string; renamed?: boolean; ek?: string; blocked?: boolean; syncAt?: number }
 export interface Settings {
   theme: "dark" | "light"; previews: PreviewPolicy; accent: string;
   presence: Presence; // capsule status: online / do-not-disturb / away

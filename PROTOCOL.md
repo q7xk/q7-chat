@@ -118,6 +118,30 @@ Chunk'lı büyük dosya aktarımı yalnız direct modda; relay modunda inline �
   listesi (self-host WSS broker ekleme), isteğe bağlı TURN (simetrik NAT'ta direct'i
   kurtarır; relay'e gerek bırakmayabilir).
 
+## 4.5 Çok cihazlı senkronizasyon (0.2.0)
+
+Bağlı cihazlar aynı kimlik anahtarlarını paylaşır. Her cihaz, kimliğin kendi ECDH özel
+anahtarı ile kendi açık anahtarı üzerinden **self-ECDH** sırrı üretir; bu sır yalnızca
+kimliği elinde tutan cihazlarca hesaplanabilir. Senkron konusu bu sırdan türetilir:
+`q7/v1/s/<sha256("s|secret")[0:32]>`. Kişiler yalnızca açık kimliği bildiği için konuyu
+keşfedemez veya sahte retained mesajla üzerine yazamaz.
+
+- Her cihaz canlı durumunu (`konuşmalar`, `mesajlar`, `kişiler`, silme mezar taşları)
+  `AES-256-GCM` ile mühürler (`info = "q7-sync-v1"`) ve **retained** MQTT mesajı olarak
+  yayınlar. Yeni açılan cihaz broker'dan son anlık görüntüyü alır.
+- `device` alanı her kurulum için rastgele 16 hex'tir; kimlik değildir. Bir cihaz kendi
+  görüntüsünü yok sayar.
+- Birleştirme kayıt bazında **son-yazan-kazanır**: `syncAt` (yoksa `createdAt`/`addedAt`).
+  Silmeler 72 saatlik `msg`/`conv`/`contact` mezar taşlarıyla taşınır; eski bir cihaz
+  silinmiş kaydı geri getiremez.
+- Anlık görüntü 200 KB altında tutulur. Sığmayan eski mesajlar, mezar taşları, kişi
+  fotoğrafları ve en son konuşmalar sırayla kırpılır; `partial` işareti konur. Ekler
+  (blob) senkronize edilmez ve Yerel Mod konuşmaları cihazda kalır.
+- 7 günden eski veya 5 dakikadan fazla ileri tarihli anlık görüntüler reddedilir.
+  Broker mesajı düşürebilir, geciktirebilir veya tekrar oynatabilir; LWW ve mezar taşları
+  eski veriyi geri getirmez, ancak broker'ın retained mesajı silmesi durumunda cihaz
+  `partial` kalabilir. Bu tasarım bağımsız denetimden geçmemiştir.
+
 ## 5. Güvenlik modeli
 
 - Broker (halka açık, kendi başına duran bir depolama): sadece konu hash'leri ve tamamen şifreli,
@@ -164,10 +188,15 @@ lib/p2p/
   q7rp.ts         pairwise key, imzalı relay frame, SeqWindow, konu üretimi
   mqtt.ts         MQTT 3.1.1 over WSS (QoS0, retain, wildcard konu eşleme)
   rtc.ts          WebRTC DataChannel (STUN listesi, opsiyonel TURN)
-  manager.ts      durum makinesi: eşleşme, link, outbox, mailbox, ack, heartbeat
+  manager.ts      durum makinesi: eşleşme, link, outbox, mailbox, ack, heartbeat, sync
   context.tsx     React entegrasyonu (useP2P)
+lib/
+  backup.ts       şifreli .q7b yedek formatı, KDF, doğrulama
+  sync.ts         çok cihazlı anlık görüntü, LWW birleştirme, mezar taşları
 tests/
   p2p.test.ts     kimlik/zarf/oturum/codec testleri
   q7rp.test.ts    pairwise simetri, frame imza/mutasyon reddi, SeqWindow, konular
+  backup.test.ts  yedek gidiş-dönüşü, kurcalama, süre ve kimlik politikası
+  sync.test.ts    LWW, mezar taşı, boyut sınırı ve Yerel Mod dışlama testleri
 PROTOCOL.md       bu dosya
 ```

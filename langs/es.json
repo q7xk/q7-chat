@@ -390,5 +390,21 @@
  "devices.empty": "Aún no hay otros dispositivos vinculados.",
  "devices.setupInfo": "En la configuración del nuevo dispositivo, elige «Ya tengo una cuenta» y escanea aquí el código QR que aparece.",
  "devices.remove": "Eliminar",
- "devices.success": "¡Dispositivo vinculado correctamente!"
+ "devices.success": "¡Dispositivo vinculado correctamente!",
+ "set.backup.hint": "La copia se cifra con esta contraseña. No hay recuperación: sin ella no se puede abrir el archivo. Mínimo 8 caracteres.",
+ "set.backup.pass": "Contraseña de la copia",
+ "set.backup.pass2": "Repite la contraseña",
+ "set.backup.short": "Usa al menos 8 caracteres.",
+ "set.backup.mismatch": "Las contraseñas no coinciden.",
+ "set.backup.ready": "Copia cifrada descargada.",
+ "set.backup.restore": "Descifrar y restaurar",
+ "set.backup.replace": "Reemplazar la identidad de este dispositivo si la copia incluye una",
+ "set.backup.noblobs": "Los adjuntos no se incluyen; los mensajes y sus metadatos sí. Restaura en un dispositivo nuevo o conserva la identidad actual.",
+ "set.backup.done": "Restaurados {m} mensajes y {c} contactos ({s} omitidos).",
+ "set.backup.legacyDone": "Copia antigua en texto plano restaurada ({m} mensajes, {s} omitidos). Crea ahora una copia cifrada.",
+ "err.backup.short": "La contraseña debe tener al menos 8 caracteres.",
+ "err.backup.file": "Este no es un archivo de copia de Q7.",
+ "err.backup.password": "Contraseña incorrecta o archivo modificado.",
+ "err.backup.corrupt": "La copia está dañada o incompleta.",
+ "err.backup.big": "Esta copia es demasiado grande o contiene demasiados registros."
 }

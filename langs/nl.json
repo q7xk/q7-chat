@@ -390,5 +390,21 @@
  "devices.empty": "Nog geen andere apparaten gekoppeld.",
  "devices.setupInfo": "Kies bij het instellen van het nieuwe apparaat voor 'Ik heb al een account' en scan hier de getoonde QR-code.",
  "devices.remove": "Verwijderen",
- "devices.success": "Apparaat succesvol gekoppeld!"
+ "devices.success": "Apparaat succesvol gekoppeld!",
+ "set.backup.hint": "De back-up wordt met dit wachtwoord versleuteld. Er is geen herstel: zonder wachtwoord gaat het bestand niet open. Minimaal 8 tekens.",
+ "set.backup.pass": "Back-upwachtwoord",
+ "set.backup.pass2": "Herhaal wachtwoord",
+ "set.backup.short": "Gebruik minimaal 8 tekens.",
+ "set.backup.mismatch": "De wachtwoorden komen niet overeen.",
+ "set.backup.ready": "Versleutelde back-up gedownload.",
+ "set.backup.restore": "Ontsleutelen en herstellen",
+ "set.backup.replace": "De identiteit van dit apparaat vervangen als de back-up er een bevat",
+ "set.backup.noblobs": "Bijlagen zijn niet inbegrepen; berichten en hun metadata wel. Herstel op een nieuw apparaat of behoud de bestaande identiteit.",
+ "set.backup.done": "{m} berichten en {c} contacten hersteld ({s} overgeslagen).",
+ "set.backup.legacyDone": "Oude back-up met platte tekst hersteld ({m} berichten, {s} overgeslagen). Maak nu een versleutelde back-up.",
+ "err.backup.short": "Het back-upwachtwoord moet minstens 8 tekens hebben.",
+ "err.backup.file": "Dit is geen Q7-back-upbestand.",
+ "err.backup.password": "Onjuist wachtwoord of het bestand is gewijzigd.",
+ "err.backup.corrupt": "De back-up is beschadigd of onvolledig.",
+ "err.backup.big": "Deze back-up is te groot of bevat te veel records."
 }

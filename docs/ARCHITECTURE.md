@@ -71,7 +71,9 @@ Shared application logic.
 | --- | --- |
 | `types.ts` | Domain types: conversations, messages, contacts, attachments, settings |
 | `db.ts` | IndexedDB schema, CRUD, purge, import/export |
-| `store.tsx` | React state for conversations, messages, settings and spaces |
+| `store.tsx` | React state for conversations, messages, settings and spaces; sync notifier |
+| `backup.ts` | Encrypted `.q7b` export, decryption and strict payload validation |
+| `sync.ts` | Multi-device snapshot sealing, last-writer-wins merge and tombstones |
 | `vault.ts` | Password-derived key wrapping, sealed identity, TOTP |
 | `attach.ts` | File limits, image re-encoding, attachment validation |
 | `i18n.tsx` | Language detection, dictionaries, formatting helpers |
@@ -89,7 +91,7 @@ The protocol implementation.
 | --- | --- |
 | `crypto.ts` | Identity generation, signing, envelopes, ECDH sessions, safety numbers |
 | `q7rp.ts` | Pairwise key derivation, signed relay frames, replay window, topic derivation |
-| `mqtt.ts` | Minimal MQTT 3.1.1 client over WebSocket Secure |
+| `mqtt.ts` | Minimal MQTT 3.1.1 client over WebSocket Secure, per-relay health and jittered backoff |
 | `rtc.ts` | WebRTC peer connection, DataChannel, ICE/STUN/TURN |
 | `manager.ts` | State machine: identity, pairing, connections, outbox, mailbox, groups, delivery |
 | `context.tsx` | React provider exposing `{ snap, mgr }` |
@@ -103,7 +105,7 @@ IndexedDB database: `q7-local`, version 3.
 | --- | --- | --- |
 | `local_conversations` | `id` | Conversation metadata |
 | `local_messages` | `id` | Messages, indexed by `conversationId` and `expiresAt` |
-| `local_settings` | `key` | Flags such as `seeded`, `spaces`, vault metadata |
+| `local_settings` | `key` | Flags such as `seeded`, `spaces`, vault metadata, `sync-device-id`, `sync-tombstones` |
 | `p2p_contacts` | `id` | Contacts, including public keys and safety metadata |
 | `p2p_identity` | `key` | Device key pair (unless sealed by a vault) |
 | `local_blobs` | `id` | Attachment bytes, keyed by message id, indexed by `expiresAt` |
@@ -161,6 +163,24 @@ Groups are best-effort: there is no central authority, no consistency protocol a
 
 Unlocking reverses the process in memory. The password is never stored or transmitted. Idle re-lock is implemented by remounting the app tree in `LockGate`.
 
+## Encrypted backup
+
+`backup.ts` exports a single `.q7b` file:
+
+1. Collect live conversations, messages, contacts, settings, spaces, linked-device metadata and either the plaintext identity (no vault) or the sealed vault copy.
+2. Serialise, gzip where the platform supports it, and seal with AES-256-GCM under a key derived from the user's password with PBKDF2-SHA256 (600,000 iterations, 16-byte salt).
+3. Store the KDF algorithm, iteration count and salt in a clear header so old files remain readable if the cost is raised.
+
+Import validates the header bounds, authenticates the whole payload with GCM, then re-validates every conversation, message, contact, link, attachment descriptor and identity field. Expiry is recomputed from `createdAt`; a backup cannot extend a message's life. Attachments are excluded by design.
+
+## Multi-device sync
+
+Linked devices share the same identity key pair, so each can compute a static ECDH of its private key with its own public key. That self-ECDH secret is used to seal a compact state snapshot with AES-GCM and to derive the sync topic, so a contact who knows the public identity still cannot discover or overwrite the topic. The snapshot is published as a **retained** MQTT message, so a device that comes online later receives the latest state from the broker.
+
+Merging is last-writer-wins per record using `syncAt` (falling back to `createdAt`/`addedAt`). Deletions become 72-hour tombstones, which prevent a stale device from resurrecting a message. After a merge the receiving device republishes its merged view, so concurrent edits converge. Local Mode conversations are excluded: the welcome screen promises they stay in that browser. Snapshots are capped below 200 KB; older messages are trimmed first and the snapshot is marked `partial`. The encrypted backup remains the complete archive.
+
+Sync is best-effort by nature: a broker that discards retained messages, or a device that never overlaps with its peer, can leave state temporarily divergent. No server holds a plaintext log.
+
 ## Security boundaries
 
 - **Trusted:** the browser, the app origin, the user's device and the user's password.
@@ -171,6 +191,6 @@ Unlocking reverses the process in memory. The password is never stored or transm
 ## Design trade-offs
 
 - **Relay privacy vs. offline delivery.** Retained mailbox copies improve delivery but keep ciphertext on brokers until acknowledged. The pairwise key is long-lived, so relay-mode messages do not have forward secrecy.
-- **No server vs. multi-device sync.** Without a server, history cannot be merged across devices automatically.
-- **Local-first vs. recoverability.** If the browser storage is cleared and there is no backup, the identity and history are gone.
-- **Custom protocol vs. standards.** The protocol is small enough to audit in one sitting, but it has not been independently reviewed.
+- **No server vs. multi-device sync.** Sync uses retained, sealed snapshots instead of an account server. This converges without plaintext storage, but a 200 KB cap can make very large histories partial.
+- **Local-first vs. recoverability.** If the browser storage is cleared and there is no encrypted backup, the identity and history are gone.
+- **Custom protocol vs. standards.** The protocol is small enough to audit in one sitting, but it has not been independently reviewed. See [SECURITY-AUDIT.md](SECURITY-AUDIT.md).

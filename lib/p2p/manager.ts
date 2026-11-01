@@ -10,9 +10,10 @@ import {
 } from "./crypto";
 import { packEnvelope, unpackEnvelope } from "./pack";
 import { PeerLink } from "./rtc";
-import { RelayClient } from "./mqtt";
+import { RelayClient, type RelayStatus } from "./mqtt";
 import { getVault, takeRuntimeIdentity, VAULT_FLAG, VAULT_ID_FLAG, type Vault } from "../vault";
 import { ackRoot, liveTopic, mailRoot, makeRFrame, openFrom, openRFrame, pairKey, SeqWindow, sealTo, unHex } from "./q7rp";
+import { buildWireSnapshot, decodeSnapshot, sanitizeSnapshot, syncKey, syncTopicFromKey, type SyncSnapshot, type SyncState } from "../sync";
 
 export const DEFAULT_RELAYS = ["wss://broker.emqx.io:8084/mqtt", "wss://broker.hivemq.com:8884/mqtt", "wss://test.mosquitto.org:8081"];
 /** Largest frame that may detour through the relays; bigger payloads wait for the direct link. */
@@ -33,7 +34,7 @@ export type DevicePairingState =
   | { kind: "sent" } | { kind: "error"; message: string };
 export interface Snapshot {
   ready: boolean; error?: string; code: string; pub: string; fp: string; settings: P2PSettings; contacts: Contact[]; fresh: boolean;
-  status: Record<string, LinkState>; modes: Record<string, P2PMode>; requests: Request[]; relay: { enabled: boolean; connected: number; total: number }; pairing: PairingState; devicePairing: DevicePairingState;
+  status: Record<string, LinkState>; modes: Record<string, P2PMode>; requests: Request[]; relay: { enabled: boolean; connected: number; total: number; relays?: RelayStatus[] }; pairing: PairingState; devicePairing: DevicePairingState;
 }
 export interface Host {
   getConversations(): Conversation[]; getMessages(): Message[]; ensureConversation(contactId: string, title: string): string;
@@ -41,6 +42,9 @@ export interface Host {
   createGroup(opts: { id?: string; title: string; members: string[]; hue?: number; names?: Record<string, string> }): string;
   updateGroup(gid: string, patch: Partial<Conversation>): void; removeGroup(gid: string): void;
   reactMessage(id: string, emoji: string, who: string, on: boolean): void; removeMessage(id: string): void;
+  /* Multi-device sync */
+  getSyncState(): Promise<SyncState>; getDeviceId(): Promise<string>; mergeSyncSnapshot(snap: SyncSnapshot): Promise<boolean>;
+  tombstoneSync(kind: "msg" | "conv" | "contact", id: string): void;
 }
 interface Link {
   pc: PeerLink; expectPub?: string; name?: string; ek?: string; contactId?: string; hs?: HandshakeState; sess?: Session; silent: boolean; last: number;
@@ -71,7 +75,7 @@ export class P2PManager {
   private orphans = new Map<string, Uint8Array>();                // inline file bytes that arrived before their header
   private outRunning = false; private outTickTimer?: ReturnType<typeof setInterval>;
   private seenSent = new Map<string, number>();                   // last "seen" watermark we sent per conversation
-  private active: string | null = null; private tick?: ReturnType<typeof setInterval>; private vis = () => { if (document.visibilityState === "visible") this.reconnectAll(); };
+  private active: string | null = null; private tick?: ReturnType<typeof setInterval>; private vis = () => { if (document.visibilityState === "visible") { this.reconnectAll(); this.scheduleSync(800); } };
   private stored?: StoredIdentity;                                 // the raw identity keys, kept for vault creation and device hand-off
   private pairWindow?: { topicD: string; until: number; timer: ReturnType<typeof setTimeout>; knocks: Set<string>; pin: string };
   private pairLinks = new Map<string, Link>();                     // incoming device-adoption links awaiting confirmation
@@ -80,6 +84,7 @@ export class P2PManager {
   private pairExpectPub = "";                                      // (adopting side) the source identity the answer promised
   private pairTopicR = "";                                         // (adopting side) answer topic kept open for the relay-borne payload
   private pairApplied = false;                                     // (adopting side) hand-off payload applied exactly once
+  private syncTopic = ""; private syncKeyHex = ""; private syncTimer?: ReturnType<typeof setTimeout>; private syncBusy = false;
 
   constructor(private host: Host) {}
   subscribe = (l: () => void) => { this.listeners.add(l); return () => { this.listeners.delete(l); }; };
@@ -128,6 +133,7 @@ export class P2PManager {
     this.links.clear(); this.manualOffers.clear(); clearInterval(this.tick); clearInterval(this.outTickTimer); clearInterval(this.hbTimer);
     if (this.pairWindow) { this.relay?.unsubscribe(this.pairWindow.topicD); clearTimeout(this.pairWindow.timer); this.pairWindow = undefined; }
     this.dropPairListen();
+    clearTimeout(this.syncTimer); this.syncTopic = ""; this.syncKeyHex = ""; this.syncBusy = false;
     this.relay?.stop(); this.relay = undefined;
     this.pairLinks.forEach((l) => l.pc.close()); this.pairLinks.clear();
     this.lastSeen.clear(); this.lastPing.clear();
@@ -136,22 +142,27 @@ export class P2PManager {
     this.snap = { ...this.snap, ready: false, contacts: [], status: {}, modes: {}, requests: [], pairing: IDLE, code: "", pub: "", devicePairing: { kind: "idle" } }; this.listeners.forEach((l) => l());
   }
   async wipe(storeWipe: () => Promise<void>) {
+    const deviceId = await this.host.getDeviceId();
+    if (this.syncTopic) this.relay?.clearRetained(this.syncTopic);  // do not leave a sealed copy of the wiped data on the broker
     this.shutdown();
     const vault = await getVault();
     if (vault) {                                                    // keep the identity usable without a password
       if (this.stored) await db.putIdentity(this.stored);
       await db.delFlag(VAULT_ID_FLAG); await db.delFlag(VAULT_FLAG);
     }
-    await storeWipe(); await this.init();
+    await storeWipe();
+    // Keep the device id across a wipe: the device must recognise (and ignore) its own old retained snapshot.
+    await db.setFlag("sync-device-id", deviceId);
+    await this.init();
   }
 
   private async startRelay() {
     this.relay?.stop(); this.relay = undefined; clearInterval(this.outTickTimer);
     const { relayEnabled, customRelays } = this.snap.settings;
-    if (!relayEnabled || !this.id) { this.set({ relay: { enabled: false, connected: 0, total: 0 } }); return; }
+    if (!relayEnabled || !this.id) { this.set({ relay: { enabled: false, connected: 0, total: 0, relays: [] } }); return; }
     const urls = [...new Set([...DEFAULT_RELAYS, ...customRelays])];
-    const r = new RelayClient(urls, () => this.set({ relay: { enabled: true, connected: r.connected, total: urls.length } }));
-    this.relay = r; this.set({ relay: { enabled: true, connected: 0, total: urls.length } });
+    const r = new RelayClient(urls, () => { this.set({ relay: { enabled: true, connected: r.connected, total: urls.length, relays: r.status } }); if (r.connected > 0) this.scheduleSync(1500); });
+    this.relay = r; this.set({ relay: { enabled: true, connected: 0, total: urls.length, relays: r.status } });
     const my = hex(this.id.fp);
     r.subscribe(await topicFor("k", this.id.code), (p) => void this.onKnock(p));
     r.subscribe(liveTopic(my), (p, topic) => void this.onRelayFrame(topic, p));        // live push: pings, pongs and chat frames for peers that are online right now
@@ -160,7 +171,57 @@ export class P2PManager {
     r.start();
     this.outTickTimer = setInterval(() => void this.outTick(), 4_000);
     void this.outTick();
+    void this.startSync();
     setTimeout(() => this.relayBroadcastProfile(), 1500); // freshly (re)connected contacts learn our name/photo without a direct link
+  }
+
+  /* ---------- multi-device sync ----------
+     Linked devices share the identity, so a self-ECDH key is a secret only they can derive.
+     Each device publishes a retained, sealed snapshot of its live state on a topic derived
+     from that secret; peers merge it (last-writer-wins, tombstones for deletes) and republish
+     their own merged view, which makes the state converge without any server holding plaintext. */
+  private async startSync() {
+    if (!this.id || !this.relay) return;
+    try {
+      const key = await syncKey(this.id);
+      if (!key) return;                                            // legacy identity without a static ECDH key
+      this.syncKeyHex = key; this.syncTopic = await syncTopicFromKey(key);
+      this.relay.subscribe(this.syncTopic, (p) => void this.onSync(p));
+      this.scheduleSync(1200);
+    } catch {}
+  }
+  private scheduleSync(delay = 1500) {
+    if (!this.id || !this.relay || !this.syncKeyHex) return;
+    clearTimeout(this.syncTimer);
+    this.syncTimer = setTimeout(() => void this.publishSync(), delay);
+  }
+  /** Called by the store whenever a local mutation should reach the other devices. */
+  notifyStoreChange() { this.scheduleSync(); }
+  private async publishSync() {
+    if (!this.id || !this.relay || !this.syncKeyHex || this.syncBusy) return;
+    this.syncBusy = true;
+    try {
+      const device = await this.host.getDeviceId();
+      const state = await this.host.getSyncState();
+      const { bytes } = await buildWireSnapshot(this.syncKeyHex, device, state, Date.now());
+      this.relay.deliverLater(this.syncTopic, bytes);
+    } catch {}
+    finally { this.syncBusy = false; }
+  }
+  private async onSync(payload: Uint8Array) {
+    if (!this.syncKeyHex) return;
+    try {
+      const raw = await decodeSnapshot(this.syncKeyHex, payload);
+      if (!raw) return;
+      const snap = sanitizeSnapshot(raw, Date.now());
+      if (!snap) return;
+      if (snap.device === (await this.host.getDeviceId())) return;
+      const changed = await this.host.mergeSyncSnapshot(snap);
+      if (changed) {
+        await this.reloadContactsFromDb();                         // contact edits arrive through the store, not the manager
+        this.scheduleSync(2000);                                   // converge: publish the merged view once
+      }
+    } catch { /* a malformed or late snapshot must never break the relay loop */ }
   }
   private async saveSettings(patch: Partial<P2PSettings>) {
     const settings = { ...this.snap.settings, ...patch }; this.set({ settings }); await db.setFlag("p2p-settings", settings);
@@ -232,8 +293,9 @@ export class P2PManager {
     const fp = await sha256(sess.peerPub), cid = hex(fp), ek = sess.peerEk ?? fromB64(link.ek ?? "");
     let contact = this.snap.contacts.find((c) => c.id === cid);
     if (!contact) {
-      contact = { id: cid, pub: toB64(sess.peerPub), name: cleanName(link.name ?? "Contact"), code: codeFromFp(fp), addedAt: Date.now(), verified: false, ...(ek.length === 65 ? { ek: toB64(ek) } : {}) };
+      contact = { id: cid, pub: toB64(sess.peerPub), name: cleanName(link.name ?? "Contact"), code: codeFromFp(fp), addedAt: Date.now(), verified: false, ...(ek.length === 65 ? { ek: toB64(ek) } : {}), syncAt: Date.now() };
       await db.putContact(contact); this.set({ contacts: [...this.snap.contacts, contact] });
+      this.scheduleSync();
     } else if (ek.length === 65 && contact.ek !== toB64(ek)) { await this.patchContact(cid, { ek: toB64(ek) }); this.pairs.delete(cid); }
     const convId = this.host.ensureConversation(cid, contact.name);
     const old = this.links.get(cid); link.contactId = cid; this.links.set(cid, link); if (old && old !== link) old.pc.close();
@@ -582,9 +644,12 @@ export class P2PManager {
   clearPairing() { this.setPairing(IDLE); }
 
   /* ---------- contacts ---------- */
+  /** Pull contacts written by a sync merge into the live manager snapshot (and therefore the UI). */
+  async reloadContactsFromDb() { this.set({ contacts: await db.getContacts() }); }
   private async patchContact(id: string, patch: Partial<Contact>) {
-    const c = this.snap.contacts.find((x) => x.id === id); if (!c) return; const n = { ...c, ...patch };
+    const c = this.snap.contacts.find((x) => x.id === id); if (!c) return; const n = { ...c, ...patch, syncAt: Date.now() };
     await db.putContact(n); this.set({ contacts: this.snap.contacts.map((x) => (x.id === id ? n : x)) });
+    this.scheduleSync();
   }
   renameContact(id: string, name: string) { return this.patchContact(id, { name: cleanName(name), renamed: true }); }
   setVerified(id: string, verified: boolean) { return this.patchContact(id, { verified }); }
@@ -595,6 +660,7 @@ export class P2PManager {
   }
   async removeContact(id: string) {
     this.links.get(id)?.pc.close(); this.links.delete(id); await db.deleteContact(id); this.host.removeConversationFor(id);
+    this.host.tombstoneSync("contact", id); this.scheduleSync();
     const { [id]: _gone, ...status } = this.snap.status; void _gone; this.set({ contacts: this.snap.contacts.filter((c) => c.id !== id), status });
     this.dropMode(id); this.pairs.delete(id); this.rxWin.delete(id); this.lastSeq.delete(id);
     this.lastSeen.delete(id); this.lastPing.delete(id);

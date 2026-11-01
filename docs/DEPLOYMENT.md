@@ -78,11 +78,24 @@ The default relays are public and best-effort:
 - `wss://broker.hivemq.com:8884/mqtt`
 - `wss://test.mosquitto.org:8081`
 
-For predictable retention and availability, self-host an MQTT broker with WebSocket support and add it in **Settings → Relays and network**. A TURN server can rescue direct WebRTC connections on symmetric NATs.
+For predictable retention and availability, self-host the relay in [`deploy/relay`](../deploy/relay). It ships Mosquitto (WebSocket listener) behind Caddy for automatic TLS:
+
+```bash
+cd deploy/relay
+RELAY_DOMAIN=relay.example.com docker compose up -d
+```
+
+Then add `wss://relay.example.com/mqtt` in **Settings → Relays and network**. The client connects to every configured relay in parallel, applies exponential backoff with jitter to failed connections, and shows each relay's status. A reachable self-hosted relay removes dependence on public broker uptime. A TURN server can rescue direct WebRTC connections on symmetric NATs.
 
 ## Backups
 
-The current export is a plain JSON snapshot of local data. It is not encrypted. Store backups accordingly, and remember that a backup can contain message contents and contact metadata.
+Exports are encrypted `.q7b` files: PBKDF2-SHA256 (600,000 iterations) + AES-256-GCM, with the KDF parameters in the header. The password is never stored, so a lost password means an unreadable file. Attachments are not included.
+
+Tell users to:
+
+- Create a backup after linking devices or changing identity.
+- Store it separately from the device (password manager attachment, encrypted disk).
+- Delete any legacy plaintext export; those can still be imported once but are not protected.
 
 ## Pre-release checklist
 

@@ -390,5 +390,21 @@
  "devices.empty": "まだ他のデバイスはリンクされていません。",
  "devices.setupInfo": "新しいデバイスのセットアップで「すでにアカウントを持っています」を選び、表示されたQRコードをここでスキャンしてください。",
  "devices.remove": "削除",
- "devices.success": "デバイスをリンクしました！"
+ "devices.success": "デバイスをリンクしました！",
+ "set.backup.hint": "バックアップはこのパスワードで暗号化されます。復元手段はありません。パスワードがないと開けません。8文字以上。",
+ "set.backup.pass": "バックアップのパスワード",
+ "set.backup.pass2": "パスワードを再入力",
+ "set.backup.short": "8文字以上で入力してください。",
+ "set.backup.mismatch": "パスワードが一致しません。",
+ "set.backup.ready": "暗号化バックアップをダウンロードしました。",
+ "set.backup.restore": "復号して復元",
+ "set.backup.replace": "バックアップに含まれる場合、この端末のIDを置き換える",
+ "set.backup.noblobs": "添付ファイルは含まれません。メッセージとメタデータは含まれます。新しい端末に復元するか、現在のIDを保持してください。",
+ "set.backup.done": "{m}件のメッセージと{c}件の連絡先を復元しました（{s}件スキップ）。",
+ "set.backup.legacyDone": "旧形式の平文バックアップを復元しました（{m}件のメッセージ、{s}件スキップ）。今すぐ暗号化バックアップを作成してください。",
+ "err.backup.short": "バックアップのパスワードは8文字以上にしてください。",
+ "err.backup.file": "これはQ7のバックアップファイルではありません。",
+ "err.backup.password": "パスワードが違うか、ファイルが改変されています。",
+ "err.backup.corrupt": "バックアップが破損しているか不完全です。",
+ "err.backup.big": "このバックアップは大きすぎるか、レコードが多すぎます。"
 }

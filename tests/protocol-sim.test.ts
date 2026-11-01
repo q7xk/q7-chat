@@ -1,5 +1,6 @@
 import "fake-indexeddb/auto";
 import { describe, expect, it, vi } from "vitest";
+import type { StoredIdentity } from "../lib/p2p/crypto";
 import type { Conversation, Message } from "../lib/types";
 
 /**
@@ -82,7 +83,7 @@ const stubBrowser = () => {
 
 type Side = Awaited<typeof import("../lib/p2p/manager")>;
 type Box = import("../lib/p2p/manager").Host & { conversations: Conversation[]; messages: Message[] };
-const host = (): Box => {
+const host = (device = "0123456789abcdef"): Box => {
   const conversations: Conversation[] = [], messages: Message[] = [];
   return { conversations, messages,
     getConversations: () => conversations, getMessages: () => messages,
@@ -107,14 +108,27 @@ const host = (): Box => {
       if (list.size) rx[emoji] = [...list]; else delete rx[emoji];
       m.reactions = Object.keys(rx).length ? rx : undefined;
     },
-    removeMessage(id: string) { const i = messages.findIndex((x) => x.id === id); if (i >= 0) messages.splice(i, 1); } };
+    removeMessage(id: string) { const i = messages.findIndex((x) => x.id === id); if (i >= 0) messages.splice(i, 1); },
+    getSyncState: async () => ({ conversations: conversations.filter((c) => c.mode !== "local"), messages, contacts: [], tombstones: [] }),
+    getDeviceId: async () => device,
+    mergeSyncSnapshot: async (snap) => {
+      let changed = false;
+      for (const c of snap.conversations) if (!conversations.some((x) => x.id === c.id)) { conversations.push(c); changed = true; }
+      for (const m of snap.messages) if (!messages.some((x) => x.id === m.id)) { messages.push(m); changed = true; }
+      return changed;
+    },
+    tombstoneSync: () => {} };
 };
-const openSide = async (tag: string) => {
+const openSide = async (tag: string, identity?: StoredIdentity, device?: string) => {
   process.env.Q7_DB = tag; vi.resetModules();
   const mod = (await import("../lib/p2p/manager")) as Side;
   stubBrowser();
   for (const u of mod.DEFAULT_RELAYS) FakeBroker.wire(u); // every advertised broker is a live fake
-  const mgr = new mod.P2PManager(host());
+  if (identity) {
+    const sideDb = await import("../lib/db");
+    await sideDb.putIdentity(identity);
+  }
+  const mgr = new mod.P2PManager(host(device));
   await mgr.init();
   await vi.waitFor(() => expect(mgr.getSnapshot().relay.connected).toBeGreaterThanOrEqual(1), { timeout: 4000, interval: 20 });
   const ident = await (await import("../lib/db")).getIdentity(); // this graph's own identity
@@ -245,6 +259,17 @@ describe("Q7RP simulated end to end", () => {
     addEventListener() {} removeEventListener() {}
     close() { this.dc?.close(); }
   }
+
+  it("syncs P2P state to another device that holds the same identity", async () => {
+    const A = await openSide("q7-sim-sync-a", undefined, "aaaaaaaaaaaaaaaa");
+    const B = await openSide("q7-sim-sync-b", A.ident, "bbbbbbbbbbbbbbbb");
+    const cid = A.host.ensureConversation("peer", "Peer");
+    const now = Date.now();
+    A.host.messages.push({ id: "sync-m1", conversationId: cid, body: "from device A", createdAt: now, expiresAt: now + 72 * 3600_000, syncAt: now, direction: "out" });
+    A.mgr.notifyStoreChange();
+    expect(await waitFor(() => B.host.messages.some((m) => m.id === "sync-m1" && m.body === "from device A"), 8000)).toBe(true);
+    expect(B.host.conversations.some((c) => c.id === cid)).toBe(true);
+  }, 30000);
 
   it("device adoption: a fresh device takes over the identity, contacts and the lock ride along", async () => {
     const S = await openSide("q7-sim-dev-src");

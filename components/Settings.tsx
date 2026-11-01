@@ -6,6 +6,7 @@ import { useStore } from "@/lib/store";
 import { useI18n, LANGS } from "@/lib/i18n";
 import { useP2P } from "@/lib/p2p/context";
 import { prepareAvatar } from "@/lib/attach";
+import { MIN_PASSWORD } from "@/lib/backup";
 import { ACCENTS } from "@/lib/theme";
 import type { PreviewPolicy, SettingsSection } from "@/lib/types";
 import { cn } from "@/lib/cn";
@@ -16,10 +17,13 @@ import { LockSection } from "./Security";
 import { Box, Page } from "./ui";
 
 export function SettingsPanel({ section, onContacts, onSectionSeen }: { section?: SettingsSection | null; onContacts?: () => void; onSectionSeen?: () => void }) {
-  const { t, tk, pref, setPref, size } = useI18n(); const { settings, setSettings, wipeLocal, exportLocal, importLocal } = useStore(); const { mgr, snap } = useP2P();
+  const { t, tk, pref, setPref, size } = useI18n(); const { settings, setSettings, wipeLocal, exportBackup, importBackup } = useStore(); const { mgr, snap } = useP2P();
   const [name, setName] = useState(snap.settings.name), [relays, setRelays] = useState(snap.settings.customRelays.join("\n")), [turn, setTurn] = useState(snap.settings.turn?.urls ?? "");
   const [tu, setTu] = useState(snap.settings.turn?.username ?? ""), [tp, setTp] = useState(snap.settings.turn?.credential ?? "");
-  const [warn, setWarn] = useState(false), [confirm, setConfirm] = useState(false), [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null), [usage, setUsage] = useState(0);
+  const [confirm, setConfirm] = useState(false), [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null), [usage, setUsage] = useState(0);
+  const [backupPass, setBackupPass] = useState(""), [backupPass2, setBackupPass2] = useState(""), [backupBusy, setBackupBusy] = useState(false);
+  const [importText, setImportText] = useState<string | null>(null), [importPass, setImportPass] = useState(""), [replaceId, setReplaceId] = useState(false);
+  const [backupMsg, setBackupMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const file = useRef<HTMLInputElement>(null), photo = useRef<HTMLInputElement>(null);
   const refs = useRef<Partial<Record<SettingsSection, HTMLElement | null>>>({});
   useEffect(() => { setName(snap.settings.name); }, [snap.settings.name]);
@@ -35,14 +39,37 @@ export function SettingsPanel({ section, onContacts, onSectionSeen }: { section?
     }
   };
   const download = async () => {
-    try { const url = URL.createObjectURL(new Blob([await exportLocal()], { type: "application/json" })); const a = document.createElement("a"); a.href = url; a.download = `q7-local-export-${new Date().toISOString().slice(0, 10)}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); setWarn(false); }
-    catch { setMsg({ ok: false, text: t("err.generic") }); }
+    if (backupPass.length < MIN_PASSWORD) { setBackupMsg({ ok: false, text: t("set.backup.short") }); return; }
+    if (backupPass !== backupPass2) { setBackupMsg({ ok: false, text: t("set.backup.mismatch") }); return; }
+    setBackupBusy(true); setBackupMsg(null);
+    try {
+      const text = await exportBackup(backupPass);
+      const url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
+      const a = document.createElement("a"); a.href = url; a.download = `q7-backup-${new Date().toISOString().slice(0, 10)}.q7b`; a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setBackupPass(""); setBackupPass2(""); setBackupMsg({ ok: true, text: t("set.backup.ready") });
+    } catch (e) { setBackupMsg({ ok: false, text: tk(e instanceof Error ? e.message : "err.backup.file") }); }
+    finally { setBackupBusy(false); }
   };
-  const onImport = async (f?: File) => {
+  const onPickImport = async (f?: File) => {
     if (!f) return;
-    try { if (f.size > 10_000_000) throw new Error("err.import"); const r = await importLocal(await f.text()); setMsg({ ok: true, text: t("set.imported", { m: r.messages, s: r.skipped }) }); }
-    catch (e) { setMsg({ ok: false, text: tk(e instanceof Error ? e.message : "err.import") }); }
-    if (file.current) file.current.value = "";
+    if (f.size > 25_000_000) { setBackupMsg({ ok: false, text: t("err.backup.big") }); return; }
+    try { setImportText(await f.text()); setImportPass(""); setBackupMsg(null); }
+    catch { setBackupMsg({ ok: false, text: t("err.backup.file") }); }
+    finally { if (file.current) file.current.value = ""; }
+  };
+  const onImport = async () => {
+    if (!importText) return;
+    setBackupBusy(true);
+    try {
+      const r = await importBackup(importText, importPass, replaceId);
+      setBackupMsg({ ok: true, text: t(r.legacy ? "set.backup.legacyDone" : "set.backup.done", { m: r.messages, c: r.contacts, s: r.skipped }) });
+      setImportText(null); setImportPass(""); setReplaceId(false);
+      // Identity, vault metadata and relay settings are read once by the manager on boot.
+      // A reload makes the restored account take effect instead of mixing it with the old one.
+      setTimeout(() => window.location.reload(), 1500);
+    } catch (e) { setBackupMsg({ ok: false, text: tk(e instanceof Error ? e.message : "err.backup.file") }); }
+    finally { setBackupBusy(false); }
   };
   const prev: { v: PreviewPolicy; k: "set.prevAsk" | "set.prevNever" | "set.prevAlways" }[] = [{ v: "ask", k: "set.prevAsk" }, { v: "block", k: "set.prevNever" }, { v: "allow", k: "set.prevAlways" }];
   const fp = snap.fp.slice(0, 32).toUpperCase().replace(/(.{4})/g, "$1 ").trim();
@@ -75,6 +102,13 @@ export function SettingsPanel({ section, onContacts, onSectionSeen }: { section?
           <p className="text-xs text-muted">{t("set.relays")}</p>
           <textarea dir="ltr" value={relays} onChange={(e) => setRelays(e.target.value)} rows={2} placeholder="wss://relay.example.com:8084/mqtt" aria-label={t("set.relays")} className={cn(field, "resize-none font-mono text-xs")} />
           <button onClick={() => void mgr.setCustomRelays(relays.split(/\s+/).filter(Boolean))} className={cn(btn, "bg-sc text-onsc")}>{t("c.save")}</button>
+          {snap.relay.enabled && !!snap.relay.relays?.length && <ul className="space-y-1 text-xs" aria-label={t("set.relays")}>
+            {snap.relay.relays.map((r) => <li key={r.url} className="flex items-center gap-2">
+              <span aria-hidden className={cn("h-1.5 w-1.5 shrink-0 rounded-full", r.connected ? "bg-accent" : "bg-danger")} />
+              <span dir="ltr" className="truncate font-mono text-muted">{r.url}</span>
+              <span className={cn("ml-auto shrink-0", r.connected ? "text-muted" : "text-danger")}>{t(r.connected ? "thread.online" : "thread.offline")}</span>
+            </li>)}
+          </ul>}
           <p className="text-xs text-muted">{t("set.turn")}</p>
           <input dir="ltr" value={turn} onChange={(e) => setTurn(e.target.value)} placeholder="turn:turn.example.com:3478" aria-label={t("set.turn")} className={field} />
           <div className="flex gap-2"><input dir="ltr" value={tu} onChange={(e) => setTu(e.target.value)} placeholder="user" aria-label="TURN user" className={field} /><input dir="ltr" value={tp} onChange={(e) => setTp(e.target.value)} type="password" placeholder="password" aria-label="TURN password" className={field} /></div>
@@ -163,13 +197,24 @@ export function SettingsPanel({ section, onContacts, onSectionSeen }: { section?
           <p className="text-xs text-muted">{t("set.fp")}</p><p className="rounded-2xl bg-highest px-4 py-3 text-center text-sm tabular-nums tracking-wide" dir="ltr">{fp || "…"}</p></Box>
         <Box className="space-y-4"><p className="text-sm font-medium">{t("set.storage")}</p>
           <p className="text-xs text-muted">{t("set.usage", { size: size(usage) })}</p>
-          <div className="flex flex-wrap gap-2">
-            <button onClick={() => { setWarn(true); setMsg(null); }} className={cn(btn, "bg-sc text-onsc")}><Download size={15} />{t("set.export")}</button>
-            <button onClick={() => file.current?.click()} className={cn(btn, "bg-sc text-onsc")}><Upload size={15} />{t("set.import")}</button>
-            <input ref={file} type="file" accept="application/json,.json" hidden aria-label={t("set.import")} onChange={(e) => void onImport(e.target.files?.[0])} />
+          <p className="text-xs leading-relaxed text-muted">{t("set.backup.hint")}</p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <input type="password" value={backupPass} onChange={(e) => setBackupPass(e.target.value)} placeholder={t("set.backup.pass")} aria-label={t("set.backup.pass")} autoComplete="new-password" className={field} />
+            <input type="password" value={backupPass2} onChange={(e) => setBackupPass2(e.target.value)} placeholder={t("set.backup.pass2")} aria-label={t("set.backup.pass2")} autoComplete="new-password" className={field} />
           </div>
-          {warn && <div role="alertdialog" className="space-y-3 rounded-3xl bg-tc p-4 text-ontc"><p className="text-sm">{t("set.exportWarn")}</p>
-            <div className="flex gap-2"><button onClick={download} className={cn(btn, "bg-accent text-bg")}>{t("set.export")}</button><button onClick={() => setWarn(false)} className="rounded-full px-4 py-2 text-sm">{t("c.cancel")}</button></div></div>}
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => void download()} disabled={backupBusy} className={cn(btn, "bg-sc text-onsc disabled:opacity-50")}><Download size={15} />{t("set.export")}</button>
+            <button onClick={() => file.current?.click()} className={cn(btn, "bg-sc text-onsc")}><Upload size={15} />{t("set.import")}</button>
+            <input ref={file} type="file" accept=".q7b,.json,application/json" hidden aria-label={t("set.import")} onChange={(e) => void onPickImport(e.target.files?.[0])} />
+          </div>
+          {importText && <div role="alertdialog" className="space-y-3 rounded-3xl bg-tc p-4 text-ontc">
+            <p className="text-sm">{t("set.backup.restore")}</p>
+            <input type="password" value={importPass} onChange={(e) => setImportPass(e.target.value)} placeholder={t("set.backup.pass")} aria-label={t("set.backup.pass")} autoComplete="current-password" className={cn(field, "bg-bg/10 text-ontc placeholder:text-ontc/60")} />
+            <label className="flex cursor-pointer gap-2 text-xs"><input type="checkbox" checked={replaceId} onChange={(e) => setReplaceId(e.target.checked)} className="mt-0.5 accent-[rgb(var(--accent))]" /><span>{t("set.backup.replace")}</span></label>
+            <div className="flex gap-2"><button onClick={() => void onImport()} disabled={backupBusy} className={cn(btn, "bg-accent text-bg disabled:opacity-50")}>{t("set.backup.restore")}</button><button onClick={() => { setImportText(null); setImportPass(""); setReplaceId(false); }} className="rounded-full px-4 py-2 text-sm">{t("c.cancel")}</button></div>
+          </div>}
+          {backupMsg && <p role="status" className={cn("text-sm", backupMsg.ok ? "text-muted" : "text-danger")}>{backupMsg.text}</p>}
+          <p className="text-xs leading-relaxed text-muted">{t("set.backup.noblobs")}</p>
           {msg && <p role="status" className={cn("text-sm", msg.ok ? "text-muted" : "text-danger")}>{msg.text}</p>}
           {!confirm ? <button onClick={() => setConfirm(true)} className="inline-flex items-center gap-2 rounded-full border border-danger/50 px-4 py-2 text-sm text-danger"><Trash2 size={14} />{t("set.wipe")}</button>
             : <div role="alertdialog" className="space-y-3 rounded-3xl bg-danger/10 p-4"><p className="text-sm">{t("set.wipeAsk")}</p>

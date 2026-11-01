@@ -90,7 +90,7 @@ export async function unseal(secret: string, data: Uint8Array, info = "relay-v1"
     return JSON.parse(dec.decode(await crypto.subtle.decrypt({ name: "AES-GCM", iv: B(data.slice(0, 12)) }, k, B(data.slice(12)))));
   } catch { return null; }
 }
-export async function topicFor(kind: "k" | "r" | "d", id: string) { return `q7/v1/${kind}/${hex(await sha256(`${kind}|${id}`)).slice(0, 32)}`; }
+export const topicFor = async (kind: "k" | "r" | "d" | "s", id: string) => `q7/v1/${kind}/${hex(await sha256(`${kind}|${id}`)).slice(0, 32)}`;
 
 /* ----- signed offer/answer envelopes (authenticate the SDP, including its DTLS fingerprint) ----- */
 export interface Envelope { t: "offer" | "answer" | "pair"; rid: string; pub: string; name: string; ts: number; sig: string; sdp?: string; data?: string; to?: string; ek?: string }

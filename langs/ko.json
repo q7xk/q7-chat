@@ -390,5 +390,21 @@
  "devices.empty": "아직 연결된 다른 기기가 없습니다.",
  "devices.setupInfo": "새 기기 설정에서 '이미 계정이 있습니다'를 선택한 후 표시된 QR 코드를 여기에서 스캔하세요.",
  "devices.remove": "제거",
- "devices.success": "기기가 연결되었습니다!"
+ "devices.success": "기기가 연결되었습니다!",
+ "set.backup.hint": "백업은 이 비밀번호로 암호화됩니다. 복구 수단이 없습니다. 비밀번호 없이는 열 수 없습니다. 8자 이상.",
+ "set.backup.pass": "백업 비밀번호",
+ "set.backup.pass2": "비밀번호 다시 입력",
+ "set.backup.short": "8자 이상 사용하세요.",
+ "set.backup.mismatch": "비밀번호가 일치하지 않습니다.",
+ "set.backup.ready": "암호화된 백업을 다운로드했습니다.",
+ "set.backup.restore": "복호화 및 복원",
+ "set.backup.replace": "백업에 포함된 경우 이 기기의 ID 바꾸기",
+ "set.backup.noblobs": "첨부 파일은 포함되지 않으며 메시지와 메타데이터는 포함됩니다. 새 기기에 복원하거나 기존 ID를 유지하세요.",
+ "set.backup.done": "{m}개 메시지와 {c}개 연락처를 복원했습니다({s}개 건너뜀).",
+ "set.backup.legacyDone": "이전 평문 백업을 복원했습니다({m}개 메시지, {s}개 건너뜀). 지금 암호화된 백업을 만드세요.",
+ "err.backup.short": "백업 비밀번호는 8자 이상이어야 합니다.",
+ "err.backup.file": "Q7 백업 파일이 아닙니다.",
+ "err.backup.password": "비밀번호가 틀렸거나 파일이 변조되었습니다.",
+ "err.backup.corrupt": "백업이 손상되었거나 불완전합니다.",
+ "err.backup.big": "이 백업은 너무 크거나 레코드가 너무 많습니다."
 }

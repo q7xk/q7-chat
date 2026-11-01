@@ -97,6 +97,14 @@ export async function storageUsage(): Promise<number> { try { return (await navi
 
 export const wipeAll = () => run(Object.values(STORES), "readwrite", (tx) => { Object.values(STORES).forEach((n) => tx.objectStore(n).clear()); });
 
+/** Bulk upsert used by encrypted backup restore and device sync (validation happens before this call). */
+export const putMany = (conversations: Conversation[], messages: Message[], contacts: Contact[]) =>
+  run([STORES.conv, STORES.msg, STORES.contacts], "readwrite", (tx) => {
+    conversations.forEach((c) => tx.objectStore(STORES.conv).put(c));
+    messages.forEach((m) => tx.objectStore(STORES.msg).put(m));
+    contacts.forEach((c) => tx.objectStore(STORES.contacts).put(c));
+  });
+
 export const getContacts = () => run([STORES.contacts], "readonly", (tx) => req(tx.objectStore(STORES.contacts).getAll() as IDBRequest<Contact[]>));
 export const putContact = (c: Contact) => run([STORES.contacts], "readwrite", (tx) => { tx.objectStore(STORES.contacts).put(c); });
 export const deleteContact = (id: string) => run([STORES.contacts], "readwrite", (tx) => { tx.objectStore(STORES.contacts).delete(id); });

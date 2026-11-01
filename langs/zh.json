@@ -390,5 +390,21 @@
  "devices.empty": "尚未关联其他设备。",
  "devices.setupInfo": "在新设备设置时选择“我已有账户”，然后在此扫描显示的二维码。",
  "devices.remove": "移除",
- "devices.success": "设备关联成功！"
+ "devices.success": "设备关联成功！",
+ "set.backup.hint": "备份将使用此密码加密。无法找回：没有密码就无法打开文件。至少 8 个字符。",
+ "set.backup.pass": "备份密码",
+ "set.backup.pass2": "重复密码",
+ "set.backup.short": "请使用至少 8 个字符。",
+ "set.backup.mismatch": "两次密码不一致。",
+ "set.backup.ready": "加密备份已下载。",
+ "set.backup.restore": "解密并恢复",
+ "set.backup.replace": "如果备份包含身份，则替换此设备的身份",
+ "set.backup.noblobs": "不包含附件；包含消息及其元数据。请恢复到新设备或保留现有身份。",
+ "set.backup.done": "已恢复 {m} 条消息和 {c} 个联系人（跳过 {s} 条）。",
+ "set.backup.legacyDone": "已恢复旧版明文备份（{m} 条消息，跳过 {s} 条）。请立即创建加密备份。",
+ "err.backup.short": "备份密码至少需要 8 个字符。",
+ "err.backup.file": "这不是 Q7 备份文件。",
+ "err.backup.password": "密码错误，或文件已被修改。",
+ "err.backup.corrupt": "备份已损坏或不完整。",
+ "err.backup.big": "此备份过大或包含过多记录。"
 }

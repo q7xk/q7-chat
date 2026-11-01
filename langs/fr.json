@@ -390,5 +390,21 @@
  "devices.empty": "Aucun autre appareil lié pour le moment.",
  "devices.setupInfo": "Lors de la configuration du nouvel appareil, choisissez « J'ai déjà un compte » et scannez ici le QR code affiché.",
  "devices.remove": "Retirer",
- "devices.success": "Appareil lié avec succès !"
+ "devices.success": "Appareil lié avec succès !",
+ "set.backup.hint": "Le backup est chiffré avec ce mot de passe. Aucune récupération : sans lui, le fichier ne peut pas être ouvert. Au moins 8 caractères.",
+ "set.backup.pass": "Mot de passe du backup",
+ "set.backup.pass2": "Répéter le mot de passe",
+ "set.backup.short": "Utilisez au moins 8 caractères.",
+ "set.backup.mismatch": "Les mots de passe ne correspondent pas.",
+ "set.backup.ready": "Backup chiffré téléchargé.",
+ "set.backup.restore": "Déchiffrer et restaurer",
+ "set.backup.replace": "Remplacer l'identité de cet appareil si le backup en contient une",
+ "set.backup.noblobs": "Les pièces jointes ne sont pas incluses, les messages et leurs métadonnées le sont. Restaurez sur un nouvel appareil ou conservez l'identité existante.",
+ "set.backup.done": "{m} messages et {c} contacts restaurés ({s} ignorés).",
+ "set.backup.legacyDone": "Ancien backup en clair restauré ({m} messages, {s} ignorés). Créez maintenant un backup chiffré.",
+ "err.backup.short": "Le mot de passe doit contenir au moins 8 caractères.",
+ "err.backup.file": "Ce n'est pas un fichier de backup Q7.",
+ "err.backup.password": "Mot de passe incorrect ou fichier modifié.",
+ "err.backup.corrupt": "Le backup est endommagé ou incomplet.",
+ "err.backup.big": "Ce backup est trop volumineux ou contient trop d'entrées."
 }

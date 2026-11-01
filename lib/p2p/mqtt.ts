@@ -33,29 +33,53 @@ const topicMatch = (pattern: string, topic: string): boolean => {
   return p.length === t.length;
 };
 
+export interface RelayStatus {
+  url: string;
+  connected: boolean;
+  /** Consecutive failed connection attempts; reset by a successful CONNACK. */
+  attempts: number;
+  lastError?: string;
+  lastConnectedAt?: number;
+}
+
 class Sock {
   ws: WebSocket | null = null; ready = false; buf = new Uint8Array(0); backoff = 2000; timer?: ReturnType<typeof setTimeout>; ping?: ReturnType<typeof setInterval>; stopped = false;
-  constructor(private url: string, private owner: RelayClient) {}
+  attempts = 0; lastError?: string; lastConnectedAt?: number;
+  constructor(public url: string, private owner: RelayClient) {}
   start() {
     if (this.stopped) return;
     let ws: WebSocket;
-    try { ws = new WebSocket(this.url, "mqtt"); } catch { this.retry(); return; }
+    try { ws = new WebSocket(this.url, "mqtt"); } catch { this.lastError = "unsupported"; this.retry(); return; }
     this.ws = ws; ws.binaryType = "arraybuffer";
-    ws.onopen = () => ws.send(connectPacket("q7-" + Math.random().toString(16).slice(2, 12)));
+    ws.onopen = () => { try { ws.send(connectPacket("q7-" + Math.random().toString(16).slice(2, 12))); } catch { this.lastError = "send"; ws.close(); } };
     ws.onmessage = (e) => {
       const add = new Uint8Array(e.data as ArrayBuffer); const m = new Uint8Array(this.buf.length + add.length); m.set(this.buf); m.set(add, this.buf.length);
       const { packets, rest } = parsePackets(m); this.buf = rest;
       for (const p of packets) {
-        if (p.type === 2) { this.ready = true; this.backoff = 2000; this.owner.topics().forEach((t, i) => ws.send(subscribePacket(i + 1, t))); this.owner.changed(); this.ping = setInterval(() => ws.readyState === 1 && ws.send(Uint8Array.of(0xc0, 0)), 30000); }
+        if (p.type === 2) {
+          this.ready = true; this.attempts = 0; this.lastError = undefined; this.lastConnectedAt = Date.now(); this.backoff = 2000;
+          this.owner.topics().forEach((t, i) => { try { ws.send(subscribePacket(i + 1, t)); } catch { /* reconnect handles it */ } });
+          this.owner.changed();
+          clearInterval(this.ping);
+          this.ping = setInterval(() => { if (ws.readyState === 1) try { ws.send(Uint8Array.of(0xc0, 0)); } catch { /* ignore */ } }, 30000);
+        }
         else if (p.type === 3) { const { topic, payload } = parsePublish(p); this.owner.deliver(topic, payload); }
       }
     };
     ws.onclose = () => { this.ready = false; this.buf = new Uint8Array(0); clearInterval(this.ping); this.owner.changed(); this.retry(); };
-    ws.onerror = () => ws.close();
+    ws.onerror = () => { this.lastError = "socket"; try { ws.close(); } catch { /* ignore */ } };
   }
-  retry() { if (this.stopped) return; this.timer = setTimeout(() => this.start(), this.backoff); this.backoff = Math.min(this.backoff * 2, 60000); }
-  send(b: Uint8Array) { if (this.ready && this.ws?.readyState === 1) { this.ws.send(b); return true; } return false; }
-  stop() { this.stopped = true; clearTimeout(this.timer); clearInterval(this.ping); this.ws?.close(); }
+  /** Exponential backoff with ±20% jitter: three public brokers must not reconnect in lockstep. */
+  retry() {
+    if (this.stopped) return;
+    const base = Math.min(2000 * 2 ** this.attempts, 60_000);
+    const wait = Math.round(base * (0.8 + Math.random() * 0.4));
+    this.attempts = Math.min(this.attempts + 1, 30);
+    this.timer = setTimeout(() => this.start(), wait);
+  }
+  send(b: Uint8Array) { if (this.ready && this.ws?.readyState === 1) { try { this.ws.send(b); return true; } catch { this.lastError = "send"; } } return false; }
+  stop() { this.stopped = true; clearTimeout(this.timer); clearInterval(this.ping); try { this.ws?.close(); } catch { /* ignore */ } }
+  status(): RelayStatus { return { url: this.url, connected: this.ready, attempts: this.attempts, ...(this.lastError ? { lastError: this.lastError } : {}), ...(this.lastConnectedAt ? { lastConnectedAt: this.lastConnectedAt } : {}) }; }
 }
 
 export class RelayClient {
@@ -67,6 +91,7 @@ export class RelayClient {
   changed() { this.onStatus(); }
   deliver(topic: string, payload: Uint8Array) { for (const [pattern, cb] of this.subs) if (pattern === topic || topicMatch(pattern, topic)) cb(payload, topic); }
   get connected() { return this.socks.filter((s) => s.ready).length; }
+  get status(): RelayStatus[] { return this.socks.map((s) => s.status()); }
   subscribe(topic: string, cb: (p: Uint8Array, topic: string) => void) { this.subs.set(topic, cb); this.socks.forEach((s) => s.send(subscribePacket(++this.n & 0xffff || 1, topic))); }
   unsubscribe(topic: string) { this.subs.delete(topic); } // stale subscriptions are dropped on delivery; reconnect resubscribes only live topics
   publish(topic: string, payload: Uint8Array) { const p = publishPacket(topic, payload); return this.socks.reduce((c, s) => c + (s.send(p) ? 1 : 0), 0); }

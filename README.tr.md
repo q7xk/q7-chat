@@ -46,7 +46,7 @@ Q7 Chat; Next.js, TypeScript ve Tailwind CSS ile geliştirilmiş, tarayıcıda �
 
 - **Hesap yok, kayıt yok, e-posta yok.** Kimliğiniz cihazınızda üretilen bir anahtar çiftidir. Herkese açık adresiniz 12 haneli Q7 kodunuzdur.
 - **Uygulama sunucusu yok.** Halka açık MQTT broker'ları yalnızca şifreli metin taşıyan aptal röleler olarak kullanılır. Broker'lar hash'lenmiş konuları ve şifreli metni görür; düz metni asla.
-- **Yerel öncelikli depolama.** Sohbetler, kişiler, ayarlar ve dosyalar IndexedDB'de kalır. Bulut senkronizasyonu yoktur.
+- **Yerel öncelikli depolama.** Sohbetler, kişiler, ayarlar ve dosyalar cihazlarınızdaki IndexedDB'de kalır. Bağlı cihazlar birbiriyle röleler üzerinden mühürlü anlık görüntüler ve mezar taşları paylaşır; düz metin geçmişi okuyabilen veya tutan bir sunucu yoktur.
 - **72 saatlik mesajlar.** Her mesaj oluşturulurken bir son kullanma zamanı alır. Süresi dolan mesajlar arayüzden filtrelenir ve IndexedDB'den silinir.
 - **Mümkün olduğunca doğrudan.** Cihazlar WebRTC ile doğrudan konuşur. Bu mümkün değilse şifreli çerçeveler röle posta kutusuna düşer ve karşı taraf çevrimiçi olduğunda teslim edilir.
 - **MPL 2.0 ile açık kaynak.** Kodu inceleyebilir, değiştirebilir ve kendiniz barındırabilirsiniz.
@@ -80,7 +80,9 @@ Q7 Chat; Next.js, TypeScript ve Tailwind CSS ile geliştirilmiş, tarayıcıda �
 
 - **Yerel kasa** — isteğe bağlı parola kilidi; PBKDF2-SHA256 (310.000 tur), AES-GCM ve isteğe bağlı TOTP doğrulayıcı kodu. Kimlik anahtarları diskte mühürlenir; parola cihazdan çıkmaz.
 - **Hareketsizlik kilidi** — belirlenen süre sonunda kasa otomatik kilitlenir.
-- **Şifreli yerel yedek** — *henüz yok*. Mevcut dışa aktarma düz JSON anlık görüntüsüdür; güvenli bir yerde saklayın.
+- **Şifreli yerel yedek** — parola korumalı `.q7b` arşivi (PBKDF2-SHA256 600 bin tur + AES-256-GCM); kimlik veya mühürlü kasa, sohbetler, kişiler, ayarlar ve üst veriler dahil. Ekler dahil değildir. Eski düz metin dışa aktarmalar bir kez içe aktarılabilir.
+- **Çok cihazlı senkronizasyon** — bağlı cihazlar birebir ve grup mesajlarını, düzenlemeleri, tepkileri, silmeleri ve kişileri rölede tutulan mühürlü anlık görüntülerle otomatik paylaşır. Yerel Mod notları oluşturuldukları cihazda kalır. Birleştirme son-yazan-kazanır ve 72 saatlik silme mezar taşlarıyla yapılır.
+- **Kendi rölenizi barındırma** — röle sürekliliğini kendisi kontrol etmek isteyenler için Mosquitto + Caddy Docker Compose yığını.
 - **Hareketi azalt, metin boyutu, tema, vurgu rengi** — erişilebilirlik ve görünüm ayarları.
 - **17 dil** ve Arapça için sağdan sola (RTL) destek.
 - **Sıkı İçerik Güvenliği Politikası** — `next.config.mjs` içinde (Next.js bootstrap betikleri için `unsafe-inline` istisnası belgelenmiştir).
@@ -126,10 +128,10 @@ Tam tel formatı, konu düzeni, tekrar penceresi, posta kutusu akışı ve tehdi
 - Ele geçirilmiş cihaz, kötü niyetli tarayıcı eklentisi veya uygulama kaynağında XSS.
 - Röleler tarafından meta veri analizi: zamanlama, yaklaşık boyut ve hash'lenmiş konular görünür kalır.
 - Gelecekteki kuantum saldırganı: mevcut primitifler klasiktir (P-256, AES-GCM).
-- Kilidi açık cihazınıza veya düz metin JSON yedeğinize erişen biri.
+- Kilidi açık cihazınıza veya eski düz metin yedeğinize erişen biri. Yeni yedekler şifrelidir; eski dışa aktarmaları silin.
 - Hukuki veya zorlama senaryoları. Bu araç muhbirlik düzeyinde değildir.
 
-Tasarım bilinçli olarak basit ve incelenebilir tutulmuştur; ancak **bağımsız güvenlik denetimi almamıştır**. Tam politika ve bildirim talimatları için [SECURITY.md](SECURITY.md) dosyasına bakın.
+Tasarım bilinçli olarak basit ve incelenebilir tutulmuştur; ancak **bağımsız güvenlik denetimi almamıştır**. Politika için [SECURITY.md](SECURITY.md), denetim kapsamı, tehdit modeli ve güncel durum için [docs/SECURITY-AUDIT.md](docs/SECURITY-AUDIT.md) dosyasına bakın.
 
 ## Teknoloji yığını
 
@@ -198,7 +200,7 @@ Q7 Chat istemci tarafında çalışır; ancak `next.config.mjs` güvenlik başl�
 - HTTPS üzerinden sunun.
 - `next.config.mjs` içindeki CSP'yi koruyun; bağımlılık ekledikçe gözden geçirin.
 - `Permissions-Policy` değerini gözden geçirin; kamera/mikrofon QR tarama ve sesli mesaj için, konum ise konum paylaşımı için yalnızca uygulama kaynağına (`self`) açılmalıdır.
-- Öngörülebilir saklama süresi gerekiyorsa kendi MQTT broker'ınızı ekleyin ve varsayılan halka açık röleleri gözden geçirin.
+- Öngörülebilir saklama süresi gerekiyorsa kendi MQTT broker'ınızı ekleyin: [`deploy/relay`](deploy/relay) otomatik TLS'li Mosquitto + Caddy Compose yığını içerir. İstemci tanımlı tüm rölelere paralel bağlanır ve Settings ekranında röle bazlı sağlık durumunu gösterir.
 - Depo için GitHub özel güvenlik açığı bildirimini etkinleştirin.
 
 ## Proje yapısı
@@ -226,10 +228,12 @@ Q7 Chat istemci tarafında çalışır; ancak `next.config.mjs` güvenlik başl�
 │   ├── p2p/                  # Protokol uygulaması
 │   │   ├── crypto.ts         # Kimlik, zarflar, oturumlar, güvenlik numaraları
 │   │   ├── q7rp.ts           # İkili anahtar, imzalı röle çerçeveleri, tekrar penceresi
-│   │   ├── mqtt.ts           # WSS üzerinden MQTT 3.1.1
+│   │   ├── mqtt.ts           # WSS üzerinden MQTT 3.1.1, röle sağlığı ve geri çekilme
 │   │   ├── rtc.ts            # WebRTC DataChannel, STUN/TURN
 │   │   ├── manager.ts        # Protokol durum makinesi
 │   │   └── context.tsx       # Yönetici için React sağlayıcısı
+│   ├── backup.ts             # Şifreli .q7b dışa/içe aktarma ve doğrulama
+│   ├── sync.ts               # Çok cihazlı anlık görüntü birleştirme ve mezar taşları
 │   ├── db.ts                 # IndexedDB kalıcılığı ve temizleme
 │   ├── store.tsx             # Sohbet/ayar React store'u
 │   ├── vault.ts              # Parola + TOTP kasası
@@ -241,6 +245,7 @@ Q7 Chat istemci tarafında çalışır; ancak `next.config.mjs` güvenlik başl�
 ├── public/                   # Logolar ve statik varlıklar
 ├── tests/                    # Vitest paketleri
 ├── docs/                     # Mimari, dağıtım, yol haritası, çeviriler
+├── deploy/relay/             # Kendi sunucunuzda Mosquitto + Caddy WSS rölesi
 ├── .github/                  # CI, issue/PR şablonları, Dependabot
 ├── Dockerfile                # Çok aşamalı üretim imajı
 ├── .nvmrc                    # Yerel geliştirme için Node 20
@@ -277,6 +282,8 @@ npm test
 Paket şunları kapsar:
 
 - IndexedDB depolama ve temizleme (`tests/db.test.ts`)
+- Şifreli yedek gidiş-dönüşü, kurcalama ve parola politikası (`tests/backup.test.ts`)
+- Çok cihazlı birleştirme, mezar taşları ve tel boyutu sınırları (`tests/sync.test.ts`)
 - Çeviri bütünlüğü ve dil algılama (`tests/i18n.test.ts`)
 - Kripto zarfları, kimlik ve oturumlar (`tests/p2p.test.ts`)
 - Uçtan uca protokol simülasyonu (`tests/protocol-sim.test.ts`)
@@ -290,11 +297,9 @@ CI her push ve pull request'te tip kontrolü, testler ve üretim derlemesi çal�
 Tam liste için [docs/ROADMAP.md](docs/ROADMAP.md). Bilinen eksikler:
 
 - Sesli/görüntülü arama yok (Calls girişi yer tutucudur).
-- Çok cihazlı mesaj senkronizasyonu yok; cihaz bağlama var ama geçmiş cihaz başına.
-- Şifreli yedek formatı yok; dışa aktarmalar düz JSON.
-- PWA kurulum kabuğu veya çevrimdışı uygulama önbelleği yok.
-- Bağımsız güvenlik denetimi yok.
-- Halka açık rölelerin çalışma süresi veya saklama garantisi yok; ciddi kullanım için kendi broker'ınızı barındırın.
+- Bağımsız güvenlik denetimi yok. Bu, kendi kendine sertifikalandırılamaz; bkz. [docs/SECURITY-AUDIT.md](docs/SECURITY-AUDIT.md).
+- Halka açık rölelerin çalışma süresi veya saklama garantisi yok. Süreklilik için [`deploy/relay`](deploy/relay) içindeki röleyi kendiniz barındırın; istemci tanımlı tüm broker'lar arasında yük devreder.
+- 72 saatlik geçmiş senkronizasyonu ve şifreli yedekler ek dosyalarını içermez; büyük ekler hâlâ doğrudan bağlantı gerektirir.
 - 160 KB üzeri dosyalar yalnızca röle modunda doğrudan bağlantı bekler.
 
 ## Katkı
@@ -307,7 +312,7 @@ Katkılar memnuniyetle karşılanır. Lütfen önce [CONTRIBUTING.md](CONTRIBUTI
 - Erişilebilirlik düzeltmeleri (klavye gezinmesi, odak tuzağı, ekran okuyucu etiketleri).
 - Protokol uç durumları için testler.
 - Dokümantasyon iyileştirmeleri.
-- Kendi sunucunuzda röle kurma tarifleri.
+- Röle sertleştirme tarifleri (hız sınırları, izleme, özel dağıtımlar).
 
 Katkıda bulunarak, katkılarınızın Mozilla Public License 2.0 altında lisanslanmasını kabul edersiniz.
 

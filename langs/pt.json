@@ -390,5 +390,21 @@
  "devices.empty": "Nenhum outro dispositivo vinculado ainda.",
  "devices.setupInfo": "Na configuração do novo dispositivo, escolha “Já tenho uma conta” e escaneie aqui o código QR exibido.",
  "devices.remove": "Remover",
- "devices.success": "Dispositivo vinculado com sucesso!"
+ "devices.success": "Dispositivo vinculado com sucesso!",
+ "set.backup.hint": "O backup é cifrado com esta palavra-passe. Não há recuperação: sem ela o ficheiro não abre. Pelo menos 8 caracteres.",
+ "set.backup.pass": "Palavra-passe do backup",
+ "set.backup.pass2": "Repetir a palavra-passe",
+ "set.backup.short": "Use pelo menos 8 caracteres.",
+ "set.backup.mismatch": "As palavras-passe não coincidem.",
+ "set.backup.ready": "Backup cifrado transferido.",
+ "set.backup.restore": "Decifrar e restaurar",
+ "set.backup.replace": "Substituir a identidade deste dispositivo se o backup tiver uma",
+ "set.backup.noblobs": "Os anexos não estão incluídos; as mensagens e os metadados sim. Restaure num dispositivo novo ou mantenha a identidade atual.",
+ "set.backup.done": "{m} mensagens e {c} contactos restaurados ({s} ignorados).",
+ "set.backup.legacyDone": "Backup antigo em texto simples restaurado ({m} mensagens, {s} ignorados). Crie agora um backup cifrado.",
+ "err.backup.short": "A palavra-passe deve ter pelo menos 8 caracteres.",
+ "err.backup.file": "Este não é um ficheiro de backup Q7.",
+ "err.backup.password": "Palavra-passe errada ou ficheiro alterado.",
+ "err.backup.corrupt": "O backup está danificado ou incompleto.",
+ "err.backup.big": "Este backup é demasiado grande ou tem demasiados registos."
 }

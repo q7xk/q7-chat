@@ -390,5 +390,21 @@
  "devices.empty": "Brak innych powiązanych urządzeń.",
  "devices.setupInfo": "Podczas konfiguracji nowego urządzenia wybierz „Mam już konto” i zeskanuj tutaj wyświetlony kod QR.",
  "devices.remove": "Usuń",
- "devices.success": "Urządzenie zostało pomyślnie powiązane!"
+ "devices.success": "Urządzenie zostało pomyślnie powiązane!",
+ "set.backup.hint": "Kopia jest szyfrowana tym hasłem. Nie ma odzyskiwania: bez hasła nie da się otworzyć pliku. Co najmniej 8 znaków.",
+ "set.backup.pass": "Hasło kopii",
+ "set.backup.pass2": "Powtórz hasło",
+ "set.backup.short": "Użyj co najmniej 8 znaków.",
+ "set.backup.mismatch": "Hasła nie są zgodne.",
+ "set.backup.ready": "Pobrano zaszyfrowaną kopię.",
+ "set.backup.restore": "Odszyfruj i przywróć",
+ "set.backup.replace": "Zastąp tożsamość tego urządzenia, jeśli kopia ją zawiera",
+ "set.backup.noblobs": "Załączniki nie są dołączone; wiadomości i ich metadane tak. Przywróć na nowym urządzeniu lub zachowaj obecną tożsamość.",
+ "set.backup.done": "Przywrócono {m} wiadomości i {c} kontaktów ({s} pominięto).",
+ "set.backup.legacyDone": "Przywrócono starą kopię tekstową ({m} wiadomości, {s} pominięto). Utwórz teraz zaszyfrowaną kopię.",
+ "err.backup.short": "Hasło kopii musi mieć co najmniej 8 znaków.",
+ "err.backup.file": "To nie jest plik kopii Q7.",
+ "err.backup.password": "Nieprawidłowe hasło lub plik został zmieniony.",
+ "err.backup.corrupt": "Kopia jest uszkodzona lub niekompletna.",
+ "err.backup.big": "Ta kopia jest zbyt duża lub zawiera zbyt wiele rekordów."
 }

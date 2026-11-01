@@ -390,5 +390,21 @@
  "devices.empty": "No other devices linked yet.",
  "devices.setupInfo": "On the new device setup, pick 'I already have an account' and scan the displayed QR code here.",
  "devices.remove": "Remove",
- "devices.success": "Device successfully linked!"
+ "devices.success": "Device successfully linked!",
+ "set.backup.hint": "The backup is encrypted with this password. There is no recovery: without it the file cannot be opened. At least 8 characters.",
+ "set.backup.pass": "Backup password",
+ "set.backup.pass2": "Repeat password",
+ "set.backup.short": "Use at least 8 characters.",
+ "set.backup.mismatch": "Passwords do not match.",
+ "set.backup.ready": "Encrypted backup downloaded.",
+ "set.backup.restore": "Decrypt and restore",
+ "set.backup.replace": "Replace this device's identity if the backup contains one",
+ "set.backup.noblobs": "Attachments are not included. Messages and their metadata are. Restore into a fresh device or keep the existing identity.",
+ "set.backup.done": "Restored {m} messages and {c} contacts ({s} skipped).",
+ "set.backup.legacyDone": "Legacy plaintext backup restored ({m} messages, {s} skipped). Create an encrypted backup now.",
+ "err.backup.short": "Backup password must be at least 8 characters.",
+ "err.backup.file": "This is not a Q7 backup file.",
+ "err.backup.password": "Wrong password, or the file was modified.",
+ "err.backup.corrupt": "The backup is damaged or incomplete.",
+ "err.backup.big": "This backup is too large or contains too many records."
 }

@@ -1,0 +1,40 @@
+# Self-hosted Q7 relay: Mosquitto over WebSocket, TLS terminated by Caddy.
+#
+#   1. Point a DNS A/AAAA record at this server.
+#   2. RELAY_DOMAIN=relay.example.com docker compose up -d
+#   3. Open TCP 80 and 443 (Caddy obtains and renews the certificate).
+#   4. In Q7 Chat → Settings → Relays add: wss://relay.example.com/mqtt
+#
+# Tested with Docker Compose v2. The broker is never exposed directly: only Caddy
+# publishes ports, and Mosquitto listens on the private compose network.
+
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2
+    restart: unless-stopped
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto-data:/mosquitto/data
+    expose:
+      - "8084"
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      mosquitto:
+        condition: service_started
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      RELAY_DOMAIN: ${RELAY_DOMAIN:-relay.example.com}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  mosquitto-data:
+  caddy-data:
+  caddy-config:

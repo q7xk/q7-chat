@@ -390,5 +390,21 @@
  "devices.empty": "Henüz başka cihaz bağlanmadı.",
  "devices.setupInfo": "Kurulumdaki yeni cihazınızda 'Başka bir cihazım var'ı seçin ve beliren QR kodu buradan tarayın.",
  "devices.remove": "Kaldır",
- "devices.success": "Cihaz başarıyla eklendi!"
+ "devices.success": "Cihaz başarıyla eklendi!",
+ "set.backup.hint": "Yedek bu parola ile şifrelenir. Kurtarma yoktur: parola olmadan dosya açılamaz. En az 8 karakter.",
+ "set.backup.pass": "Yedek parolası",
+ "set.backup.pass2": "Parolayı yineleyin",
+ "set.backup.short": "En az 8 karakter kullanın.",
+ "set.backup.mismatch": "Parolalar eşleşmiyor.",
+ "set.backup.ready": "Şifreli yedek indirildi.",
+ "set.backup.restore": "Şifresini çöz ve geri yükle",
+ "set.backup.replace": "Yedekte varsa bu cihazın kimliğini de değiştir",
+ "set.backup.noblobs": "Ekler dahil değildir; mesajlar ve üst verileri dahildir. Yeni bir cihaza geri yükleyin veya mevcut kimliği koruyun.",
+ "set.backup.done": "{m} mesaj ve {c} kişi geri yüklendi ({s} atlandı).",
+ "set.backup.legacyDone": "Eski düz metin yedek geri yüklendi ({m} mesaj, {s} atlandı). Şimdi şifreli bir yedek oluşturun.",
+ "err.backup.short": "Yedek parolası en az 8 karakter olmalıdır.",
+ "err.backup.file": "Bu bir Q7 yedek dosyası değil.",
+ "err.backup.password": "Parola yanlış veya dosya değiştirilmiş.",
+ "err.backup.corrupt": "Yedek bozuk veya eksik.",
+ "err.backup.big": "Bu yedek çok büyük veya çok fazla kayıt içeriyor."
 }
