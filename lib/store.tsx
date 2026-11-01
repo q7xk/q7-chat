@@ -133,7 +133,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       } catch {}
       setNow(Date.now()); setReady(true);
     })();
-  }, [reload]);
+  }, [getDeviceId, reload]);
 
   useEffect(() => { document.documentElement.dataset.theme = settings.theme; applyAccent(settings.accent, settings.theme); }, [settings.theme, settings.accent]);
   useEffect(() => { document.documentElement.style.fontSize = settings.textScale === "s" ? "14px" : settings.textScale === "l" ? "18px" : ""; }, [settings.textScale]);

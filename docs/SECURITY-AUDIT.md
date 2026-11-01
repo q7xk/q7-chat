@@ -44,6 +44,9 @@ report can change the status below.
    CSP, IndexedDB and service-worker boundaries.
 6. **Relay deployment** — `deploy/relay/`
    - TLS termination, WebSocket proxying, anonymous access model, persistence.
+7. **Android shell** — `android/`, `lib/android-bridge.ts`
+   - WebView settings, JavaScript bridge methods, file/URI handling, cleartext
+     policy and the trust boundary between native code and the web app.
 
 ## Assets and threat model (summary)
 
@@ -95,6 +98,12 @@ MQTT broker operators.
   client can guarantee a third party's uptime.
 - Browser storage can be cleared by the user or the browser; the encrypted backup
   is the recovery path, and it is only as strong as the chosen password.
+- The Android WebView shell and its JavaScript bridge were added alongside the web
+  app and are **not** covered by a native-code review yet. Treat the bridge as part
+  of the attack surface, not as a trusted boundary.
+- The app currently pins Next.js 14. Upstream advisories exist for server-side
+  features. This build is static and uses no server actions, but the dependency
+  baseline still needs an upgrade and a fresh review.
 
 ## Audit plan
 
