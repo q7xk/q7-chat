@@ -10,11 +10,11 @@ const csp = [
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
-  "frame-ancestors 'none'",
 ].join("; ");
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: "standalone",
   reactStrictMode: true,
   poweredByHeader: false,
   async headers() {
@@ -25,7 +25,6 @@ const nextConfig = {
           { key: "Content-Security-Policy", value: csp },
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "no-referrer" },
-          { key: "X-Frame-Options", value: "DENY" },
           // Camera/QR scanning, voice notes and location sharing are opt-in and
           // only allowed for this origin. Adjust if you remove those features.
           { key: "Permissions-Policy", value: "camera=(self), microphone=(self), geolocation=(self)" },

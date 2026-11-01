@@ -34,6 +34,8 @@ const MOBILE_NAV: { id: View; label: K; icon: LucideIcon }[] = [
   { id: "settings", label: "nav.settings", icon: Cog },
 ];
 
+import { notifyAndroid, vibrateAndroid } from "@/lib/android-bridge";
+
 /** System notifications for messages that arrive while the tab is hidden. */
 function useNotifier() {
   const { messages, conversations, settings } = useStore();
@@ -47,7 +49,6 @@ function useNotifier() {
     for (const m of fresh) seen.current.add(m.id);
     if (seen.current.size > 600) seen.current = new Set([...seen.current].slice(-300));
     if (!settings.notify || settings.presence === "dnd" || document.visibilityState === "visible") return;
-    if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
     for (const m of fresh.slice(-3)) {
       const conv = conversations.find((c) => c.id === m.conversationId);
       if (!conv || conv.mode === "local" || conv.muted) continue;
@@ -56,7 +57,17 @@ function useNotifier() {
         ? (sender ? `${sender} · ${conv.title}` : conv.title)
         : snap.contacts.find((c) => c.id === conv.contactId)?.name ?? conv.title;
       const body = settings.notifyPreview === false || !m.body ? t("notif.new") : m.body.slice(0, 160);
-      try { new Notification(name, { body, silent: settings.notifySound === false }); } catch {}
+      
+      // Native Android notification support
+      const notifiedViaNative = notifyAndroid(name, body);
+      if (settings.notifySound !== false) {
+        vibrateAndroid(60);
+      }
+
+      // Web Notification fallback
+      if (!notifiedViaNative && typeof Notification !== "undefined" && Notification.permission === "granted") {
+        try { new Notification(name, { body, silent: settings.notifySound === false }); } catch {}
+      }
     }
   }, [messages, conversations, settings, snap.contacts, t]);
 }
@@ -83,6 +94,20 @@ export function Shell() {
   const lastIdx = useRef(idx);
   const viewAnim = idx === lastIdx.current ? "" : idx > lastIdx.current ? "m3-view-next" : "m3-view-prev";
   useEffect(() => { lastIdx.current = idx; });
+
+  useEffect(() => {
+    const handleAndroidBack = (e: Event) => {
+      if (activeId !== null) {
+        e.preventDefault();
+        setActiveId(null);
+      } else if (view !== "chats") {
+        e.preventDefault();
+        setView("chats");
+      }
+    };
+    window.addEventListener("android-back-press", handleAndroidBack);
+    return () => window.removeEventListener("android-back-press", handleAndroidBack);
+  }, [activeId, view]);
 
   const totalUnread = useMemo(() => conversations.reduce((a, c) => a + (c.archived ? 0 : c.unread), 0), [conversations]);
   const dms = useMemo(() => conversations
