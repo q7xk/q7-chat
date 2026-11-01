@@ -64,8 +64,8 @@ export function TopBar({ railOpen, onRail, query, onQuery, onSection, view, goCh
       </button>
       <div className="flex items-center gap-2.5 pe-2">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logotr.svg" alt="" width={36} height={36} className="h-9 w-9 shrink-0" />
-        <span className="text-lg font-semibold tracking-tight text-ink">Chat</span>
+        <img src="/logo.svg" alt="Q7 Logo" width={36} height={36} className="h-9 w-9 shrink-0 object-contain" />
+        <span className="text-lg font-semibold tracking-tight text-ink">Q7 Chat</span>
       </div>
 
       {/* search across the chats */}

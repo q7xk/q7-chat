@@ -9,18 +9,7 @@ import { Avatar, clipShape, type M3Shape } from "./Badges";
 import { btn, field, QR } from "./Connect";
 import { cn } from "@/lib/cn";
 
-/** The opening hero: our M3 Expressive shapes taking turns, melting slowly one into the next. */
-const SHAPES: M3Shape[] = ["sunny", "clover4", "cookie9", "clover8", "cookie12"];
 
-function ShapeMorph() {
-  return (
-    <div className="relative h-20 w-20" aria-hidden>
-      {SHAPES.map((s, i) => (
-        <span key={s} className="m3-shape-morph absolute inset-0 bg-accent" style={{ ...clipShape(s), animationDelay: `${i * 2.4}s` }} />
-      ))}
-    </div>
-  );
-}
 
 /**
  * First-run setup, shown only when this browser just booted a brand-new identity:
@@ -107,7 +96,14 @@ export function Onboarding({ onAdopt }: { onAdopt?: () => void }) {
     return (
       <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-bg px-6">
         <div className="m3-fade flex w-full max-w-md flex-col items-center gap-8 text-center">
-          <ShapeMorph />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo.svg"
+            alt="Q7 Chat"
+            width={84}
+            height={84}
+            className="h-20 w-20 object-contain drop-shadow"
+          />
           <p className="text-2xl font-semibold text-ink">{t("ob.startTitle")}</p>
           <div className="grid w-full gap-3 sm:grid-cols-2">
             <button onClick={() => setStep(1)} className="m3-press flex flex-col items-center gap-2 rounded-3xl bg-sc p-6 text-center hover:brightness-110">
