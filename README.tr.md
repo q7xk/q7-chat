@@ -10,7 +10,7 @@ Q7 Chat; Next.js, TypeScript ve Tailwind CSS ile geliştirilmiş, tarayıcıda �
   <img alt="Next.js" src="https://img.shields.io/badge/Next.js-14-black?logo=next.js" />
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white" />
   <img alt="Tailwind CSS" src="https://img.shields.io/badge/Tailwind_CSS-3-06B6D4?logo=tailwindcss&logoColor=white" />
-  <img alt="Lisans: MPL 2.0" src="https://img.shields.io/badge/license-MPL--2.0-blue" />
+  <img alt="Lisans: Apache 2.0" src="https://img.shields.io/badge/license-Apache--2.0-blue" />
 </p>
 
 > [!WARNING]
@@ -49,7 +49,7 @@ Q7 Chat; Next.js, TypeScript ve Tailwind CSS ile geliştirilmiş, tarayıcıda �
 - **Yerel öncelikli depolama.** Sohbetler, kişiler, ayarlar ve dosyalar cihazlarınızdaki IndexedDB'de kalır. Bağlı cihazlar birbiriyle röleler üzerinden mühürlü anlık görüntüler ve mezar taşları paylaşır; düz metin geçmişi okuyabilen veya tutan bir sunucu yoktur.
 - **72 saatlik mesajlar.** Her mesaj oluşturulurken bir son kullanma zamanı alır. Süresi dolan mesajlar arayüzden filtrelenir ve IndexedDB'den silinir.
 - **Mümkün olduğunca doğrudan.** Cihazlar WebRTC ile doğrudan konuşur. Bu mümkün değilse şifreli çerçeveler röle posta kutusuna düşer ve karşı taraf çevrimiçi olduğunda teslim edilir.
-- **MPL 2.0 ile açık kaynak.** Kodu inceleyebilir, değiştirebilir ve kendiniz barındırabilirsiniz.
+- **Apache 2.0 ile açık kaynak.** Kodu inceleyebilir, değiştirebilir ve kendiniz barındırabilirsiniz.
 
 ## Özellikler
 
@@ -326,13 +326,11 @@ Q7 Chat kimliğinizi, sohbetlerinizi ve eklerinizi cihazınızda saklar. Analiti
 
 ## Lisans
 
-Bu proje **Mozilla Public License 2.0 (MPL-2.0)** ile lisanslanmıştır. Tam metin [LICENSE](LICENSE) dosyasındadır. MPL 2.0, Mozilla Public License'ın güncel sürümüdür; MPL 3.0 diye bir sürüm yoktur.
+Bu proje **Apache License 2.0** ile lisanslanmıştır. Tam metin [LICENSE](LICENSE) dosyasındadır.
 
 Kısaca:
 
 - Kodu ticari olarak da kullanabilir, değiştirebilir ve dağıtabilirsiniz.
-- MPL kapsamındaki dosyaları değiştirirseniz, dağıtım sırasında bu değiştirilmiş dosyaları MPL altında erişilebilir kılmalısınız.
-- Daha büyük eserler, MPL kapsamındaki kodu başka koşullardaki kodla birleştirebilir.
 - Marka hakları verilmez.
 
 Telif © 2026 Q7 Chat katkıcıları.
@@ -340,7 +338,6 @@ Telif © 2026 Q7 Chat katkıcıları.
 ## Teşekkür
 
 - Protokol fikirleri Tox, Keet ve daha geniş P2P mesajlaşma topluluğundan esinlenmiştir.
-- MPL 2.0 metni için [Mozilla](https://www.mozilla.org/MPL/2.0/).
 - `next/font` üzerinden [Roboto Flex](https://fonts.google.com/specimen/Roboto+Flex) (SIL Open Font License 1.1).
 - [NOTICE](NOTICE) ve `package-lock.json` içinde listelenen tüm açık kaynak bağımlılıklar.
 

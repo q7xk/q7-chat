@@ -11,7 +11,7 @@ Q7 Chat is a browser-based, end-to-end encrypted messenger built with Next.js, T
   <img alt="Kotlin" src="https://img.shields.io/badge/Kotlin-7F52FF?logo=kotlin&logoColor=white" />
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white" />
   <img alt="Tailwind CSS" src="https://img.shields.io/badge/Tailwind_CSS-3-06B6D4?logo=tailwindcss&logoColor=white" />
-  <img alt="License: MPL 2.0" src="https://img.shields.io/badge/license-MPL--2.0-blue" />
+  <img alt="License: Apache 2.0" src="https://img.shields.io/badge/license-Apache--2.0-blue" />
 </p>
 
 > [!WARNING]
@@ -50,7 +50,7 @@ Most messengers ask you to trust a server. Q7 Chat is built around a different d
 - **Local-first storage.** Conversations, contacts, settings and file blobs stay in IndexedDB on your devices. Linked devices exchange sealed snapshots and tombstones through the relays; there is no server that can read or hold plaintext history.
 - **72-hour messages.** Every message gets an expiry timestamp at creation. Expired messages are filtered in the UI and purged from IndexedDB.
 - **Works offline-ish.** Devices talk peer-to-peer over WebRTC when possible. If that fails, encrypted frames fall back to a relay mailbox so messages can arrive later.
-- **Open source under MPL 2.0.** You can inspect, modify and self-host it.
+- **Open source under Apache 2.0.** You can inspect, modify and self-host it.
 
 ## Features
 
@@ -327,13 +327,11 @@ Q7 Chat stores identity, conversations and attachments on your device. It does n
 
 ## License
 
-This project is licensed under the **Mozilla Public License 2.0 (MPL-2.0)**. The full text is in [LICENSE](LICENSE). MPL 2.0 is the current version of the Mozilla Public License; there is no MPL 3.0.
+This project is licensed under the **Apache License 2.0**. The full text is in [LICENSE](LICENSE).
 
 In short:
 
 - You may use, modify and distribute this code, including commercially.
-- If you modify MPL-covered files, you must make those modified files available under the MPL when you distribute them.
-- Larger works may combine MPL-covered code with other code under other terms.
 - No trademark rights are granted.
 
 Copyright © 2026 Q7 Chat contributors.
@@ -341,7 +339,6 @@ Copyright © 2026 Q7 Chat contributors.
 ## Acknowledgements
 
 - Protocol ideas inspired by Tox, Keet and the broader P2P messaging community.
-- [Mozilla](https://www.mozilla.org/MPL/2.0/) for the MPL 2.0 text.
 - [Roboto Flex](https://fonts.google.com/specimen/Roboto+Flex) (SIL Open Font License 1.1) via `next/font`.
 - All open-source dependencies listed in [NOTICE](NOTICE) and `package-lock.json`.
 
