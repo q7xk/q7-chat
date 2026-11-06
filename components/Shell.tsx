@@ -16,6 +16,7 @@ import { MentionsPanel, SpacesPanel, StarredPanel } from "./Shortcuts";
 import { SettingsPanel } from "./Settings";
 import { Thread } from "./Thread";
 import { TopBar } from "./TopBar";
+import { InstallPrompt } from "./InstallPrompt";
 
 /** Rail order, used for the direction-aware view transition. */
 const ORDER: View[] = ["chats", "mentions", "starred", "spaces", "contacts", "connect", "devices", "settings"];
@@ -255,6 +256,7 @@ export function Shell() {
         </ul>
       </nav>
       {snap.fresh && <Onboarding />}                    {/* first-run setup wizard covers the app until it finishes */}
+      <InstallPrompt />
     </div>
   );
 }
