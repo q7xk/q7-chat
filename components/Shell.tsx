@@ -84,7 +84,7 @@ export function Shell() {
   const expanded = pin || hover;
   const go = useCallback((v: View) => { setView(v); setActiveId(null); }, []);
   const openChat = useCallback((id: string) => { setView("chats"); setActiveId(id); }, []);
-  const openSection = useCallback((s: SettingsSection) => { setSection(s); go("settings"); }, []);
+  const openSection = useCallback((s: SettingsSection) => { setSection(s); go("settings"); }, [go]);
   const clearSection = useCallback(() => setSection(null), []);
   useNotifier();
   const chat = view === "chats"; const pane = "md:rounded-[28px] md:overflow-hidden"; const paneScroll = "md:rounded-[28px]";

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Camera, Check, Laptop, MonitorSmartphone, QrCode, Smartphone, Trash2, X } from "lucide-react";
 import { useP2P } from "@/lib/p2p/context";
 import { useI18n } from "@/lib/i18n";
@@ -21,16 +21,16 @@ export function DevicesPanel() {
   const [manualPin, setManualPin] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
 
-  const loadDevices = async () => {
+  const loadDevices = useCallback(async () => {
     try {
       const list = await mgr.getLinkedDevices();
       setDevices(list);
     } catch {}
-  };
+  }, [mgr]);
 
   useEffect(() => {
     void loadDevices();
-  }, []);
+  }, [loadDevices]);
 
   const handleQrResult = async (result: string) => {
     setScanning(false);
