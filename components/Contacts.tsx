@@ -14,7 +14,7 @@ import { Box, Page } from "./ui";
 
 function Row({ c, state, myPub, onOpen }: { c: Contact; state?: string; myPub: string; onOpen: () => void }) {
   const { t } = useI18n(); const { mgr } = useP2P();
-  const [open, setOpen] = useState(false), [safety, setSafety] = useState(""), [name, setName] = useState(c.name), [del, setDel] = useState(false);
+  const [open, setOpen] = useState(false), [safety, setSafety] = useState(""), [name, setName] = useState(c.name), [note, setNote] = useState(c.note ?? ""), [del, setDel] = useState(false);
   useEffect(() => { if (open && myPub) void safetyNumber(fromB64(myPub), fromB64(c.pub)).then(setSafety); }, [open, myPub, c.pub]);
   const on = state === "online";
   return (
@@ -36,6 +36,7 @@ function Row({ c, state, myPub, onOpen }: { c: Contact; state?: string; myPub: s
             {!on && <button onClick={() => mgr.connectNow(c.id)} className={cn(btn, "bg-sc text-onsc")}><Wifi size={15} />{t("contacts.connectNow")}</button>}
           </div>
           <div className="flex gap-2"><input value={name} onChange={(e) => setName(e.target.value)} maxLength={40} aria-label={t("contacts.rename")} className={field} /><button onClick={() => mgr.renameContact(c.id, name)} className={cn(btn, "bg-sc text-onsc")}>{t("contacts.rename")}</button></div>
+          <div className="flex gap-2"><input value={note} onChange={(e) => setNote(e.target.value)} maxLength={200} aria-label="note" className={field} placeholder="Note" /><button onClick={() => mgr.setContactNote(c.id, note)} className={cn(btn, "bg-sc text-onsc")}>Save note</button></div>
           {!del ? <button onClick={() => setDel(true)} className="inline-flex items-center gap-2 text-sm text-danger"><Trash2 size={14} />{t("c.remove")}</button>
             : <div className="flex flex-wrap items-center gap-2 text-sm"><span>{t("contacts.removeAsk")}</span><button onClick={() => mgr.removeContact(c.id)} className="rounded-full bg-danger px-4 py-1.5 font-medium text-bg">{t("c.remove")}</button><button onClick={() => setDel(false)} className="text-muted">{t("c.cancel")}</button></div>}
         </div>

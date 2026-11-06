@@ -652,6 +652,7 @@ export class P2PManager {
     this.scheduleSync();
   }
   renameContact(id: string, name: string) { return this.patchContact(id, { name: cleanName(name), renamed: true }); }
+  setContactNote(id: string, note: string) { return this.patchContact(id, { note: note.trim() || undefined }); }
   setVerified(id: string, verified: boolean) { return this.patchContact(id, { verified }); }
   /** Blocked contacts receive nothing from us, their knock offers are ignored and their frames are dropped on arrival. */
   async blockContact(id: string, blocked: boolean) {

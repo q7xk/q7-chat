@@ -51,7 +51,7 @@ export interface Message {
   /** Last local or synced mutation; used by multi-device last-writer-wins merging. */
   syncAt?: number;
 }
-export interface Contact { id: string; pub: string; name: string; code: string; addedAt: number; verified: boolean; photo?: string; renamed?: boolean; ek?: string; blocked?: boolean; syncAt?: number }
+export interface Contact { id: string; pub: string; name: string; code: string; addedAt: number; verified: boolean; photo?: string; renamed?: boolean; ek?: string; blocked?: boolean; note?: string; label?: string; syncAt?: number }
 export interface Settings {
   theme: "dark" | "light"; previews: PreviewPolicy; accent: string;
   presence: Presence; // capsule status: online / do-not-disturb / away
