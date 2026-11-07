@@ -1,5 +1,7 @@
 # Q7 Chat
 
+Modern PWA-ready, end-to-end encrypted messaging with 72-hour message expiry, multi-device sync, voice messages, and 32 languages.
+
 **Private, serverless messaging that disappears after 72 hours.**
 
 Q7 Chat is a browser-based, end-to-end encrypted messenger built with Next.js, TypeScript and Tailwind CSS. It has no account system, no application server and no message database in the cloud: identity keys, conversations and attachments live in the browser's IndexedDB, while messages travel directly between devices or through public MQTT relays as sealed envelopes.
