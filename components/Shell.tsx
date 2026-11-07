@@ -130,6 +130,7 @@ export function Shell() {
 
   return (
     <div className="flex h-dvh flex-col bg-bg">
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:rounded bg-accent text-bg px-3 py-2">Skip to content</a>
       <ShapeDefs />
       <TopBar railOpen={pin} onRail={() => setPin((v) => !v)} query={query} onQuery={setQuery} onSection={openSection} view={view} goChats={() => go("chats")} />
 
@@ -221,7 +222,7 @@ export function Shell() {
           </div>
         </nav>
 
-        <main className="flex min-h-0 min-w-0 flex-1 gap-2 md:p-2">
+        <main id="main-content" className="flex min-h-0 min-w-0 flex-1 gap-2 md:p-2">
           {chat ? (
             <>
               <section className={cn("m3-fade w-full shrink-0 flex-col bg-panel md:flex md:w-96", pane, activeId ? "hidden" : "flex")}><ChatList activeId={activeId} onOpen={setActiveId} onAdd={() => go("connect")} query={query} /></section>
