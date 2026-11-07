@@ -11,7 +11,10 @@ export const viewport: Viewport = { width: "device-width", initialScale: 1, view
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" data-theme="dark" suppressHydrationWarning>
-      <body className={`${robotoFlex.variable} font-sans`}>{children}</body>
+      <body className={`${robotoFlex.variable} font-sans`}>
+        {children}
+        <script dangerouslySetInnerHTML={{ __html: "if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js');}" }} />
+      </body>
     </html>
   );
 }
