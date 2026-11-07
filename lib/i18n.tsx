@@ -8,7 +8,7 @@ export const LANGS = [
   { code: "en", name: "English" }, { code: "tr", name: "Türkçe" }, { code: "de", name: "Deutsch" }, { code: "zh", name: "中文（普通话）" },
   { code: "ja", name: "日本語" }, { code: "ko", name: "한국어" }, { code: "fr", name: "Français" }, { code: "es", name: "Español" },
   { code: "pt", name: "Português" }, { code: "ru", name: "Русский" }, { code: "pl", name: "Polski" }, { code: "uk", name: "Українська" },
-  { code: "hi", name: "हिन्दी" }, { code: "id", name: "Bahasa Indonesia" }, { code: "it", name: "Italiano" }, { code: "nl", name: "Nederlands" }, { code: "ar", name: "العربية" },
+  { code: "hi", name: "हिन्दी" }, { code: "id", name: "Bahasa Indonesia" }, { code: "it", name: "Italiano" }, { code: "nl", name: "Nederlands" }, { code: "ar", name: "العربية" }, { code: "fa", name: "فارسی" }, { code: "vi", name: "Tiếng Việt" }, { code: "el", name: "Ελληνικά" }, { code: "sv", name: "Svenska" }, { code: "da", name: "Dansk" }, { code: "fi", name: "Suomi" }, { code: "hu", name: "Magyar" }, { code: "cs", name: "Čeština" }, { code: "ro", name: "Română" }, { code: "th", name: "ไทย" }, { code: "bn", name: "বাংলা" }, { code: "sw", name: "Kiswahili" }, { code: "az", name: "Azərbaycan" }, { code: "tl", name: "Tagalog" }, { code: "ms", name: "Bahasa Melayu" },
 ] as const;
 const CODES: string[] = LANGS.map((l) => l.code);
 
@@ -17,6 +17,10 @@ const loaders: Record<string, () => Promise<{ default: Dict }>> = {
   ko: () => import("../langs/ko.json"), fr: () => import("../langs/fr.json"), es: () => import("../langs/es.json"), pt: () => import("../langs/pt.json"),
   ru: () => import("../langs/ru.json"), pl: () => import("../langs/pl.json"), uk: () => import("../langs/uk.json"), hi: () => import("../langs/hi.json"),
   id: () => import("../langs/id.json"), it: () => import("../langs/it.json"), nl: () => import("../langs/nl.json"), ar: () => import("../langs/ar.json"),
+  fa: () => import("../langs/fa.json"), vi: () => import("../langs/vi.json"), el: () => import("../langs/el.json"), sv: () => import("../langs/sv.json"),
+  da: () => import("../langs/da.json"), fi: () => import("../langs/fi.json"), hu: () => import("../langs/hu.json"), cs: () => import("../langs/cs.json"),
+  ro: () => import("../langs/ro.json"), th: () => import("../langs/th.json"), bn: () => import("../langs/bn.json"), sw: () => import("../langs/sw.json"),
+  az: () => import("../langs/az.json"), tl: () => import("../langs/tl.json"), ms: () => import("../langs/ms.json"),
 };
 
 /** First browser language we support, else English. */

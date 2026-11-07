@@ -9,7 +9,7 @@ const ph = (s: string) => (s.match(/\{\w+\}/g) ?? []).sort().join();
 
 describe("translations", () => {
   it("has a file for each of the 17 languages and nothing else", () => {
-    expect(LANGS).toHaveLength(17);
+    expect(LANGS).toHaveLength(32);
     expect(readdirSync(dir).map((f) => f.replace(".json", "")).sort()).toEqual(LANGS.map((l) => l.code).sort());
   });
   for (const { code } of LANGS) {
@@ -27,8 +27,8 @@ describe("language detection", () => {
     expect(detectLang(["pt-BR"])).toBe("pt");
     expect(detectLang(["zh-Hans-CN"])).toBe("zh");
     expect(detectLang(["in"])).toBe("id");
-    expect(detectLang(["sv-SE", "uk-UA"])).toBe("uk");
-    expect(detectLang(["sv-SE", "fi"])).toBe("en");
+    expect(detectLang(["xx-XX", "uk-UA"])).toBe("uk");
+    expect(detectLang(["xx-XX"])).toBe("en");
     expect(detectLang([])).toBe("en");
   });
 });
