@@ -21,6 +21,7 @@ export interface Conversation {
   id: string; mode: Mode; title: string;
   pinned: boolean; muted: boolean; archived: boolean; unread: number;
   starred?: boolean; // collected under the "Yıldızlı" rail shortcut
+  pinnedMessages?: string[]; // message ids pinned to the top of this conversation
   contactId?: string; // set for p2p conversations
   wall?: string; // chat wallpaper (gradient id)
   members?: string[]; // group: member fingerprints, mine included

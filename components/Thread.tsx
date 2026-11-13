@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Check, ChevronLeft, Clock, MessageSquareDashed, Pencil, Reply, ShieldCheck, Smile, Trash2, Wifi, X } from "lucide-react";
+import { Check, ChevronLeft, Clock, MessageSquareDashed, Pencil, Pin, Reply, ShieldCheck, Smile, Trash2, Wifi, X } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { useI18n } from "@/lib/i18n";
 import { useP2P } from "@/lib/p2p/context";
@@ -38,7 +38,7 @@ function Body({ m }: { m: Message }) {
 }
 
 export function Thread({ conversationId, onBack }: { conversationId: string | null; onBack: () => void }) {
-  const { conversations, messages, now, update, send, remove, updateMessage } = useStore();
+  const { conversations, messages, now, update, send, remove, updateMessage, pinMessage, unpinMessage } = useStore();
   const { t, dur } = useI18n(); const { mgr, snap } = useP2P();
   const [replyId, setReplyId] = useState<string | null>(null);
   const [reactId, setReactId] = useState<string | null>(null);
@@ -113,6 +113,7 @@ export function Thread({ conversationId, onBack }: { conversationId: string | nu
           const editing = editId === m.id;
           const deletable = mine && conv.mode !== "local";
           const editable = mine && !m.att && !m.link?.title;
+          const isPinned = (conv.pinnedMessages ?? []).includes(m.id);
           return (
             <div key={m.id} style={{ animationDelay: `${Math.min(list.length - 1 - i, 9) * 25}ms` }} className={cn("m3-msg group max-w-[min(34rem,90%)]", incoming ? "me-auto" : "ms-auto")}>
               {group && incoming && <p className="mb-0.5 ms-2 truncate text-[11px] font-semibold text-muted">{nameOf(m.from)}</p>}
@@ -128,7 +129,12 @@ export function Thread({ conversationId, onBack }: { conversationId: string | nu
                       <button onClick={() => saveEdit(m)} aria-label={t("c.save")} className="m3-press rounded-full bg-accent p-1.5 text-bg"><Check size={15} /></button>
                     </div>
                   </div>
-                ) : <Body m={m} />}
+                ) : (
+                  <>
+                    {isPinned && <p className="mb-1 flex items-center gap-1 text-[11px] font-medium text-accent"><Pin size={11} />{t("thread.pinned")}</p>}
+                    <Body m={m} />
+                  </>
+                )}
                 {m.att && <AttachmentView m={m} p2p={p2p || group} onVote={(c) => vote(m, c)} />}
               </div>
               {m.reactions && Object.keys(m.reactions).length > 0 && (
@@ -157,6 +163,7 @@ export function Thread({ conversationId, onBack }: { conversationId: string | nu
                   <button onClick={() => setReplyId(m.id)} aria-label={t("thread.reply")} className="m3-press rounded-full p-1.5 hover:bg-raised hover:text-ink"><Reply size={14} className="rtl:-scale-x-100" /></button>
                   {editable && <button onClick={() => { setEditId(m.id); setEditBody(m.body); }} aria-label={t("thread.edit")} className="m3-press rounded-full p-1.5 hover:bg-raised hover:text-ink"><Pencil size={14} /></button>}
                   {m.body && <CopyButton text={m.body} />}
+                  <button onClick={() => { isPinned ? unpinMessage(conv.id, m.id) : pinMessage(conv.id, m.id); }} aria-label={isPinned ? t("thread.unpin") : t("thread.pin")} className="m3-press rounded-full p-1.5 hover:bg-raised hover:text-ink"><Pin size={14} fill={isPinned ? "currentColor" : "none"} stroke={isPinned ? "none" : "currentColor"} /></button>
                   <button onClick={() => { if (deletable) mgr.retract(conv.id, m.id); else remove(m.id); }} aria-label={deletable ? t("thread.deleteAll") : t("thread.delete")} className="m3-press rounded-full p-1.5 hover:bg-raised hover:text-danger"><Trash2 size={14} /></button>
                 </span>
               </div>

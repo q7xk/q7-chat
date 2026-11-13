@@ -14,6 +14,8 @@ interface Store {
   conversations: Conversation[]; messages: Message[]; settings: Settings;
   createLocal: (title: string) => string;
   update: (id: string, patch: Partial<Conversation>) => void;
+  pinMessage: (conversationId: string, messageId: string) => void;
+  unpinMessage: (conversationId: string, messageId: string) => void;
   send: (conversationId: string, body: string, link?: LinkMeta, replyToId?: string, att?: Attachment, blob?: Blob) => void;
   remove: (messageId: string) => void;
   createP2P: (contactId: string, title: string) => string;
@@ -163,6 +165,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setConversations((c) => c.map((x) => (x.id === id ? next : x))); persist(db.putConversation(next));
     notifySync();
   }, [persist, notifySync]);
+  const pinMessage = useCallback((cid: string, mid: string) => {
+    const cur = convRef.current.find((x) => x.id === cid); if (!cur) return;
+    const list = cur.pinnedMessages ?? [];
+    if (list.includes(mid)) return;
+    update(cid, { pinnedMessages: [...list, mid] });
+  }, [update]);
+  const unpinMessage = useCallback((cid: string, mid: string) => {
+    const cur = convRef.current.find((x) => x.id === cid); if (!cur) return;
+    const list = (cur.pinnedMessages ?? []).filter((x) => x !== mid);
+    update(cid, { pinnedMessages: list.length ? list : undefined });
+  }, [update]);
   const send = useCallback((cid: string, body: string, link?: LinkMeta, replyToId?: string, att?: Attachment, blob?: Blob) => {
     const m = mk(cid, body, link, replyToId, att);
     setNow(Date.now()); msgRef.current = [...msgRef.current, m]; setMessages(msgRef.current);
@@ -340,6 +353,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const live = useMemo(() => messages.filter((m) => m.expiresAt > now), [messages, now]);
   const peekConversations = useCallback(() => convRef.current, []);
   const peekMessages = useCallback(() => { const t = Date.now(); return msgRef.current.filter((m) => m.expiresAt > t); }, []);
-  const value: Store = { ready, now, storageError, blobTick, bumpBlobs, conversations, messages: live, settings, createLocal, update, send, remove, createP2P, createGroup, addMessage, updateMessage, reactMessage, removeConversation, clearConversation, wipeLocal, exportBackup, importBackup, getSyncState, getDeviceId, mergeSyncSnapshot, setSyncNotifier, tombstoneSync, setSettings, peekConversations, peekMessages, spaces, createSpace, deleteSpace, renameSpace, spaceAdd, spaceRemove };
+  const value: Store = { ready, now, storageError, blobTick, bumpBlobs, conversations, messages: live, settings, createLocal, update, pinMessage, unpinMessage, send, remove, createP2P, createGroup, addMessage, updateMessage, reactMessage, removeConversation, clearConversation, wipeLocal, exportBackup, importBackup, getSyncState, getDeviceId, mergeSyncSnapshot, setSyncNotifier, tombstoneSync, setSettings, peekConversations, peekMessages, spaces, createSpace, deleteSpace, renameSpace, spaceAdd, spaceRemove };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
