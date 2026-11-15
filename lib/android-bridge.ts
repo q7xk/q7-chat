@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 export interface AndroidBridgeInterface {
   showToast(message: string): void;
@@ -17,7 +17,7 @@ declare global {
 }
 
 export function isAndroidApp(): boolean {
-  return typeof window !== "undefined" && Boolean(window.AndroidBridge?.isNativeApp?.());
+  return typeof window !== 'undefined' && Boolean(window.AndroidBridge?.isNativeApp?.());
 }
 
 export function showAndroidToast(message: string): boolean {
@@ -26,7 +26,7 @@ export function showAndroidToast(message: string): boolean {
       window.AndroidBridge.showToast(message);
       return true;
     } catch (e) {
-      console.warn("AndroidBridge error", e);
+      console.warn('AndroidBridge error', e);
     }
   }
   return false;
@@ -38,10 +38,10 @@ export function vibrateAndroid(durationMs: number = 50): boolean {
       window.AndroidBridge.vibrate(durationMs);
       return true;
     } catch (e) {
-      console.warn("AndroidBridge error", e);
+      console.warn('AndroidBridge error', e);
     }
   }
-  if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+  if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
     try {
       navigator.vibrate(durationMs);
       return true;
@@ -52,16 +52,16 @@ export function vibrateAndroid(durationMs: number = 50): boolean {
   return false;
 }
 
-export function shareAndroidText(text: string, title: string = "Q7 Chat"): boolean {
+export function shareAndroidText(text: string, title: string = 'Q7 Chat'): boolean {
   if (isAndroidApp() && window.AndroidBridge) {
     try {
       window.AndroidBridge.shareText(text, title);
       return true;
     } catch (e) {
-      console.warn("AndroidBridge error", e);
+      console.warn('AndroidBridge error', e);
     }
   }
-  if (typeof navigator !== "undefined" && "share" in navigator) {
+  if (typeof navigator !== 'undefined' && 'share' in navigator) {
     try {
       navigator.share({ title, text }).catch(() => {});
       return true;
@@ -78,7 +78,7 @@ export function notifyAndroid(title: string, message: string): boolean {
       window.AndroidBridge.showNotification(title, message);
       return true;
     } catch (e) {
-      console.warn("AndroidBridge error", e);
+      console.warn('AndroidBridge error', e);
     }
   }
   return false;

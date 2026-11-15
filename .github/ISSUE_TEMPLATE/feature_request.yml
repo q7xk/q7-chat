@@ -1,7 +1,7 @@
 name: Feature request
 description: Suggest a feature or improvement for Q7 Chat
-title: "feat: "
-labels: ["enhancement", "needs triage"]
+title: 'feat: '
+labels: ['enhancement', 'needs triage']
 body:
   - type: markdown
     attributes:

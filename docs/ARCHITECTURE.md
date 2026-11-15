@@ -47,68 +47,68 @@ Next.js App Router entry points.
 
 Presentation and interaction. Most components are client components. Major pieces:
 
-| Component | Responsibility |
-| --- | --- |
-| `Shell.tsx` | Rail and mobile navigation, view routing, notifications, sidebar lists |
-| `ChatList.tsx` | Conversation filtering, search, unread and pin state |
-| `Thread.tsx` | Message rendering, expiry, delivery state, reactions, replies |
-| `Composer.tsx` | Text, attachments, voice recording, emoji/GIF pickers |
-| `Connect.tsx` | Code/QR/file pairing, incoming requests |
-| `Contacts.tsx` | Contacts, safety numbers, blocking, contact cards |
-| `Devices.tsx` | Linked device list and QR-based device linking |
-| `Settings.tsx` | Profile, notifications, media, look, accessibility, restrictions, privacy, vault |
-| `Lock.tsx` | Vault unlock screen and idle re-lock |
-| `Onboarding.tsx` | First-run identity setup |
-| `ChatMenu.tsx` | Per-conversation actions (pin, mute, archive, clear, delete) |
-| `GroupDialog.tsx` | Group creation and member selection |
-| `Scanner.tsx` | Camera-based QR scanning |
+| Component         | Responsibility                                                                   |
+| ----------------- | -------------------------------------------------------------------------------- |
+| `Shell.tsx`       | Rail and mobile navigation, view routing, notifications, sidebar lists           |
+| `ChatList.tsx`    | Conversation filtering, search, unread and pin state                             |
+| `Thread.tsx`      | Message rendering, expiry, delivery state, reactions, replies                    |
+| `Composer.tsx`    | Text, attachments, voice recording, emoji/GIF pickers                            |
+| `Connect.tsx`     | Code/QR/file pairing, incoming requests                                          |
+| `Contacts.tsx`    | Contacts, safety numbers, blocking, contact cards                                |
+| `Devices.tsx`     | Linked device list and QR-based device linking                                   |
+| `Settings.tsx`    | Profile, notifications, media, look, accessibility, restrictions, privacy, vault |
+| `Lock.tsx`        | Vault unlock screen and idle re-lock                                             |
+| `Onboarding.tsx`  | First-run identity setup                                                         |
+| `ChatMenu.tsx`    | Per-conversation actions (pin, mute, archive, clear, delete)                     |
+| `GroupDialog.tsx` | Group creation and member selection                                              |
+| `Scanner.tsx`     | Camera-based QR scanning                                                         |
 
 ### `lib/`
 
 Shared application logic.
 
-| Module | Responsibility |
-| --- | --- |
-| `types.ts` | Domain types: conversations, messages, contacts, attachments, settings |
-| `db.ts` | IndexedDB schema, CRUD, purge, import/export |
+| Module      | Responsibility                                                              |
+| ----------- | --------------------------------------------------------------------------- |
+| `types.ts`  | Domain types: conversations, messages, contacts, attachments, settings      |
+| `db.ts`     | IndexedDB schema, CRUD, purge, import/export                                |
 | `store.tsx` | React state for conversations, messages, settings and spaces; sync notifier |
-| `backup.ts` | Encrypted `.q7b` export, decryption and strict payload validation |
-| `sync.ts` | Multi-device snapshot sealing, last-writer-wins merge and tombstones |
-| `vault.ts` | Password-derived key wrapping, sealed identity, TOTP |
-| `attach.ts` | File limits, image re-encoding, attachment validation |
-| `i18n.tsx` | Language detection, dictionaries, formatting helpers |
-| `theme.ts` | Theme and accent color application |
-| `links.ts` | HTTPS URL parsing and safe link previews |
-| `time.ts` | 72-hour lifetime constant |
-| `names.ts` | Display-name cleaning |
-| `cn.ts` | Class-name helper |
+| `backup.ts` | Encrypted `.q7b` export, decryption and strict payload validation           |
+| `sync.ts`   | Multi-device snapshot sealing, last-writer-wins merge and tombstones        |
+| `vault.ts`  | Password-derived key wrapping, sealed identity, TOTP                        |
+| `attach.ts` | File limits, image re-encoding, attachment validation                       |
+| `i18n.tsx`  | Language detection, dictionaries, formatting helpers                        |
+| `theme.ts`  | Theme and accent color application                                          |
+| `links.ts`  | HTTPS URL parsing and safe link previews                                    |
+| `time.ts`   | 72-hour lifetime constant                                                   |
+| `names.ts`  | Display-name cleaning                                                       |
+| `cn.ts`     | Class-name helper                                                           |
 
 ### `lib/p2p/`
 
 The protocol implementation.
 
-| Module | Responsibility |
-| --- | --- |
-| `crypto.ts` | Identity generation, signing, envelopes, ECDH sessions, safety numbers |
-| `q7rp.ts` | Pairwise key derivation, signed relay frames, replay window, topic derivation |
-| `mqtt.ts` | Minimal MQTT 3.1.1 client over WebSocket Secure, per-relay health and jittered backoff |
-| `rtc.ts` | WebRTC peer connection, DataChannel, ICE/STUN/TURN |
-| `manager.ts` | State machine: identity, pairing, connections, outbox, mailbox, groups, delivery |
-| `context.tsx` | React provider exposing `{ snap, mgr }` |
-| `pack.ts` | Frame packing helpers |
+| Module        | Responsibility                                                                         |
+| ------------- | -------------------------------------------------------------------------------------- |
+| `crypto.ts`   | Identity generation, signing, envelopes, ECDH sessions, safety numbers                 |
+| `q7rp.ts`     | Pairwise key derivation, signed relay frames, replay window, topic derivation          |
+| `mqtt.ts`     | Minimal MQTT 3.1.1 client over WebSocket Secure, per-relay health and jittered backoff |
+| `rtc.ts`      | WebRTC peer connection, DataChannel, ICE/STUN/TURN                                     |
+| `manager.ts`  | State machine: identity, pairing, connections, outbox, mailbox, groups, delivery       |
+| `context.tsx` | React provider exposing `{ snap, mgr }`                                                |
+| `pack.ts`     | Frame packing helpers                                                                  |
 
 ## Storage model
 
 IndexedDB database: `q7-local`, version 3.
 
-| Store | Key | Contents |
-| --- | --- | --- |
-| `local_conversations` | `id` | Conversation metadata |
-| `local_messages` | `id` | Messages, indexed by `conversationId` and `expiresAt` |
-| `local_settings` | `key` | Flags such as `seeded`, `spaces`, vault metadata, `sync-device-id`, `sync-tombstones` |
-| `p2p_contacts` | `id` | Contacts, including public keys and safety metadata |
-| `p2p_identity` | `key` | Device key pair (unless sealed by a vault) |
-| `local_blobs` | `id` | Attachment bytes, keyed by message id, indexed by `expiresAt` |
+| Store                 | Key   | Contents                                                                              |
+| --------------------- | ----- | ------------------------------------------------------------------------------------- |
+| `local_conversations` | `id`  | Conversation metadata                                                                 |
+| `local_messages`      | `id`  | Messages, indexed by `conversationId` and `expiresAt`                                 |
+| `local_settings`      | `key` | Flags such as `seeded`, `spaces`, vault metadata, `sync-device-id`, `sync-tombstones` |
+| `p2p_contacts`        | `id`  | Contacts, including public keys and safety metadata                                   |
+| `p2p_identity`        | `key` | Device key pair (unless sealed by a vault)                                            |
+| `local_blobs`         | `id`  | Attachment bytes, keyed by message id, indexed by `expiresAt`                         |
 
 Expiry is enforced in three places:
 

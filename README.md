@@ -1,5 +1,7 @@
 # Q7 Chat
 
+Modern PWA-ready, end-to-end encrypted messaging with 72-hour message expiry, multi-device sync, voice messages, and 32 languages.
+
 **Private, serverless messaging that disappears after 72 hours.**
 
 Q7 Chat is a browser-based, end-to-end encrypted messenger built with Next.js, TypeScript and Tailwind CSS. It has no account system, no application server and no message database in the cloud: identity keys, conversations and attachments live in the browser's IndexedDB, while messages travel directly between devices or through public MQTT relays as sealed envelopes.
@@ -136,16 +138,16 @@ The design is intentionally simple and auditable, but it has **not** received an
 
 ## Tech stack
 
-| Layer | Choice |
-| --- | --- |
-| Framework | [Next.js 14](https://nextjs.org/) App Router |
-| Language | [TypeScript 5](https://www.typescriptlang.org/) |
-| UI | [React 18](https://react.dev/), [Tailwind CSS 3](https://tailwindcss.com/), [Lucide](https://lucide.dev/) |
-| Storage | IndexedDB (`lib/db.ts`) with `fake-indexeddb` in tests |
-| Crypto | Web Crypto API — ECDSA P-256, ECDH P-256, HKDF, AES-256-GCM, PBKDF2-SHA256 |
-| Transport | WebRTC DataChannels, MQTT 3.1.1 over WSS |
-| QR | `qrcode` (generation) and `jsqr` (scanning) |
-| Tests | [Vitest](https://vitest.dev/) |
+| Layer     | Choice                                                                                                    |
+| --------- | --------------------------------------------------------------------------------------------------------- |
+| Framework | [Next.js 14](https://nextjs.org/) App Router                                                              |
+| Language  | [TypeScript 5](https://www.typescriptlang.org/)                                                           |
+| UI        | [React 18](https://react.dev/), [Tailwind CSS 3](https://tailwindcss.com/), [Lucide](https://lucide.dev/) |
+| Storage   | IndexedDB (`lib/db.ts`) with `fake-indexeddb` in tests                                                    |
+| Crypto    | Web Crypto API — ECDSA P-256, ECDH P-256, HKDF, AES-256-GCM, PBKDF2-SHA256                                |
+| Transport | WebRTC DataChannels, MQTT 3.1.1 over WSS                                                                  |
+| QR        | `qrcode` (generation) and `jsqr` (scanning)                                                               |
+| Tests     | [Vitest](https://vitest.dev/)                                                                             |
 
 ## Getting started
 
@@ -183,14 +185,14 @@ Open <http://localhost:3000>. P2P functionality works on `localhost`; on a phone
 
 ## Scripts
 
-| Command | Description |
-| --- | --- |
-| `npm run dev` | Start the Next.js development server on port 3000. |
-| `npm run build` | Create an optimized production build. |
-| `npm start` | Serve the production build. |
-| `npm run typecheck` | Run `tsc --noEmit`. |
-| `npm test` | Run the Vitest suite once. |
-| `npm run lint` | Run Next.js linting (requires an ESLint setup). |
+| Command             | Description                                        |
+| ------------------- | -------------------------------------------------- |
+| `npm run dev`       | Start the Next.js development server on port 3000. |
+| `npm run build`     | Create an optimized production build.              |
+| `npm start`         | Serve the production build.                        |
+| `npm run typecheck` | Run `tsc --noEmit`.                                |
+| `npm test`          | Run the Vitest suite once.                         |
+| `npm run lint`      | Run Next.js linting (requires an ESLint setup).    |
 
 ## Deployment
 

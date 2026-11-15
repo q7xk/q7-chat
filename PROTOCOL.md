@@ -14,24 +14,24 @@ Kod tabanı: `lib/p2p/` — `crypto.ts` (kimlik + zarf + oturum), `q7rp.ts` (rel
 
 ## 1. Amaç ve garantiler
 
-| Garanti | Nasıl |
-|---|---|
-| Sunucusuz çalışma | Sinyal + fallback veri taşıyıcısı olarak halka açık MQTT-over-WSS broker mesh'i |
-| Her yerden erişim | WebRTC STUN delik delme (direct) ⇒ kurulamazsa Q7RP relay (UDP kapalı veya simetrik NAT'ta bile çalışır: broker'lar 443/8084 üzerinden WSS) |
-| Uçtan uca şifre | ECDH P-256 + HKDF + AES-256-GCM; aktarıcı sadece şifreli metin ve konu hash'leri görür |
-| Kimlik doğrulama | Tüm zarflar ve frame'ler cihazın kalıcı imza anahtarıyla imzalı (ECDSA P-256) |
-| MITM koruması | 12 haneli adres kodu fingerprint'e bağlı yalnız adres; 30 haneli safety number ile görsel doğrulama |
-| Offline teslim | Mailbox: broker'da retained kopyalar, karşı taraf dönünce akar |
-| Kayıt ömrü | Mesajlar 72 saat yaşar (API katmanı expiresAt'i yeniden hesaplar; ihlal edilemez) |
-| Simetrik NAT / UDP engelli | Doğrudan WebRTC başarısız olursa konuşma relay moduna düşer (Tox'un TCP relay'ine denk gelen Q7RP fallback) |
-| Sunucusuz statik uygulama | Uygulama kabuksuz statik dosyadır (PWA); herhangi bir statik host'tan servis edilebilir |
+| Garanti                    | Nasıl                                                                                                                                       |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sunucusuz çalışma          | Sinyal + fallback veri taşıyıcısı olarak halka açık MQTT-over-WSS broker mesh'i                                                             |
+| Her yerden erişim          | WebRTC STUN delik delme (direct) ⇒ kurulamazsa Q7RP relay (UDP kapalı veya simetrik NAT'ta bile çalışır: broker'lar 443/8084 üzerinden WSS) |
+| Uçtan uca şifre            | ECDH P-256 + HKDF + AES-256-GCM; aktarıcı sadece şifreli metin ve konu hash'leri görür                                                      |
+| Kimlik doğrulama           | Tüm zarflar ve frame'ler cihazın kalıcı imza anahtarıyla imzalı (ECDSA P-256)                                                               |
+| MITM koruması              | 12 haneli adres kodu fingerprint'e bağlı yalnız adres; 30 haneli safety number ile görsel doğrulama                                         |
+| Offline teslim             | Mailbox: broker'da retained kopyalar, karşı taraf dönünce akar                                                                              |
+| Kayıt ömrü                 | Mesajlar 72 saat yaşar (API katmanı expiresAt'i yeniden hesaplar; ihlal edilemez)                                                           |
+| Simetrik NAT / UDP engelli | Doğrudan WebRTC başarısız olursa konuşma relay moduna düşer (Tox'un TCP relay'ine denk gelen Q7RP fallback)                                 |
+| Sunucusuz statik uygulama  | Uygulama kabuksuz statik dosyadır (PWA); herhangi bir statik host'tan servis edilebilir                                                     |
 
 ## 2. Kimlik ve adresleme
 
 - **Cihaz kimliği = anahtar çifti:**
   - `signKey`: ECDSA P-256 — her şeyi imzalar.
   - `staticKey`: ECDH P-256 — kalıcı pairwise şifreleme anahtarının kaynağı (`ek`).
-  Her ikisi IndexedDB'de saklanır (`p2p_identity`); private anahtar cihazdan çıkmaz.
+    Her ikisi IndexedDB'de saklanır (`p2p_identity`); private anahtar cihazdan çıkmaz.
 - **Fingerprint (`fp`)** = `sha256(signKey.pub)` (32 byte).
 - **Adres kodu** = fingerprint'in ilk 6 byte'ından türeyen 12 hane (`codeFromFp`).
   Kod gizli bir değer değildir; kimliği "adres" olarak gösterir.
@@ -60,6 +60,7 @@ broker'ı erişilemese bile eşleşme çalışır.
 ## 4. Q7RP v2 — veri katmanı
 
 ### 4.1 Transport seçimi (`manager.ts`)
+
 - `transmit()`: canlı bir DataChannel varsa doğrudan ona yazar (v1 yolu: ephemeral
   oturum, chunk'lı dosya).
 - Yoksa **Q7RP yolu**: her frame, pairwise anahtarla AES-GCM'a sallanır, imzalanır ve
@@ -70,14 +71,14 @@ broker'ı erişilemese bile eşleşme çalışır.
 ```jsonc
 {
   "v": 2,
-  "from": "<fp-hex 64>",      // gönderen fingerprint (fp = sha256(pub) — imzayla bağlı)
-  "to":   "<fp-hex 64>",      // alıcı; konu da buna göre hash'lenir
-  "pub":  "<b64>",            // gönderen imza anahtarı (doğrulama için)
-  "ek":   "<b64>",            // gönderen statik ECDH anahtarı (pair key için)
-  "seq":  42,                 // ms-offset monotonic sıra; replay penceresi için
-  "iv":   "<b64 12>",         // AES-GCM IV
-  "ct":   "<b64>",            // AES-GCM şifreli uygulama frame'i
-  "sig":  "<b64>"             // ECDSA(P-256): imza bytes = ["q7rp-v2", from, to, pub, ek, seq, iv, ct]
+  "from": "<fp-hex 64>", // gönderen fingerprint (fp = sha256(pub) — imzayla bağlı)
+  "to": "<fp-hex 64>", // alıcı; konu da buna göre hash'lenir
+  "pub": "<b64>", // gönderen imza anahtarı (doğrulama için)
+  "ek": "<b64>", // gönderen statik ECDH anahtarı (pair key için)
+  "seq": 42, // ms-offset monotonic sıra; replay penceresi için
+  "iv": "<b64 12>", // AES-GCM IV
+  "ct": "<b64>", // AES-GCM şifreli uygulama frame'i
+  "sig": "<b64>", // ECDSA(P-256): imza bytes = ["q7rp-v2", from, to, pub, ek, seq, iv, ct]
 }
 ```
 
@@ -87,12 +88,12 @@ Chunk'lı büyük dosya aktarımı yalnız direct modda; relay modunda inline �
 
 ### 4.3 Konular
 
-| Konu | Anlamı | retain |
-|---|---|---|
-| `q7rp/v2/l/<fp>` | canlı push (alıcı şu anda dinliyorsa) | hayır |
-| `q7rp/v2/m/<fp>/<msgid>[/<part>]` | **Mailbox** (alıcı offline iken saklanan kopya) | evet |
-| `q7rp/v2/a/<fp>/<msgid>` | teslim makbuzu (imzalı) | hayır |
-| `q7/v1/…` | v1 eşleşme sinyali | hayır |
+| Konu                              | Anlamı                                          | retain |
+| --------------------------------- | ----------------------------------------------- | ------ |
+| `q7rp/v2/l/<fp>`                  | canlı push (alıcı şu anda dinliyorsa)           | hayır  |
+| `q7rp/v2/m/<fp>/<msgid>[/<part>]` | **Mailbox** (alıcı offline iken saklanan kopya) | evet   |
+| `q7rp/v2/a/<fp>/<msgid>`          | teslim makbuzu (imzalı)                         | hayır  |
+| `q7/v1/…`                         | v1 eşleşme sinyali                              | hayır  |
 
 ### 4.4 Mailbox akışı
 
@@ -166,19 +167,19 @@ keşfedemez veya sahte retained mesajla üzerine yazamaz.
 
 ## 7. Test matrisi
 
-| # | Senaryo | Beklenen |
-|---|---|---|
-| 1 | Aynı LAN'da iki tarayıcı, kod ile eşleşme | online · direct |
-| 2 | Ayrı ağlar (örn. telefon vs ev WLAN): kod ile eşleşme | online · direct (STUN delik delme) |
-| 3 | Simetrik NAT (iki taraf cep şebekesi) | direct başarısız olursa otomatik `relay`; konuşma akışı sürer |
-| 4 | UDP bloklu (örn. sıkı AP) | relay mode: tüm konuşma broker üzerinden çalışır |
-| 5 | B kapalıyken A mesaj yazar; B 2 dakika sonra döner | B mailbox'ı alır; A'da `delivered` |
-| 6 | B kapalıyken ≤160 KB dosya | dönüşte inline frame ile dosya açılabilir |
-| 7 | 3 broker'dan biri ölür | kalan ikisi frame taşır; tek broker ile bile teslim |
-| 8 | İki tarayıcıda safety number kıyası | iki ekranda aynı 30 hane |
-| 9 | Broker'da msg değiştirmeye / sahte üretmeye kalkış | imza reddedilir; sessiz drop |
-| 10 | Sayfa yenilendikten sonra (F5) | kimlik/iletişim/konuşma durumu IndexedDB'de korunur |
-| 11 | relay="kapalı" (Settings) | hiçbir MQTT bağlantısı kurulmaz; yalnız QR/dosya ile eşleşme |
+| #   | Senaryo                                               | Beklenen                                                      |
+| --- | ----------------------------------------------------- | ------------------------------------------------------------- |
+| 1   | Aynı LAN'da iki tarayıcı, kod ile eşleşme             | online · direct                                               |
+| 2   | Ayrı ağlar (örn. telefon vs ev WLAN): kod ile eşleşme | online · direct (STUN delik delme)                            |
+| 3   | Simetrik NAT (iki taraf cep şebekesi)                 | direct başarısız olursa otomatik `relay`; konuşma akışı sürer |
+| 4   | UDP bloklu (örn. sıkı AP)                             | relay mode: tüm konuşma broker üzerinden çalışır              |
+| 5   | B kapalıyken A mesaj yazar; B 2 dakika sonra döner    | B mailbox'ı alır; A'da `delivered`                            |
+| 6   | B kapalıyken ≤160 KB dosya                            | dönüşte inline frame ile dosya açılabilir                     |
+| 7   | 3 broker'dan biri ölür                                | kalan ikisi frame taşır; tek broker ile bile teslim           |
+| 8   | İki tarayıcıda safety number kıyası                   | iki ekranda aynı 30 hane                                      |
+| 9   | Broker'da msg değiştirmeye / sahte üretmeye kalkış    | imza reddedilir; sessiz drop                                  |
+| 10  | Sayfa yenilendikten sonra (F5)                        | kimlik/iletişim/konuşma durumu IndexedDB'de korunur           |
+| 11  | relay="kapalı" (Settings)                             | hiçbir MQTT bağlantısı kurulmaz; yalnız QR/dosya ile eşleşme  |
 
 ## 8. Kod haritası
 

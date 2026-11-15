@@ -4,25 +4,25 @@ Q7 Chat ships with 17 languages. Translation files live in `langs/` and are plai
 
 ## Current languages
 
-| Code | Language | Direction |
-| --- | --- | --- |
-| `en` | English | LTR |
-| `tr` | Türkçe | LTR |
-| `de` | Deutsch | LTR |
-| `zh` | 中文（普通话） | LTR |
-| `ja` | 日本語 | LTR |
-| `ko` | 한국어 | LTR |
-| `fr` | Français | LTR |
-| `es` | Español | LTR |
-| `pt` | Português | LTR |
-| `ru` | Русский | LTR |
-| `pl` | Polski | LTR |
-| `uk` | Українська | LTR |
-| `hi` | हिन्दी | LTR |
-| `id` | Bahasa Indonesia | LTR |
-| `it` | Italiano | LTR |
-| `nl` | Nederlands | LTR |
-| `ar` | العربية | RTL |
+| Code | Language         | Direction |
+| ---- | ---------------- | --------- |
+| `en` | English          | LTR       |
+| `tr` | Türkçe           | LTR       |
+| `de` | Deutsch          | LTR       |
+| `zh` | 中文（普通话）   | LTR       |
+| `ja` | 日本語           | LTR       |
+| `ko` | 한국어           | LTR       |
+| `fr` | Français         | LTR       |
+| `es` | Español          | LTR       |
+| `pt` | Português        | LTR       |
+| `ru` | Русский          | LTR       |
+| `pl` | Polski           | LTR       |
+| `uk` | Українська       | LTR       |
+| `hi` | हिन्दी            | LTR       |
+| `id` | Bahasa Indonesia | LTR       |
+| `it` | Italiano         | LTR       |
+| `nl` | Nederlands       | LTR       |
+| `ar` | العربية          | RTL       |
 
 ## Adding a language
 
@@ -37,7 +37,7 @@ Q7 Chat ships with 17 languages. Translation files live in `langs/` and are plai
 4. Add a lazy loader in the same file:
 
    ```ts
-   sv: () => import("../langs/sv.json")
+   sv: () => import('../langs/sv.json');
    ```
 
 5. If the language is right-to-left, extend the direction check in `I18nProvider`.

@@ -4,6 +4,16 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) once it reaches 1.0.
 
+## [Unreleased]
+
+### Added
+
+- 15 additional languages: Farsi, Vietnamese, Greek, Swedish, Danish, Finnish, Hungarian, Czech, Romanian, Thai, Bengali, Swahili, Azerbaijani, Tagalog, Malay (32 total).
+- Offline service worker (`public/sw.js`) caching core assets for offline-first loading.
+- Skip-to-content link and landmark focus handling for accessibility.
+- Apache License 2.0 adopted across README, badge, and `package.json`.
+- Node.js engine requirement raised to `>=26.0.0`.
+
 ## [0.2.0] - 2026-11-01
 
 ### Added

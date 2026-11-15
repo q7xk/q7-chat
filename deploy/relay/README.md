@@ -33,7 +33,7 @@ Then open **Settings → Relays** in Q7 Chat and add:
 wss://relay.example.com/mqtt
 ```
 
-Q7 connects to the built-in public relays *and* your relay, so a failure of any
+Q7 connects to the built-in public relays _and_ your relay, so a failure of any
 single broker does not stop delivery.
 
 ## What the relay can see
