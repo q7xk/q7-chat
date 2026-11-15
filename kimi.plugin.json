@@ -1,0 +1,8 @@
+{
+  "name": "q7-chat",
+  "version": "1.0.0",
+  "description": "Agent guidance for the Q7 Chat Next.js end-to-end encrypted messaging application",
+  "author": {
+    "name": "Q7 Chat contributors"
+  }
+}

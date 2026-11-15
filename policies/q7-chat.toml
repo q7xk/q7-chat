@@ -1,0 +1,10 @@
+[[rule]]
+toolName = "run_shell_command"
+commandRegex = "npx -y modern-web-guidance"
+decision = "ask_user"
+priority = 100
+modes = ["plan"]
+
+[[policy]]
+name = "browser-support"
+description = "Baseline widely available web platform features are safe without fallbacks. Non-Baseline features require the fallback recommended in each guide unless the user specifies a custom browser support policy."
