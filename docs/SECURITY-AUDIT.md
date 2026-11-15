@@ -16,13 +16,13 @@ protocol. It produces a scoped report, findings and a retest. Adding a checklist
 a badge or a statement to the README does not create an audit. Only an external
 report can change the status below.
 
-| Item | Status | Evidence |
-| --- | --- | --- |
-| Encrypted local backup | Implemented, internal tests | `lib/backup.ts`, `tests/backup.test.ts` |
-| Multi-device message sync | Implemented, internal tests | `lib/sync.ts`, `tests/sync.test.ts` |
-| Relay continuity | Improved; public relays remain best-effort | `lib/p2p/mqtt.ts`, `deploy/relay/` |
-| Independent protocol review | **Not done** | This document |
-| Independent implementation review | **Not done** | This document |
+| Item                              | Status                                     | Evidence                                |
+| --------------------------------- | ------------------------------------------ | --------------------------------------- |
+| Encrypted local backup            | Implemented, internal tests                | `lib/backup.ts`, `tests/backup.test.ts` |
+| Multi-device message sync         | Implemented, internal tests                | `lib/sync.ts`, `tests/sync.test.ts`     |
+| Relay continuity                  | Improved; public relays remain best-effort | `lib/p2p/mqtt.ts`, `deploy/relay/`      |
+| Independent protocol review       | **Not done**                               | This document                           |
+| Independent implementation review | **Not done**                               | This document                           |
 
 ## Scope for an external review
 

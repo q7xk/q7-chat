@@ -1,40 +1,65 @@
-"use client";
-import { createContext, useContext, useEffect, useMemo, useRef, useSyncExternalStore, type ReactNode } from "react";
-import { useStore } from "../store";
-import { P2PManager } from "./manager";
+'use client';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useSyncExternalStore,
+  type ReactNode,
+} from 'react';
+import { useStore } from '../store';
+import { P2PManager } from './manager';
 
 const Ctx = createContext<P2PManager | null>(null);
 
 export function P2PProvider({ children }: { children: ReactNode }) {
   const s = useStore();
-  const ref = useRef(s); ref.current = s;
-  const mgr = useMemo(() => new P2PManager({
-    getConversations: () => ref.current.peekConversations(),
-    getMessages: () => ref.current.peekMessages(),
-    ensureConversation: (cid, title) => ref.current.createP2P(cid, title),
-    addMessage: (m, blob) => ref.current.addMessage(m, blob),
-    blobReady: () => ref.current.bumpBlobs(),
-    updateMessage: (id, patch) => ref.current.updateMessage(id, patch),
-    removeConversationFor: (cid) => { const c = ref.current.conversations.find((x) => x.contactId === cid); if (c) ref.current.removeConversation(c.id); },
-    bumpUnread: (convId) => { const c = ref.current.conversations.find((x) => x.id === convId); if (c) ref.current.update(convId, { unread: c.unread + 1 }); },
-    updateGroup: (gid, patch) => ref.current.update(gid, patch),
-    removeGroup: (gid) => ref.current.removeConversation(gid),
-    createGroup: (opts) => ref.current.createGroup(opts),
-    reactMessage: (id, emoji, who, on) => ref.current.reactMessage(id, emoji, who, on),
-    removeMessage: (id) => ref.current.remove(id),
-    getSyncState: () => ref.current.getSyncState(),
-    getDeviceId: () => ref.current.getDeviceId(),
-    mergeSyncSnapshot: (snap) => ref.current.mergeSyncSnapshot(snap),
-    tombstoneSync: (kind, id) => ref.current.tombstoneSync(kind, id),
-  }), []);
-  useEffect(() => { if (s.ready) void mgr.init(); }, [s.ready, mgr]);
-  useEffect(() => { s.setSyncNotifier(() => mgr.notifyStoreChange()); return () => s.setSyncNotifier(null); }, [s, mgr]);
+  const ref = useRef(s);
+  ref.current = s;
+  const mgr = useMemo(
+    () =>
+      new P2PManager({
+        getConversations: () => ref.current.peekConversations(),
+        getMessages: () => ref.current.peekMessages(),
+        ensureConversation: (cid, title) => ref.current.createP2P(cid, title),
+        addMessage: (m, blob) => ref.current.addMessage(m, blob),
+        blobReady: () => ref.current.bumpBlobs(),
+        updateMessage: (id, patch) => ref.current.updateMessage(id, patch),
+        removeConversationFor: cid => {
+          const c = ref.current.conversations.find(x => x.contactId === cid);
+          if (c) ref.current.removeConversation(c.id);
+        },
+        bumpUnread: convId => {
+          const c = ref.current.conversations.find(x => x.id === convId);
+          if (c) ref.current.update(convId, { unread: c.unread + 1 });
+        },
+        updateGroup: (gid, patch) => ref.current.update(gid, patch),
+        removeGroup: gid => ref.current.removeConversation(gid),
+        createGroup: opts => ref.current.createGroup(opts),
+        reactMessage: (id, emoji, who, on) => ref.current.reactMessage(id, emoji, who, on),
+        removeMessage: id => ref.current.remove(id),
+        getSyncState: () => ref.current.getSyncState(),
+        getDeviceId: () => ref.current.getDeviceId(),
+        mergeSyncSnapshot: snap => ref.current.mergeSyncSnapshot(snap),
+        tombstoneSync: (kind, id) => ref.current.tombstoneSync(kind, id),
+      }),
+    []
+  );
+  useEffect(() => {
+    if (s.ready) void mgr.init();
+  }, [s.ready, mgr]);
+  useEffect(() => {
+    s.setSyncNotifier(() => mgr.notifyStoreChange());
+    return () => s.setSyncNotifier(null);
+  }, [s, mgr]);
   useEffect(() => () => mgr.shutdown(), [mgr]); // unmount kills the session: the lock gate re-mounts a fresh manager on unlock
   return <Ctx.Provider value={mgr}>{children}</Ctx.Provider>;
 }
 
 export function useP2P() {
-  const mgr = useContext(Ctx); if (!mgr) throw new Error("P2PProvider missing");
+  const mgr = useContext(Ctx);
+  if (!mgr) throw new Error('P2PProvider missing');
   const snap = useSyncExternalStore(mgr.subscribe, mgr.getSnapshot, mgr.getSnapshot);
   return { mgr, snap };
 }

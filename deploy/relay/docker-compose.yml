@@ -16,7 +16,7 @@ services:
       - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
       - mosquitto-data:/mosquitto/data
     expose:
-      - "8084"
+      - '8084'
 
   caddy:
     image: caddy:2
@@ -25,8 +25,8 @@ services:
       mosquitto:
         condition: service_started
     ports:
-      - "80:80"
-      - "443:443"
+      - '80:80'
+      - '443:443'
     environment:
       RELAY_DOMAIN: ${RELAY_DOMAIN:-relay.example.com}
     volumes:

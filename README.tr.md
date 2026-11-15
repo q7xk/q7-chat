@@ -135,16 +135,16 @@ Tasarım bilinçli olarak basit ve incelenebilir tutulmuştur; ancak **bağıms�
 
 ## Teknoloji yığını
 
-| Katman | Seçim |
-| --- | --- |
-| Çatı | [Next.js 14](https://nextjs.org/) App Router |
-| Dil | [TypeScript 5](https://www.typescriptlang.org/) |
-| Arayüz | [React 18](https://react.dev/), [Tailwind CSS 3](https://tailwindcss.com/), [Lucide](https://lucide.dev/) |
-| Depolama | IndexedDB (`lib/db.ts`), testlerde `fake-indexeddb` |
-| Kriptografi | Web Crypto API — ECDSA P-256, ECDH P-256, HKDF, AES-256-GCM, PBKDF2-SHA256 |
-| Taşıma | WebRTC DataChannel, WSS üzerinden MQTT 3.1.1 |
-| QR | `qrcode` (üretme) ve `jsqr` (tarama) |
-| Test | [Vitest](https://vitest.dev/) |
+| Katman      | Seçim                                                                                                     |
+| ----------- | --------------------------------------------------------------------------------------------------------- |
+| Çatı        | [Next.js 14](https://nextjs.org/) App Router                                                              |
+| Dil         | [TypeScript 5](https://www.typescriptlang.org/)                                                           |
+| Arayüz      | [React 18](https://react.dev/), [Tailwind CSS 3](https://tailwindcss.com/), [Lucide](https://lucide.dev/) |
+| Depolama    | IndexedDB (`lib/db.ts`), testlerde `fake-indexeddb`                                                       |
+| Kriptografi | Web Crypto API — ECDSA P-256, ECDH P-256, HKDF, AES-256-GCM, PBKDF2-SHA256                                |
+| Taşıma      | WebRTC DataChannel, WSS üzerinden MQTT 3.1.1                                                              |
+| QR          | `qrcode` (üretme) ve `jsqr` (tarama)                                                                      |
+| Test        | [Vitest](https://vitest.dev/)                                                                             |
 
 ## Başlangıç
 
@@ -182,14 +182,14 @@ npm run dev
 
 ## Komutlar
 
-| Komut | Açıklama |
-| --- | --- |
-| `npm run dev` | 3000 portunda Next.js geliştirme sunucusunu başlatır. |
-| `npm run build` | Optimize edilmiş üretim derlemesi oluşturur. |
-| `npm start` | Üretim derlemesini sunar. |
-| `npm run typecheck` | `tsc --noEmit` çalıştırır. |
-| `npm test` | Vitest paketini bir kez çalıştırır. |
-| `npm run lint` | Next.js lint çalıştırır (ESLint kurulumu gerekir). |
+| Komut               | Açıklama                                              |
+| ------------------- | ----------------------------------------------------- |
+| `npm run dev`       | 3000 portunda Next.js geliştirme sunucusunu başlatır. |
+| `npm run build`     | Optimize edilmiş üretim derlemesi oluşturur.          |
+| `npm start`         | Üretim derlemesini sunar.                             |
+| `npm run typecheck` | `tsc --noEmit` çalıştırır.                            |
+| `npm test`          | Vitest paketini bir kez çalıştırır.                   |
+| `npm run lint`      | Next.js lint çalıştırır (ESLint kurulumu gerekir).    |
 
 ## Dağıtım
 

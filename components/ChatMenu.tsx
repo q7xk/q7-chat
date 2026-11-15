@@ -1,154 +1,450 @@
-"use client";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+'use client';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
-  Archive, ArrowLeftRight, Ban, Bell, BellOff, ChevronRight, Eraser, FileText, FolderOpen, Link2, LogOut, Mic,
-  MoreVertical, Palette, Pencil, Pin, PinOff, Star, StarOff, Trash2, User as UserIcon, UserMinus, UserPlus, Users, Download,
-} from "lucide-react";
-import type { Conversation, Contact, LinkMeta, Message } from "@/lib/types";
-import { useStore } from "@/lib/store";
-import { useI18n, type K } from "@/lib/i18n";
-import { useP2P } from "@/lib/p2p/context";
-import { formatCode } from "@/lib/p2p/crypto";
-import { extractUrls } from "@/lib/links";
-import { cn } from "@/lib/cn";
-import { Avatar } from "./Badges";
-import { memberName } from "@/lib/names";
-import { btn } from "./Connect";
+  Archive,
+  ArrowLeftRight,
+  Ban,
+  Bell,
+  BellOff,
+  ChevronRight,
+  Eraser,
+  FileText,
+  FolderOpen,
+  Link2,
+  LogOut,
+  Mic,
+  MoreVertical,
+  Palette,
+  Pencil,
+  Pin,
+  PinOff,
+  Star,
+  StarOff,
+  Trash2,
+  User as UserIcon,
+  UserMinus,
+  UserPlus,
+  Users,
+  Download,
+} from 'lucide-react';
+import type { Conversation, Contact, LinkMeta, Message } from '@/lib/types';
+import { useStore } from '@/lib/store';
+import { useI18n } from '@/lib/i18n';
+import { useP2P } from '@/lib/p2p/context';
+import { formatCode } from '@/lib/p2p/crypto';
+import { extractUrls } from '@/lib/links';
+import { cn } from '@/lib/cn';
+import { Avatar } from './Badges';
+import { memberName } from '@/lib/names';
+import { btn } from './Connect';
 
 /** Chat wallpapers applied over the message list background. */
 export const WALLS: { id: string; css: string }[] = [
-  { id: "", css: "" },
-  { id: "w1", css: "linear-gradient(160deg, rgb(var(--accent) / .14), transparent 55%)" },
-  { id: "w2", css: "linear-gradient(20deg, rgb(var(--local) / .18), transparent 60%)" },
-  { id: "w3", css: "linear-gradient(200deg, rgb(var(--pc) / .40), transparent 65%)" },
-  { id: "w4", css: "radial-gradient(120% 90% at 15% 0%, rgb(var(--accent) / .22), transparent 60%)" },
-  { id: "w5", css: "linear-gradient(315deg, rgb(var(--danger) / .12), transparent 55%)" },
-  { id: "w6", css: "linear-gradient(135deg, rgb(var(--accent) / .12), rgb(var(--local) / .12))" },
+  { id: '', css: '' },
+  { id: 'w1', css: 'linear-gradient(160deg, rgb(var(--accent) / .14), transparent 55%)' },
+  { id: 'w2', css: 'linear-gradient(20deg, rgb(var(--local) / .18), transparent 60%)' },
+  { id: 'w3', css: 'linear-gradient(200deg, rgb(var(--pc) / .40), transparent 65%)' },
+  {
+    id: 'w4',
+    css: 'radial-gradient(120% 90% at 15% 0%, rgb(var(--accent) / .22), transparent 60%)',
+  },
+  { id: 'w5', css: 'linear-gradient(315deg, rgb(var(--danger) / .12), transparent 55%)' },
+  { id: 'w6', css: 'linear-gradient(135deg, rgb(var(--accent) / .12), rgb(var(--local) / .12))' },
 ];
-export const wallStyle = (id?: string) => WALLS.find((w) => w.id === id)?.css || undefined;
+export const wallStyle = (id?: string) => WALLS.find(w => w.id === id)?.css || undefined;
 
-const item = "m3-press flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm hover:bg-container";
-const sheetWrap = "fixed inset-0 z-40 flex items-end justify-center bg-black/50 md:items-center";
-const sheet = "m3-pop max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-t-[28px] bg-panel p-5 scroll-thin md:rounded-[28px]";
+const item =
+  'm3-press flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm hover:bg-container';
+const sheetWrap = 'fixed inset-0 z-40 flex items-end justify-center bg-black/50 md:items-center';
+const sheet =
+  'm3-pop max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-t-[28px] bg-panel p-5 scroll-thin md:rounded-[28px]';
 
-function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+function Sheet({
+  title,
+  onClose,
+  children,
+}: {
+  title: string;
+  onClose: () => void;
+  children: ReactNode;
+}) {
   useEffect(() => {
-    const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    document.addEventListener("keydown", h);
-    return () => document.removeEventListener("keydown", h);
+    const h = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', h);
+    return () => document.removeEventListener('keydown', h);
   }, [onClose]);
   return (
-    <div className={sheetWrap} role="dialog" aria-modal aria-label={title} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div
+      className={sheetWrap}
+      role='dialog'
+      aria-modal
+      aria-label={title}
+      onClick={e => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div className={sheet}>
-        <div className="mb-4 flex items-center justify-between"><h3 className="text-lg font-semibold">{title}</h3>
-          <button onClick={onClose} aria-label="close" className="rounded-full p-2 text-muted transition-colors hover:bg-container hover:text-ink">✕</button></div>
+        <div className='mb-4 flex items-center justify-between'>
+          <h3 className='text-lg font-semibold'>{title}</h3>
+          <button
+            onClick={onClose}
+            aria-label='close'
+            className='rounded-full p-2 text-muted transition-colors hover:bg-container hover:text-ink'
+          >
+            ✕
+          </button>
+        </div>
         {children}
       </div>
     </div>
   );
 }
 
-export function ChatMenu({ conv, contact, p2p, onOpenConv }: { conv: Conversation; contact?: Contact; p2p: boolean; onOpenConv?: () => void }) {
-  const { t } = useI18n(); const { mgr, snap } = useP2P();
+export function ChatMenu({
+  conv,
+  contact,
+  p2p,
+  onOpenConv,
+}: {
+  conv: Conversation;
+  contact?: Contact;
+  p2p: boolean;
+  onOpenConv?: () => void;
+}) {
+  const { t } = useI18n();
+  const { mgr, snap } = useP2P();
   const { messages, update, clearConversation } = useStore();
-  const [open, setOpen] = useState(false); const [more, setMore] = useState(false);
-  const [panel, setPanel] = useState<null | "info" | "media" | "theme" | "clear" | "members" | "rename" | "leave">(null);
-  const [toast, setToast] = useState("");
+  const [open, setOpen] = useState(false);
+  const [more, setMore] = useState(false);
+  const [panel, setPanel] = useState<
+    null | 'info' | 'media' | 'theme' | 'clear' | 'members' | 'rename' | 'leave'
+  >(null);
+  const [toast] = useState('');
   const root = useRef<HTMLDivElement>(null);
-  const msgs = useMemo(() => messages.filter((m) => m.conversationId === conv.id), [messages, conv.id]);
-  const group = conv.mode === "group";
+  const msgs = useMemo(
+    () => messages.filter(m => m.conversationId === conv.id),
+    [messages, conv.id]
+  );
+  const group = conv.mode === 'group';
 
   useEffect(() => {
     if (!open) return;
-    const h = (e: PointerEvent) => { if (!root.current?.contains(e.target as Node)) { setOpen(false); setMore(false); } };
-    const k = (e: KeyboardEvent) => { if (e.key === "Escape") { setOpen(false); setMore(false); } };
-    document.addEventListener("pointerdown", h); document.addEventListener("keydown", k);
-    return () => { document.removeEventListener("pointerdown", h); document.removeEventListener("keydown", k); };
+    const h = (e: PointerEvent) => {
+      if (!root.current?.contains(e.target as Node)) {
+        setOpen(false);
+        setMore(false);
+      }
+    };
+    const k = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setOpen(false);
+        setMore(false);
+      }
+    };
+    document.addEventListener('pointerdown', h);
+    document.addEventListener('keydown', k);
+    return () => {
+      document.removeEventListener('pointerdown', h);
+      document.removeEventListener('keydown', k);
+    };
   }, [open]);
 
-  const flash = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 2500); };
   const exportChat = () => {
-    const name = (m: Message) => (m.direction === "in" ? (group ? memberName(conv, m.from, snap.contacts, t("group.unknown")) : contact?.name ?? conv.title) : t("chats.you"));
-    const body = (m: Message) => m.body || (m.att?.t === "file" ? (m.att.kind === "voice" ? "🎤" : m.att.kind === "image" ? "🖼" : `📄 ${m.att.name}`) : m.att?.t === "gif" ? "GIF" : m.att?.t === "poll" ? `📊 ${m.att.q}` : m.att?.t === "event" ? `📅 ${m.att.title}` : m.att?.t === "location" ? "📍" : m.att?.t === "contact" ? `👤 ${m.att.name}` : m.link?.title || t("chats.link"));
-    const txt = msgs.map((m) => `[${new Date(m.createdAt).toLocaleString()}] ${name(m)}: ${body(m)}`).join("\n");
-    const url = URL.createObjectURL(new Blob([txt], { type: "text/plain;charset=utf-8" }));
-    const a = document.createElement("a"); a.href = url; a.download = `${(contact?.name ?? conv.title).replace(/[^\w-]+/g, "_")}.txt`; a.click();
+    const name = (m: Message) =>
+      m.direction === 'in'
+        ? group
+          ? memberName(conv, m.from, snap.contacts, t('group.unknown'))
+          : (contact?.name ?? conv.title)
+        : t('chats.you');
+    const body = (m: Message) =>
+      m.body ||
+      (m.att?.t === 'file'
+        ? m.att.kind === 'voice'
+          ? '🎤'
+          : m.att.kind === 'image'
+            ? '🖼'
+            : `📄 ${m.att.name}`
+        : m.att?.t === 'gif'
+          ? 'GIF'
+          : m.att?.t === 'poll'
+            ? `📊 ${m.att.q}`
+            : m.att?.t === 'event'
+              ? `📅 ${m.att.title}`
+              : m.att?.t === 'location'
+                ? '📍'
+                : m.att?.t === 'contact'
+                  ? `👤 ${m.att.name}`
+                  : m.link?.title || t('chats.link'));
+    const txt = msgs
+      .map(m => `[${new Date(m.createdAt).toLocaleString()}] ${name(m)}: ${body(m)}`)
+      .join('\n');
+    const url = URL.createObjectURL(new Blob([txt], { type: 'text/plain;charset=utf-8' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${(contact?.name ?? conv.title).replace(/[^\w-]+/g, '_')}.txt`;
+    a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
   const togglePin = () => update(conv.id, { pinned: !conv.pinned });
   const toggleStar = () => update(conv.id, { starred: !conv.starred });
-  const toggleArchive = () => { update(conv.id, { archived: !conv.archived }); setOpen(false); };
+  const toggleArchive = () => {
+    update(conv.id, { archived: !conv.archived });
+    setOpen(false);
+  };
   const toggleMute = () => update(conv.id, { muted: !conv.muted });
 
   const cid = conv.contactId!;
-  const online = snap.status[cid] === "online";
-  const iconBtn = "rounded-full p-2.5 text-muted transition-colors hover:bg-raised hover:text-ink";
+  const iconBtn = 'rounded-full p-2.5 text-muted transition-colors hover:bg-raised hover:text-ink';
 
   return (
-    <div ref={root} className="relative flex items-center gap-0.5">
-      {toast && <p role="status" className="absolute end-0 -top-9 whitespace-nowrap rounded-full bg-highest px-3 py-1.5 text-xs shadow">{toast}</p>}
-      {p2p && <button onClick={() => setOpen((v) => !v)} aria-label={t("menu.more")} aria-expanded={open} className={cn(iconBtn, open && "bg-raised text-ink")}><MoreVertical size={19} /></button>}
+    <div ref={root} className='relative flex items-center gap-0.5'>
+      {toast && (
+        <p
+          role='status'
+          className='absolute end-0 -top-9 whitespace-nowrap rounded-full bg-highest px-3 py-1.5 text-xs shadow'
+        >
+          {toast}
+        </p>
+      )}
+      {p2p && (
+        <button
+          onClick={() => setOpen(v => !v)}
+          aria-label={t('menu.more')}
+          aria-expanded={open}
+          className={cn(iconBtn, open && 'bg-raised text-ink')}
+        >
+          <MoreVertical size={19} />
+        </button>
+      )}
       {open && (
-        <div className="m3-pop absolute end-0 top-12 z-20 w-64 space-y-0.5 rounded-3xl bg-highest p-2 shadow-xl" role="menu">
-          {p2p && <>
-            <button role="menuitem" onClick={() => { setOpen(false); setPanel("info"); }} className={item}><UserIcon size={18} />{t("menu.contact")}</button>
-          </>}
-          {group && <button role="menuitem" onClick={() => { setOpen(false); setPanel("members"); }} className={item}><Users size={18} />{t("group.members", { n: (conv.members ?? []).length })}</button>}
-          {group && <button role="menuitem" onClick={() => { setOpen(false); setPanel("rename"); }} className={item}><Pencil size={18} />{t("group.rename")}</button>}
-          <button role="menuitem" onClick={() => { setOpen(false); setPanel("media"); }} className={item}><FolderOpen size={18} />{t("menu.media")}</button>
-          <button role="menuitem" onClick={toggleMute} className={item}>{conv.muted ? <Bell size={18} /> : <BellOff size={18} />}{conv.muted ? t("menu.unmute") : t("menu.mute")}</button>
-          <button role="menuitem" onClick={() => { setOpen(false); setPanel("theme"); }} className={item}><Palette size={18} />{t("menu.theme")}</button>
-          {p2p && <button role="menuitem" onClick={() => { setOpen(false); void mgr.blockContact(cid, !contact?.blocked); }} className={cn(item, !contact?.blocked && "text-danger")}>{contact?.blocked ? <ArrowLeftRight size={18} /> : <Ban size={18} />}{contact?.blocked ? t("menu.unblock") : t("menu.block")}</button>}
-          <button role="menuitem" onClick={() => setMore((v) => !v)} aria-expanded={more} className={item}><ChevronRight size={18} className="rtl:-scale-x-100" />{t("menu.more")}</button>
+        <div
+          className='m3-pop absolute end-0 top-12 z-20 w-64 space-y-0.5 rounded-3xl bg-highest p-2 shadow-xl'
+          role='menu'
+        >
+          {p2p && (
+            <>
+              <button
+                role='menuitem'
+                onClick={() => {
+                  setOpen(false);
+                  setPanel('info');
+                }}
+                className={item}
+              >
+                <UserIcon size={18} />
+                {t('menu.contact')}
+              </button>
+            </>
+          )}
+          {group && (
+            <button
+              role='menuitem'
+              onClick={() => {
+                setOpen(false);
+                setPanel('members');
+              }}
+              className={item}
+            >
+              <Users size={18} />
+              {t('group.members', { n: (conv.members ?? []).length })}
+            </button>
+          )}
+          {group && (
+            <button
+              role='menuitem'
+              onClick={() => {
+                setOpen(false);
+                setPanel('rename');
+              }}
+              className={item}
+            >
+              <Pencil size={18} />
+              {t('group.rename')}
+            </button>
+          )}
+          <button
+            role='menuitem'
+            onClick={() => {
+              setOpen(false);
+              setPanel('media');
+            }}
+            className={item}
+          >
+            <FolderOpen size={18} />
+            {t('menu.media')}
+          </button>
+          <button role='menuitem' onClick={toggleMute} className={item}>
+            {conv.muted ? <Bell size={18} /> : <BellOff size={18} />}
+            {conv.muted ? t('menu.unmute') : t('menu.mute')}
+          </button>
+          <button
+            role='menuitem'
+            onClick={() => {
+              setOpen(false);
+              setPanel('theme');
+            }}
+            className={item}
+          >
+            <Palette size={18} />
+            {t('menu.theme')}
+          </button>
+          {p2p && (
+            <button
+              role='menuitem'
+              onClick={() => {
+                setOpen(false);
+                void mgr.blockContact(cid, !contact?.blocked);
+              }}
+              className={cn(item, !contact?.blocked && 'text-danger')}
+            >
+              {contact?.blocked ? <ArrowLeftRight size={18} /> : <Ban size={18} />}
+              {contact?.blocked ? t('menu.unblock') : t('menu.block')}
+            </button>
+          )}
+          <button
+            role='menuitem'
+            onClick={() => setMore(v => !v)}
+            aria-expanded={more}
+            className={item}
+          >
+            <ChevronRight size={18} className='rtl:-scale-x-100' />
+            {t('menu.more')}
+          </button>
           {more && (
-            <div className="m3-pop space-y-0.5 rounded-2xl bg-container p-1.5" role="menu">
-              <button role="menuitem" onClick={() => { setOpen(false); setPanel("clear"); }} className={item}><Eraser size={18} />{t("menu.clear")}</button>
-              <button role="menuitem" onClick={() => { exportChat(); setOpen(false); }} className={item}><Download size={18} />{t("menu.export")}</button>
-              <button role="menuitem" onClick={togglePin} className={item}>{conv.pinned ? <PinOff size={18} /> : <Pin size={18} />}{conv.pinned ? t("menu.unpin") : t("menu.pin")}</button>
-              <button role="menuitem" onClick={toggleStar} className={item}>{conv.starred ? <StarOff size={18} /> : <Star size={18} />}{conv.starred ? t("menu.unstar") : t("menu.star")}</button>
-              <button role="menuitem" onClick={toggleArchive} className={item}><Archive size={18} />{conv.archived ? t("menu.unarchive") : t("menu.archive")}</button>
-              {group && <button role="menuitem" onClick={() => { setOpen(false); setPanel("leave"); }} className={cn(item, "text-danger")}><LogOut size={18} />{t("group.leave")}</button>}
+            <div className='m3-pop space-y-0.5 rounded-2xl bg-container p-1.5' role='menu'>
+              <button
+                role='menuitem'
+                onClick={() => {
+                  setOpen(false);
+                  setPanel('clear');
+                }}
+                className={item}
+              >
+                <Eraser size={18} />
+                {t('menu.clear')}
+              </button>
+              <button
+                role='menuitem'
+                onClick={() => {
+                  exportChat();
+                  setOpen(false);
+                }}
+                className={item}
+              >
+                <Download size={18} />
+                {t('menu.export')}
+              </button>
+              <button role='menuitem' onClick={togglePin} className={item}>
+                {conv.pinned ? <PinOff size={18} /> : <Pin size={18} />}
+                {conv.pinned ? t('menu.unpin') : t('menu.pin')}
+              </button>
+              <button role='menuitem' onClick={toggleStar} className={item}>
+                {conv.starred ? <StarOff size={18} /> : <Star size={18} />}
+                {conv.starred ? t('menu.unstar') : t('menu.star')}
+              </button>
+              <button role='menuitem' onClick={toggleArchive} className={item}>
+                <Archive size={18} />
+                {conv.archived ? t('menu.unarchive') : t('menu.archive')}
+              </button>
+              {group && (
+                <button
+                  role='menuitem'
+                  onClick={() => {
+                    setOpen(false);
+                    setPanel('leave');
+                  }}
+                  className={cn(item, 'text-danger')}
+                >
+                  <LogOut size={18} />
+                  {t('group.leave')}
+                </button>
+              )}
             </div>
           )}
         </div>
       )}
 
-      {panel === "info" && contact && <ContactSheet contact={contact} onClose={() => setPanel(null)} />}
-      {panel === "members" && <MembersSheet conv={conv} onClose={() => setPanel(null)} />}
-      {panel === "rename" && (
-        <Sheet title={t("group.rename")} onClose={() => setPanel(null)}>
+      {panel === 'info' && contact && (
+        <ContactSheet contact={contact} onClose={() => setPanel(null)} />
+      )}
+      {panel === 'members' && <MembersSheet conv={conv} onClose={() => setPanel(null)} />}
+      {panel === 'rename' && (
+        <Sheet title={t('group.rename')} onClose={() => setPanel(null)}>
           <RenameForm conv={conv} onDone={() => setPanel(null)} />
         </Sheet>
       )}
-      {panel === "leave" && (
-        <Sheet title={t("group.leave")} onClose={() => setPanel(null)}>
-          <p className="text-sm leading-relaxed">{t("group.leaveAsk")}</p>
-          <div className="mt-4 flex gap-2">
-            <button onClick={() => { mgr.leaveGroup(conv.id); setPanel(null); onOpenConv?.(); }} className="m3-press rounded-full bg-danger px-5 py-2 text-sm font-medium text-bg hover:brightness-110">{t("group.leave")}</button>
-            <button onClick={() => setPanel(null)} className="rounded-full px-5 py-2 text-sm text-muted transition-colors hover:bg-container">{t("c.cancel")}</button>
+      {panel === 'leave' && (
+        <Sheet title={t('group.leave')} onClose={() => setPanel(null)}>
+          <p className='text-sm leading-relaxed'>{t('group.leaveAsk')}</p>
+          <div className='mt-4 flex gap-2'>
+            <button
+              onClick={() => {
+                mgr.leaveGroup(conv.id);
+                setPanel(null);
+                onOpenConv?.();
+              }}
+              className='m3-press rounded-full bg-danger px-5 py-2 text-sm font-medium text-bg hover:brightness-110'
+            >
+              {t('group.leave')}
+            </button>
+            <button
+              onClick={() => setPanel(null)}
+              className='rounded-full px-5 py-2 text-sm text-muted transition-colors hover:bg-container'
+            >
+              {t('c.cancel')}
+            </button>
           </div>
         </Sheet>
       )}
-      {panel === "media" && <MediaSheet conv={conv} contact={contact} msgs={msgs} onClose={() => setPanel(null)} />}
-      {panel === "theme" && (
-        <Sheet title={t("menu.theme")} onClose={() => setPanel(null)}>
-          <div className="grid grid-cols-2 gap-3">
-            {WALLS.map((w) => (
-              <button key={w.id || "none"} onClick={() => { update(conv.id, { wall: w.id || undefined }); setPanel(null); }} aria-pressed={(conv.wall ?? "") === w.id}
-                className={cn("m3-press flex h-24 items-end justify-start rounded-[28px] border-2 bg-bg p-2 text-xs transition-colors", (conv.wall ?? "") === w.id ? "border-accent" : "border-line hover:border-muted")}
-                style={w.css ? { backgroundImage: w.css } : undefined}>
-                <span className="rounded-full bg-highest px-2 py-0.5">{w.id ? w.id.toUpperCase() : "—"}</span>
+      {panel === 'media' && (
+        <MediaSheet conv={conv} contact={contact} msgs={msgs} onClose={() => setPanel(null)} />
+      )}
+      {panel === 'theme' && (
+        <Sheet title={t('menu.theme')} onClose={() => setPanel(null)}>
+          <div className='grid grid-cols-2 gap-3'>
+            {WALLS.map(w => (
+              <button
+                key={w.id || 'none'}
+                onClick={() => {
+                  update(conv.id, { wall: w.id || undefined });
+                  setPanel(null);
+                }}
+                aria-pressed={(conv.wall ?? '') === w.id}
+                className={cn(
+                  'm3-press flex h-24 items-end justify-start rounded-[28px] border-2 bg-bg p-2 text-xs transition-colors',
+                  (conv.wall ?? '') === w.id ? 'border-accent' : 'border-line hover:border-muted'
+                )}
+                style={w.css ? { backgroundImage: w.css } : undefined}
+              >
+                <span className='rounded-full bg-highest px-2 py-0.5'>
+                  {w.id ? w.id.toUpperCase() : '—'}
+                </span>
               </button>
             ))}
           </div>
         </Sheet>
       )}
-      {panel === "clear" && (
-        <Sheet title={t("menu.clear")} onClose={() => setPanel(null)}>
-          <p className="text-sm leading-relaxed">{t("clear.ask")}</p>
-          <div className="mt-4 flex gap-2">
-            <button onClick={() => { clearConversation(conv.id); setPanel(null); }} className="m3-press rounded-full bg-danger px-5 py-2 text-sm font-medium text-bg hover:brightness-110">{t("clear.yes")}</button>
-            <button onClick={() => setPanel(null)} className="rounded-full px-5 py-2 text-sm text-muted transition-colors hover:bg-container">{t("c.cancel")}</button>
+      {panel === 'clear' && (
+        <Sheet title={t('menu.clear')} onClose={() => setPanel(null)}>
+          <p className='text-sm leading-relaxed'>{t('clear.ask')}</p>
+          <div className='mt-4 flex gap-2'>
+            <button
+              onClick={() => {
+                clearConversation(conv.id);
+                setPanel(null);
+              }}
+              className='m3-press rounded-full bg-danger px-5 py-2 text-sm font-medium text-bg hover:brightness-110'
+            >
+              {t('clear.yes')}
+            </button>
+            <button
+              onClick={() => setPanel(null)}
+              className='rounded-full px-5 py-2 text-sm text-muted transition-colors hover:bg-container'
+            >
+              {t('c.cancel')}
+            </button>
           </div>
         </Sheet>
       )}
@@ -157,38 +453,94 @@ export function ChatMenu({ conv, contact, p2p, onOpenConv }: { conv: Conversatio
 }
 
 function ContactSheet({ contact, onClose }: { contact: Contact; onClose: () => void }) {
-  const { t } = useI18n(); const { mgr } = useP2P();
+  const { t } = useI18n();
+  const { mgr } = useP2P();
   const [name, setName] = useState(contact.name);
   const [askRemove, setAskRemove] = useState(false);
   return (
-    <Sheet title={t("menu.contact")} onClose={onClose}>
-      <div className="mb-5 flex items-center gap-4">
-        <Avatar title={contact.name} mode="p2p" photo={contact.photo} size={64} shape="cookie12" />
-        <div className="min-w-0"><p className="truncate text-lg font-semibold">{contact.name}</p>
-          <p className="text-xs tabular-nums text-muted">{formatCode(contact.code)}</p>
-          {contact.blocked && <p className="mt-1 text-xs font-medium text-danger">{t("info.blocked")}</p>}</div>
+    <Sheet title={t('menu.contact')} onClose={onClose}>
+      <div className='mb-5 flex items-center gap-4'>
+        <Avatar title={contact.name} mode='p2p' photo={contact.photo} size={64} shape='cookie12' />
+        <div className='min-w-0'>
+          <p className='truncate text-lg font-semibold'>{contact.name}</p>
+          <p className='text-xs tabular-nums text-muted'>{formatCode(contact.code)}</p>
+          {contact.blocked && (
+            <p className='mt-1 text-xs font-medium text-danger'>{t('info.blocked')}</p>
+          )}
+        </div>
       </div>
-      <label className="block space-y-1.5"><span className="text-xs text-muted">{t("set.name")}</span>
-        <div className="flex gap-2">
-          <input value={name} onChange={(e) => setName(e.target.value)} maxLength={40} className="min-w-0 flex-1 rounded-2xl bg-highest px-4 py-2.5 text-sm" />
-          <button onClick={() => void mgr.renameContact(contact.id, name)} className="m3-press rounded-full bg-sc px-4 py-2 text-sm font-medium text-onsc hover:brightness-110">{t("c.save")}</button>
-        </div></label>
-      <button onClick={() => void mgr.setVerified(contact.id, !contact.verified)} aria-pressed={contact.verified} className="mt-4 flex w-full items-center justify-between rounded-2xl bg-container px-4 py-3 text-sm transition-colors hover:bg-raised">
-        <span>{t("contacts.verify")}</span><span className={cn("h-5 w-5 rounded-full border-2", contact.verified ? "border-accent bg-accent text-bg" : "border-line")}>{contact.verified && "✓"}</span>
+      <label className='block space-y-1.5'>
+        <span className='text-xs text-muted'>{t('set.name')}</span>
+        <div className='flex gap-2'>
+          <input
+            value={name}
+            onChange={e => setName(e.target.value)}
+            maxLength={40}
+            className='min-w-0 flex-1 rounded-2xl bg-highest px-4 py-2.5 text-sm'
+          />
+          <button
+            onClick={() => void mgr.renameContact(contact.id, name)}
+            className='m3-press rounded-full bg-sc px-4 py-2 text-sm font-medium text-onsc hover:brightness-110'
+          >
+            {t('c.save')}
+          </button>
+        </div>
+      </label>
+      <button
+        onClick={() => void mgr.setVerified(contact.id, !contact.verified)}
+        aria-pressed={contact.verified}
+        className='mt-4 flex w-full items-center justify-between rounded-2xl bg-container px-4 py-3 text-sm transition-colors hover:bg-raised'
+      >
+        <span>{t('contacts.verify')}</span>
+        <span
+          className={cn(
+            'h-5 w-5 rounded-full border-2',
+            contact.verified ? 'border-accent bg-accent text-bg' : 'border-line'
+          )}
+        >
+          {contact.verified && '✓'}
+        </span>
       </button>
-      <div className="mt-2 space-y-2">
-        <button onClick={() => void mgr.blockContact(contact.id, !contact.blocked)} className={cn("flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm transition-colors hover:bg-container", !contact.blocked && "text-danger")}>
-          <Ban size={18} />{contact.blocked ? t("menu.unblock") : t("menu.block")}</button>
-        {contact.blocked && <p className="px-1 text-xs text-muted">{t("info.blockedNote")}</p>}
+      <div className='mt-2 space-y-2'>
+        <button
+          onClick={() => void mgr.blockContact(contact.id, !contact.blocked)}
+          className={cn(
+            'flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm transition-colors hover:bg-container',
+            !contact.blocked && 'text-danger'
+          )}
+        >
+          <Ban size={18} />
+          {contact.blocked ? t('menu.unblock') : t('menu.block')}
+        </button>
+        {contact.blocked && <p className='px-1 text-xs text-muted'>{t('info.blockedNote')}</p>}
       </div>
       {!askRemove ? (
-        <button onClick={() => setAskRemove(true)} className="mt-2 flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm text-danger transition-colors hover:bg-container"><Trash2 size={18} />{t("c.remove")}</button>
+        <button
+          onClick={() => setAskRemove(true)}
+          className='mt-2 flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm text-danger transition-colors hover:bg-container'
+        >
+          <Trash2 size={18} />
+          {t('c.remove')}
+        </button>
       ) : (
-        <div className="mt-2 rounded-2xl bg-danger/10 p-4">
-          <p className="text-sm">{t("contacts.removeAsk")}</p>
-          <div className="mt-3 flex gap-2">
-            <button onClick={() => { void mgr.removeContact(contact.id); onClose(); }} className="rounded-full bg-danger px-4 py-2 text-sm font-medium text-bg">{t("c.remove")}</button>
-            <button onClick={() => setAskRemove(false)} className="rounded-full px-4 py-2 text-sm text-muted">{t("c.cancel")}</button>
+        <div className='mt-2 rounded-2xl bg-danger/10 p-4'>
+          <p className='text-sm'>{t('contacts.removeAsk')}</p>
+          <div className='mt-3 flex gap-2'>
+            <button
+              onClick={() => {
+                void mgr.removeContact(contact.id);
+                onClose();
+              }}
+              className='rounded-full bg-danger px-4 py-2 text-sm font-medium text-bg'
+            >
+              {t('c.remove')}
+            </button>
+            <button
+              onClick={() => setAskRemove(false)}
+              className='rounded-full px-4 py-2 text-sm text-muted'
+            >
+              {t('c.cancel')}
+            </button>
           </div>
         </div>
       )}
@@ -196,107 +548,226 @@ function ContactSheet({ contact, onClose }: { contact: Contact; onClose: () => v
   );
 }
 
-function MediaSheet({ conv, contact, msgs, onClose }: { conv: Conversation; contact?: Contact; msgs: Message[]; onClose: () => void }) {
+function MediaSheet({
+  conv,
+  contact,
+  msgs,
+  onClose,
+}: {
+  conv: Conversation;
+  contact?: Contact;
+  msgs: Message[];
+  onClose: () => void;
+}) {
   const { t } = useI18n();
-  const [tab, setTab] = useState<"media" | "links" | "docs">("media");
-  const media = msgs.filter((m) => m.att && (m.att.t === "gif" || (m.att.t === "file" && (m.att.kind === "image" || m.att.kind === "voice"))));
-  const links = msgs.flatMap((m): LinkMeta[] => m.link ? [m.link] : extractUrls(m.body).map((u) => ({ url: u })));
-  const docs = msgs.filter((m) => m.att?.t === "file" && m.att.kind === "document");
-  const tabBtn = (id: typeof tab) => cn("rounded-xl px-4 py-2 text-sm font-medium transition-colors", tab === id ? "bg-sc text-onsc" : "text-muted hover:bg-container");
+  const [tab, setTab] = useState<'media' | 'links' | 'docs'>('media');
+  const media = msgs.filter(
+    m =>
+      m.att &&
+      (m.att.t === 'gif' ||
+        (m.att.t === 'file' && (m.att.kind === 'image' || m.att.kind === 'voice')))
+  );
+  const links = msgs.flatMap((m): LinkMeta[] =>
+    m.link ? [m.link] : extractUrls(m.body).map(u => ({ url: u }))
+  );
+  const docs = msgs.filter(m => m.att?.t === 'file' && m.att.kind === 'document');
+  const tabBtn = (id: typeof tab) =>
+    cn(
+      'rounded-xl px-4 py-2 text-sm font-medium transition-colors',
+      tab === id ? 'bg-sc text-onsc' : 'text-muted hover:bg-container'
+    );
   return (
-    <Sheet title={t("menu.media")} onClose={onClose}>
-      <div className="mb-4 flex gap-1.5" role="tablist">
-        <button role="tab" aria-selected={tab === "media"} onClick={() => setTab("media")} className={tabBtn("media")}>{t("media.images")}</button>
-        <button role="tab" aria-selected={tab === "links"} onClick={() => setTab("links")} className={tabBtn("links")}>{t("media.links")}</button>
-        <button role="tab" aria-selected={tab === "docs"} onClick={() => setTab("docs")} className={tabBtn("docs")}>{t("media.docs")}</button>
+    <Sheet title={t('menu.media')} onClose={onClose}>
+      <div className='mb-4 flex gap-1.5' role='tablist'>
+        <button
+          role='tab'
+          aria-selected={tab === 'media'}
+          onClick={() => setTab('media')}
+          className={tabBtn('media')}
+        >
+          {t('media.images')}
+        </button>
+        <button
+          role='tab'
+          aria-selected={tab === 'links'}
+          onClick={() => setTab('links')}
+          className={tabBtn('links')}
+        >
+          {t('media.links')}
+        </button>
+        <button
+          role='tab'
+          aria-selected={tab === 'docs'}
+          onClick={() => setTab('docs')}
+          className={tabBtn('docs')}
+        >
+          {t('media.docs')}
+        </button>
       </div>
-      {tab === "media" && (
-        <div className="grid grid-cols-3 gap-2">
-          {media.map((m) => {
+      {tab === 'media' && (
+        <div className='grid grid-cols-3 gap-2'>
+          {media.map(m => {
             const a = m.att;
             if (!a) return null;
-            return a.t === "gif" ? (
-              <a key={m.id} href={a.url} target="_blank" rel="noopener noreferrer" className="m3-press block overflow-hidden rounded-2xl bg-container hover:brightness-110">
-                {/* eslint-disable-next-line @next/next/no-img-element */}<img src={a.url} alt="GIF" loading="lazy" className="h-24 w-full object-cover" /></a>
-            ) : a.t === "file" && a.kind === "voice" ? (
-              <span key={m.id} className="flex h-24 items-center justify-center gap-1.5 rounded-2xl bg-container text-xs text-muted"><Mic size={16} />{t("composer.voice")}</span>
+            return a.t === 'gif' ? (
+              <a
+                key={m.id}
+                href={a.url}
+                target='_blank'
+                rel='noopener noreferrer'
+                className='m3-press block overflow-hidden rounded-2xl bg-container hover:brightness-110'
+              >
+                {}
+                <img src={a.url} alt='GIF' loading='lazy' className='h-24 w-full object-cover' />
+              </a>
+            ) : a.t === 'file' && a.kind === 'voice' ? (
+              <span
+                key={m.id}
+                className='flex h-24 items-center justify-center gap-1.5 rounded-2xl bg-container text-xs text-muted'
+              >
+                <Mic size={16} />
+                {t('composer.voice')}
+              </span>
             ) : (
               <MediaBlob key={m.id} id={m.id} />
             );
           })}
         </div>
       )}
-      {tab === "links" && (
-        <ul className="space-y-2">
+      {tab === 'links' && (
+        <ul className='space-y-2'>
           {links.map((l, i) => (
-            <li key={i}><a href={l.url} target="_blank" rel="noopener noreferrer nofollow" className="flex items-center gap-3 rounded-2xl bg-container px-4 py-3 text-sm transition-colors hover:bg-raised">
-              <Link2 size={16} className="shrink-0 text-muted" /><span className="min-w-0 flex-1 truncate">{l.title || l.url}</span></a></li>
+            <li key={i}>
+              <a
+                href={l.url}
+                target='_blank'
+                rel='noopener noreferrer nofollow'
+                className='flex items-center gap-3 rounded-2xl bg-container px-4 py-3 text-sm transition-colors hover:bg-raised'
+              >
+                <Link2 size={16} className='shrink-0 text-muted' />
+                <span className='min-w-0 flex-1 truncate'>{l.title || l.url}</span>
+              </a>
+            </li>
           ))}
         </ul>
       )}
-      {tab === "docs" && (
-        <ul className="space-y-2">
-          {docs.map((m) => (
-            <li key={m.id} className="flex items-center gap-3 rounded-2xl bg-container px-4 py-3 text-sm"><FileText size={16} className="shrink-0 text-muted" /><span className="min-w-0 flex-1 truncate">{m.att?.t === "file" ? m.att.name : ""}</span></li>
+      {tab === 'docs' && (
+        <ul className='space-y-2'>
+          {docs.map(m => (
+            <li
+              key={m.id}
+              className='flex items-center gap-3 rounded-2xl bg-container px-4 py-3 text-sm'
+            >
+              <FileText size={16} className='shrink-0 text-muted' />
+              <span className='min-w-0 flex-1 truncate'>
+                {m.att?.t === 'file' ? m.att.name : ''}
+              </span>
+            </li>
           ))}
         </ul>
       )}
-      {((tab === "media" && media.length === 0) || (tab === "links" && links.length === 0) || (tab === "docs" && docs.length === 0)) && (
-        <p className="py-6 text-center text-sm text-muted">{t("media.empty")}</p>
+      {((tab === 'media' && media.length === 0) ||
+        (tab === 'links' && links.length === 0) ||
+        (tab === 'docs' && docs.length === 0)) && (
+        <p className='py-6 text-center text-sm text-muted'>{t('media.empty')}</p>
       )}
-      <p className="mt-4 text-center text-[10px] text-muted">{contact?.name ?? conv.title}</p>
+      <p className='mt-4 text-center text-[10px] text-muted'>{contact?.name ?? conv.title}</p>
     </Sheet>
   );
 }
 
 function MediaBlob({ id }: { id: string }) {
-  const [url, setUrl] = useState("");
-  useEffect(() => { let live = true; import("@/lib/db").then((db) => db.getBlob(id)).then((r) => { if (live && r) setUrl(URL.createObjectURL(r.blob)); }).catch(() => {}); return () => { live = false; }; }, [id]);
-  if (!url) return <span className="h-24 animate-pulse rounded-2xl bg-container" />;
-  /* eslint-disable-next-line @next/next/no-img-element */
-  return <img src={url} alt="" className="h-24 w-full rounded-2xl object-cover" />;
+  const [url, setUrl] = useState('');
+  useEffect(() => {
+    let live = true;
+    import('@/lib/db')
+      .then(db => db.getBlob(id))
+      .then(r => {
+        if (live && r) setUrl(URL.createObjectURL(r.blob));
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [id]);
+  if (!url) return <span className='h-24 animate-pulse rounded-2xl bg-container' />;
+  return <img src={url} alt='' className='h-24 w-full rounded-2xl object-cover' />;
 }
 
 /** Space roster: members, adding contacts, removing people. */
 function MembersSheet({ conv, onClose }: { conv: Conversation; onClose: () => void }) {
-  const { t } = useI18n(); const { mgr, snap } = useP2P();
+  const { t } = useI18n();
+  const { mgr, snap } = useP2P();
   const [adding, setAdding] = useState(false);
   const members = conv.members ?? [];
   const candidates = adding
-    ? snap.contacts.filter((c) => !c.blocked && !members.includes(c.id)).slice(0, 20)
+    ? snap.contacts.filter(c => !c.blocked && !members.includes(c.id)).slice(0, 20)
     : [];
   return (
-    <Sheet title={t("group.members", { n: members.length })} onClose={onClose}>
-      <ul className="space-y-1">
-        {members.map((fp) => {
-          const c = snap.contacts.find((x) => x.id === fp);
-          const name = c?.name ?? conv.names?.[fp] ?? t("group.unknown");
+    <Sheet title={t('group.members', { n: members.length })} onClose={onClose}>
+      <ul className='space-y-1'>
+        {members.map(fp => {
+          const c = snap.contacts.find(x => x.id === fp);
+          const name = c?.name ?? conv.names?.[fp] ?? t('group.unknown');
           const isMe = fp === snap.fp;
           return (
-            <li key={fp} className="flex items-center gap-3 rounded-2xl bg-container px-3 py-2.5">
-              <Avatar title={name} mode="p2p" photo={c?.photo} size={38} shape="clover4" />
-              <span className="min-w-0 flex-1 truncate text-sm">{name}{isMe && <span className="ms-1.5 text-xs text-muted">({t("chats.you")})</span>}</span>
-              <span className="shrink-0 text-xs tabular-nums text-muted">{c ? formatCode(c.code) : fp.slice(0, 8)}</span>
+            <li key={fp} className='flex items-center gap-3 rounded-2xl bg-container px-3 py-2.5'>
+              <Avatar title={name} mode='p2p' photo={c?.photo} size={38} shape='clover4' />
+              <span className='min-w-0 flex-1 truncate text-sm'>
+                {name}
+                {isMe && <span className='ms-1.5 text-xs text-muted'>({t('chats.you')})</span>}
+              </span>
+              <span className='shrink-0 text-xs tabular-nums text-muted'>
+                {c ? formatCode(c.code) : fp.slice(0, 8)}
+              </span>
               {!isMe && (
-                <button onClick={() => mgr.groupRemove(conv.id, fp)} aria-label={t("c.remove")} title={t("c.remove")} className="m3-press rounded-full p-1.5 text-muted hover:bg-danger/10 hover:text-danger"><UserMinus size={15} /></button>
+                <button
+                  onClick={() => mgr.groupRemove(conv.id, fp)}
+                  aria-label={t('c.remove')}
+                  title={t('c.remove')}
+                  className='m3-press rounded-full p-1.5 text-muted hover:bg-danger/10 hover:text-danger'
+                >
+                  <UserMinus size={15} />
+                </button>
               )}
             </li>
           );
         })}
       </ul>
       {!adding ? (
-        <button onClick={() => setAdding(true)} className={cn(item, "mt-3 justify-center bg-sc text-onsc")}><UserPlus size={18} />{t("group.addPeople")}</button>
+        <button
+          onClick={() => setAdding(true)}
+          className={cn(item, 'mt-3 justify-center bg-sc text-onsc')}
+        >
+          <UserPlus size={18} />
+          {t('group.addPeople')}
+        </button>
       ) : (
-        <div className="m3-pop mt-3 space-y-1 rounded-2xl bg-container p-1.5">
-          <p className="px-2 pt-1.5 text-xs font-medium text-muted">{t("group.pick")}</p>
-          {candidates.length === 0 && <p className="px-2 pb-2 text-sm text-muted">{t("group.none")}</p>}
-          {candidates.map((c) => (
-            <button key={c.id} onClick={() => { mgr.groupAdd(conv.id, [c.id]); setAdding(false); }} className="m3-press flex w-full items-center gap-2.5 rounded-2xl px-3 py-2 text-start text-sm hover:bg-raised">
-              <Avatar title={c.name} mode="p2p" photo={c.photo} size={30} shape="clover4" />
-              <span className="min-w-0 flex-1 truncate">{c.name}</span><UserPlus size={15} className="text-accent" />
+        <div className='m3-pop mt-3 space-y-1 rounded-2xl bg-container p-1.5'>
+          <p className='px-2 pt-1.5 text-xs font-medium text-muted'>{t('group.pick')}</p>
+          {candidates.length === 0 && (
+            <p className='px-2 pb-2 text-sm text-muted'>{t('group.none')}</p>
+          )}
+          {candidates.map(c => (
+            <button
+              key={c.id}
+              onClick={() => {
+                mgr.groupAdd(conv.id, [c.id]);
+                setAdding(false);
+              }}
+              className='m3-press flex w-full items-center gap-2.5 rounded-2xl px-3 py-2 text-start text-sm hover:bg-raised'
+            >
+              <Avatar title={c.name} mode='p2p' photo={c.photo} size={30} shape='clover4' />
+              <span className='min-w-0 flex-1 truncate'>{c.name}</span>
+              <UserPlus size={15} className='text-accent' />
             </button>
           ))}
-          <button onClick={() => setAdding(false)} className="m3-press w-full rounded-2xl px-3 py-2 text-start text-sm text-muted hover:bg-raised">{t("c.cancel")}</button>
+          <button
+            onClick={() => setAdding(false)}
+            className='m3-press w-full rounded-2xl px-3 py-2 text-start text-sm text-muted hover:bg-raised'
+          >
+            {t('c.cancel')}
+          </button>
         </div>
       )}
     </Sheet>
@@ -304,14 +775,32 @@ function MembersSheet({ conv, onClose }: { conv: Conversation; onClose: () => vo
 }
 
 function RenameForm({ conv, onDone }: { conv: Conversation; onDone: () => void }) {
-  const { t } = useI18n(); const { mgr } = useP2P();
+  const { t } = useI18n();
+  const { mgr } = useP2P();
   const [name, setName] = useState(conv.title);
   return (
-    <div className="space-y-3">
-      <input value={name} onChange={(e) => setName(e.target.value)} maxLength={60} aria-label={t("group.name")} className="w-full rounded-2xl bg-highest px-4 py-2.5 text-sm" />
-      <div className="flex gap-2">
-        <button disabled={!name.trim()} onClick={() => { mgr.groupRename(conv.id, name); onDone(); }} className={cn(btn, "bg-accent text-bg disabled:opacity-40")}>{t("c.save")}</button>
-        <button onClick={onDone} className={cn(btn, "bg-sc text-onsc")}>{t("c.cancel")}</button>
+    <div className='space-y-3'>
+      <input
+        value={name}
+        onChange={e => setName(e.target.value)}
+        maxLength={60}
+        aria-label={t('group.name')}
+        className='w-full rounded-2xl bg-highest px-4 py-2.5 text-sm'
+      />
+      <div className='flex gap-2'>
+        <button
+          disabled={!name.trim()}
+          onClick={() => {
+            mgr.groupRename(conv.id, name);
+            onDone();
+          }}
+          className={cn(btn, 'bg-accent text-bg disabled:opacity-40')}
+        >
+          {t('c.save')}
+        </button>
+        <button onClick={onDone} className={cn(btn, 'bg-sc text-onsc')}>
+          {t('c.cancel')}
+        </button>
       </div>
     </div>
   );
