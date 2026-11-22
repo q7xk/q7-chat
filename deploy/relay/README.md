@@ -67,3 +67,66 @@ curl -sS -o /dev/null -w '%{http_code}\n' https://relay.example.com/
 
 A `wss://` connection from the app that shows **online** in Settings → Relays
 means the full path (DNS, certificate, proxy, broker) works.
+
+## Restricted networks (school/workplace)
+
+Some networks block known public MQTT broker domains or non-standard ports
+(8081/8084/8884). The most reliable workaround is to run **your own relay on
+HTTPS port 443** behind a normal-looking domain you control.
+
+### Recommended setup
+
+1. Use a normal domain/subdomain, e.g. `relay.example.com`.
+2. Keep TLS on 443 (Caddy does this automatically).
+3. Add only that relay in Q7 Chat → **Settings → Relays** or keep it alongside
+   defaults.
+4. If the network inspects paths, you can proxy a neutral path to Mosquitto.
+   Mosquitto's WebSocket listener accepts MQTT over WS; Caddy can terminate TLS
+   and forward the WebSocket upgrade.
+
+Example Caddyfile with a neutral path:
+
+```caddyfile
+{$RELAY_DOMAIN} {
+	encode zstd gzip
+
+	@mqtt path /realtime
+	handle @mqtt {
+		reverse_proxy mosquitto:8084
+	}
+
+	handle {
+		respond "ok" 200
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		-Server
+	}
+}
+```
+
+Then use:
+
+```text
+wss://relay.example.com/realtime
+```
+
+> Note: Some deep packet inspection systems can still identify MQTT/WebSocket
+> traffic. There is no guaranteed bypass. For high-risk environments, use a
+> trusted network/VPN you are authorized to use.
+
+### If inbound 80/443 is not possible
+
+- **Cloudflare Tunnel**: expose `mosquitto:8084` as a WebSocket service. Point
+  Q7 Chat at the tunnel's `wss://...` URL.
+- **Existing reverse proxy**: place Caddy/Nginx in front of Mosquitto and
+  forward a WebSocket path to port 8084.
+- **Home/office VPS**: any small VPS with 443 open is enough.
+
+### Vercel note
+
+Vercel can host the static Q7 Chat app, but it cannot host the long-lived MQTT
+WebSocket broker. Host the relay on a VPS, Cloudflare Tunnel target, or any
+WebSocket-capable server.

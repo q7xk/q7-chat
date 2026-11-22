@@ -432,5 +432,6 @@
   "panic.wipe": "Emergency wipe",
   "panic.wiped": "Local data wiped",
   "lock.panicHint": "Enter panic code to wipe local data",
-  "tab.conflict": "Another Q7 Chat tab is open. Close other tabs to avoid data conflicts."
+  "tab.conflict": "Another Q7 Chat tab is open. Close other tabs to avoid data conflicts.",
+  "set.relayRestricted": "On restricted networks (school/work), use your own relay on wss:// port 443. See deploy/relay/README.md."
 }

@@ -257,10 +257,11 @@ export function SettingsPanel({
             value={relays}
             onChange={e => setRelays(e.target.value)}
             rows={2}
-            placeholder='wss://relay.example.com:8084/mqtt'
+            placeholder='wss://relay.example.com/mqtt'
             aria-label={t('set.relays')}
             className={cn(field, 'resize-none font-mono text-xs')}
           />
+          <p className='text-xs text-muted'>{t('set.relayRestricted')}</p>
           <button
             onClick={() => void mgr.setCustomRelays(relays.split(/\s+/).filter(Boolean))}
             className={cn(btn, 'bg-sc text-onsc')}
