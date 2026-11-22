@@ -1,9 +1,10 @@
 import type { Attachment } from './types';
 import { cleanName, codeOfPub, fromB64 } from './p2p/crypto';
 
-export const MAX_FILE = 10 * 1024 * 1024;
+export const MAX_FILE = 50 * 1024 * 1024;
 export const CHUNK = 16 * 1024;
 const IMG = /^image\/(png|jpeg|gif|webp|avif)$/;
+const VID = /^video\/(mp4|webm|ogg|quicktime)$/;
 
 export const safeName = (n: string) =>
   n
@@ -65,6 +66,54 @@ export function prepareDocument(file: File): { att: Attachment; blob: Blob } {
     blob: file,
   };
 }
+
+export async function prepareVideo(file: File): Promise<{ att: Attachment; blob: Blob }> {
+  if (file.size > MAX_FILE) throw new Error('attach.tooBig');
+  if (!VID.test(file.type)) throw new Error('attach.badVideo');
+  // Best-effort thumbnail; keep original bytes (re-encoding video in-browser is expensive).
+  let thumb: string | undefined;
+  let dur: number | undefined;
+  try {
+    const url = URL.createObjectURL(file);
+    const v = document.createElement('video');
+    v.preload = 'metadata';
+    v.muted = true;
+    v.src = url;
+    await new Promise<void>((res, rej) => {
+      v.onloadedmetadata = () => res();
+      v.onerror = () => rej();
+    });
+    dur = Number.isFinite(v.duration) ? Math.max(1, Math.round(v.duration)) : undefined;
+    try {
+      v.currentTime = Math.min(0.1, Math.max(0, (v.duration || 0) / 10));
+      await new Promise<void>(res => {
+        v.onseeked = () => res();
+        setTimeout(res, 500);
+      });
+    } catch {}
+    const c = document.createElement('canvas');
+    const k = Math.min(1, 320 / Math.max(v.videoWidth || 320, v.videoHeight || 320));
+    c.width = Math.max(1, Math.round((v.videoWidth || 320) * k));
+    c.height = Math.max(1, Math.round((v.videoHeight || 320) * k));
+    c.getContext('2d')!.drawImage(v, 0, 0, c.width, c.height);
+    thumb = c.toDataURL('image/jpeg', 0.7);
+    URL.revokeObjectURL(url);
+  } catch {
+    /* ignore thumbnail failures */
+  }
+  return {
+    att: {
+      t: 'file',
+      kind: 'video',
+      name: safeName(file.name),
+      mime: file.type,
+      size: file.size,
+      ...(dur ? { dur } : {}),
+      ...(thumb ? { thumb } : {}),
+    },
+    blob: file,
+  };
+}
 /** Picks the best voice codec the browser offers; Chrome=webm/opus, Safari=mp4/aac, Firefox=ogg/opus. */
 export function pickVoiceMime(): string {
   const list = [
@@ -119,6 +168,8 @@ export const validGifUrl = (u: unknown): u is string =>
 const num = (v: unknown, lo: number, hi: number) =>
   typeof v === 'number' && Number.isFinite(v) && v >= lo && v <= hi;
 const str = (v: unknown, max: number) => typeof v === 'string' && v.length <= max;
+const isObj = (v: unknown): v is Record<string, unknown> =>
+  typeof v === 'object' && v !== null && !Array.isArray(v);
 
 /** Validates an attachment received from a peer. Votes are never accepted here; they arrive in their own frames. */
 export async function cleanAtt(a: unknown): Promise<Attachment | null> {
@@ -127,34 +178,67 @@ export async function cleanAtt(a: unknown): Promise<Attachment | null> {
   switch (o.t) {
     case 'file': {
       if (
-        (o.kind !== 'image' && o.kind !== 'document' && o.kind !== 'voice') ||
+        (o.kind !== 'image' &&
+          o.kind !== 'document' &&
+          o.kind !== 'voice' &&
+          o.kind !== 'video') ||
         !str(o.name, 100) ||
         !num(o.size, 1, MAX_FILE)
       )
         return null;
-      if (o.kind === 'voice' && !num(o.dur, 1, 1800)) return null;
+      if ((o.kind === 'voice' || o.kind === 'video') && o.dur !== undefined && !num(o.dur, 1, 7200))
+        return null;
       const mime = typeof o.mime === 'string' ? o.mime : '';
-      // documents are never trusted with a sender-supplied type; voice keeps a strict audio/* allow-list so blobs replay
+      // documents are never trusted with a sender-supplied type; voice/video keep strict allow-lists so blobs replay safely
+      const safeMime =
+        o.kind === 'voice' && /^audio\/(webm|ogg|mp4|aac|mpeg)/.test(mime)
+          ? mime
+          : o.kind === 'image' && IMG.test(mime)
+            ? mime
+            : o.kind === 'video' && VID.test(mime)
+              ? mime
+              : 'application/octet-stream';
+      const thumb =
+        (o.kind === 'video' || o.kind === 'image') &&
+        typeof o.thumb === 'string' &&
+        o.thumb.length < 60_000 &&
+        /^data:image\/(jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(o.thumb)
+          ? o.thumb
+          : undefined;
       return {
         t: 'file',
         kind: o.kind,
         name: safeName(o.name as string),
         size: o.size as number,
-        dur: o.kind === 'voice' ? (o.dur as number) : undefined,
-        mime:
-          o.kind === 'voice' && /^audio\/(webm|ogg|mp4|aac|mpeg)/.test(mime)
-            ? mime
-            : o.kind === 'image' && IMG.test(mime)
-              ? mime
-              : 'application/octet-stream',
+        dur: o.kind === 'voice' || o.kind === 'video' ? (o.dur as number | undefined) : undefined,
+        mime: safeMime,
+        ...(thumb ? { thumb } : {}),
       };
     }
     case 'gif':
       if (!validGifUrl(o.url) || !num(o.w, 16, 2000) || !num(o.h, 16, 2000)) return null;
       return { t: 'gif', url: o.url as string, w: o.w as number, h: o.h as number };
+    case 'sticker': {
+      if (!str(o.pack, 64) || !str(o.id, 64)) return null;
+      const url =
+        typeof o.url === 'string' &&
+        o.url.length < 500 &&
+        (/^https:\/\/[^\s"]+$/.test(o.url) && GIF_HOST.test(o.url) ||
+          /^data:image\/(png|webp);base64,[A-Za-z0-9+/=]+$/.test(o.url))
+          ? o.url
+          : undefined;
+      const emoji = typeof o.emoji === 'string' && o.emoji.length <= 8 ? o.emoji : undefined;
+      return { t: 'sticker', pack: o.pack as string, id: o.id as string, ...(url ? { url } : {}), ...(emoji ? { emoji } : {}) };
+    }
     case 'location':
       return num(o.lat, -90, 90) && num(o.lon, -180, 180)
-        ? { t: 'location', lat: o.lat as number, lon: o.lon as number }
+        ? {
+            t: 'location',
+            lat: o.lat as number,
+            lon: o.lon as number,
+            ...(o.live === true ? { live: true } : {}),
+            ...(num(o.until, 0, 8.64e15) ? { until: o.until as number } : {}),
+          }
         : null;
     case 'contact': {
       if (!str(o.name, 80) || typeof o.pub !== 'string' || typeof o.code !== 'string') return null;
@@ -180,8 +264,9 @@ export async function cleanAtt(a: unknown): Promise<Attachment | null> {
         opts: o.opts as string[],
         multi: o.multi === true,
         votes: {},
+        ...(o.anonymous === true ? { anonymous: true } : {}),
       };
-    case 'event':
+    case 'event': {
       if (
         !str(o.title, 100) ||
         !num(o.start, 0, 8.64e15) ||
@@ -189,13 +274,22 @@ export async function cleanAtt(a: unknown): Promise<Attachment | null> {
         (o.note !== undefined && !str(o.note, 300))
       )
         return null;
+      const rsvp: Record<string, 'yes' | 'no' | 'maybe'> = {};
+      if (isObj(o.rsvp)) {
+        for (const [k, v] of Object.entries(o.rsvp).slice(0, 200)) {
+          if (/^[\w-]{1,64}$/.test(k) && (v === 'yes' || v === 'no' || v === 'maybe')) rsvp[k] = v;
+        }
+      }
       return {
         t: 'event',
         title: o.title as string,
         start: o.start as number,
         place: o.place as string | undefined,
         note: o.note as string | undefined,
+        ...(Object.keys(rsvp).length ? { rsvp } : {}),
+        ...(num(o.reminderAt, 0, 8.64e15) ? { reminderAt: o.reminderAt as number } : {}),
       };
+    }
     default:
       return null;
   }

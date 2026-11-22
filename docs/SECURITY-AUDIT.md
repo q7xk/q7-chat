@@ -1,13 +1,13 @@
 # Security audit status and readiness
 
-**Status: no independent security audit has been completed.**
+**Status: no independent external security audit has been completed.**
 
 Q7 Chat is an experimental, custom messenger. A self-review, automated tests and a
 documented threat model are useful, but they are **not** an independent audit and
 must never be presented as one. This page records what has been reviewed
 internally, what remains unknown, and what an external auditor should examine.
 
-Last updated: 2026-11-01 · version 0.2.0
+Last updated: 2026-11-22 · working tree (unreleased)
 
 ## Why this cannot be "closed" in code
 
@@ -153,3 +153,45 @@ review described above.
 Please follow [SECURITY.md](../SECURITY.md). Do not open a public issue for a
 suspected vulnerability. If GitHub private vulnerability reporting is enabled on
 the repository, use **Security → Report a vulnerability**.
+
+## 2026-11-22 internal review (unreleased working tree)
+
+This is an **internal** engineering review, not an independent audit. It covers
+changes made in the working tree after 0.2.0.
+
+### Changes reviewed
+
+| Area | Status | Notes |
+| --- | --- | --- |
+| Disappearing message modes (72h/1h/1m/10s) | Implemented | `expiresAt` is now computed from the conversation mode; backup/sync sanitizers preserve shorter expiries while capping at 72h. Incoming frames accept sender `exp` but never extend beyond 72h or the local conversation policy. |
+| Panic wipe | Implemented | Lock screen can wipe local DB/localStorage/sessionStorage when a configured panic code is entered or failed-attempt threshold is reached. Settings are read from localStorage before unlock. |
+| Screenshot/screen recording warning | Best-effort | Detects PrintScreen/SysRq and common capture shortcuts, and uses a visibility heuristic. **Cannot reliably detect OS-level capture, external cameras, or all screen-recording APIs.** Treated as a UX signal, not a security boundary. |
+| Multi-tab lock warning | Implemented | BroadcastChannel warns when another tab is open to reduce IndexedDB/storage race risk. It is a warning, not a hard lock. |
+| File size limit increase (50 MB) | Implemented | Attachment validation and backup sanitization updated. Large payloads still rely on existing chunking and direct/relay limits; relay detours remain bounded. |
+| Video/sticker attachment types | Implemented | Validation/sanitization/rendering extended. Video files are not re-encoded; thumbnails are best-effort. |
+| Voice playback speed | Implemented | Client-side only. |
+| Chat export/statistics | Implemented | Local plaintext export and local statistics; no network effect. |
+
+### Findings / follow-ups
+
+- **No post-quantum hybrid KEM yet.** The roadmap item (X25519 + ML-KEM) is not
+  implemented in this pass. Current key exchange remains classical P-256 ECDH.
+- **No Double Ratchet yet.** Relay pairwise messages still use static-static
+  pairwise keys; WebRTC sessions have ephemeral ECDH but relay fallback does not
+  provide Signal-style per-message ratcheting. This remains a high-priority gap.
+- **No traffic masking/dummy traffic yet.** Relay metadata analysis remains possible.
+- **Screenshot detection is inherently limited in browsers.** Do not present it as
+  prevention.
+- **Panic wipe depends on local settings availability.** If settings are unavailable,
+  only explicit panic-code entry can trigger it; threshold-based wipe may not be
+  configurable before unlock.
+- **Attachment size increase increases memory pressure.** Chunking exists, but very
+  large files should be tested on low-memory mobile devices.
+- **New attachment fields must remain backward-compatible.** Unknown kinds/types are
+  ignored by old clients; this is acceptable but should be documented in PROTOCOL.
+
+### Recommendation
+
+Treat these changes as incremental hardening/UX improvements. The project still
+requires an independent external cryptographic and implementation audit before any
+high-risk use.

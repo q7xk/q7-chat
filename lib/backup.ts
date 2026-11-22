@@ -311,6 +311,17 @@ export function sanitizeConversation(c: unknown): Conversation | null {
   if (c.starred === true) out.starred = true;
   if (typeof c.wall === 'string') out.wall = c.wall.slice(0, 40);
   if (typeof c.syncAt === 'number' && Number.isFinite(c.syncAt)) out.syncAt = c.syncAt;
+  if (c.disappear === '10s' || c.disappear === '1m' || c.disappear === '1h' || c.disappear === '72h')
+    out.disappear = c.disappear;
+  if (isObj(c.roles)) {
+    const roles: Record<string, 'owner' | 'admin' | 'member'> = {};
+    for (const [k, v] of Object.entries(c.roles))
+      if (ID.test(k) && (v === 'owner' || v === 'admin' || v === 'member')) roles[k] = v;
+    if (Object.keys(roles).length) out.roles = roles;
+  }
+  if (c.broadcast === true) out.broadcast = true;
+  if (c.discoverable === true) out.discoverable = true;
+  if (typeof c.folder === 'string' && c.folder.length <= 40) out.folder = c.folder;
   return out;
 }
 
@@ -356,7 +367,10 @@ export function sanitizeMessage(m: unknown, now: number, convIds: Set<string>): 
     m.createdAt > now + 300_000
   )
     return null;
-  const expiresAt = m.createdAt + LIFETIME_MS;
+  const maxExp = m.createdAt + LIFETIME_MS;
+  const rawExp =
+    typeof m.expiresAt === 'number' && Number.isFinite(m.expiresAt) ? m.expiresAt : maxExp;
+  const expiresAt = Math.min(maxExp, Math.max(m.createdAt + 1000, rawExp));
   if (expiresAt <= now) return null;
   if (!m.body && !isObj(m.link) && !isObj(m.att)) return null;
   const out: Message = {
@@ -378,6 +392,7 @@ export function sanitizeMessage(m: unknown, now: number, convIds: Set<string>): 
     out.status = m.status;
   if (typeof m.editedAt === 'number' && Number.isFinite(m.editedAt)) out.editedAt = m.editedAt;
   if (typeof m.syncAt === 'number' && Number.isFinite(m.syncAt)) out.syncAt = m.syncAt;
+  if (m.sensitive === true) out.sensitive = true;
   const link = sanitizeLink(m.link);
   if (link) out.link = link;
   const att = sanitizeAttachment(m.att);
@@ -414,7 +429,7 @@ function sanitizeAttachment(v: unknown): Attachment | undefined {
   if (!isObj(v)) return undefined;
   if (
     v.t === 'file' &&
-    (v.kind === 'image' || v.kind === 'document' || v.kind === 'voice') &&
+    (v.kind === 'image' || v.kind === 'document' || v.kind === 'voice' || v.kind === 'video') &&
     typeof v.name === 'string' &&
     typeof v.mime === 'string' &&
     typeof v.size === 'number'
@@ -424,8 +439,11 @@ function sanitizeAttachment(v: unknown): Attachment | undefined {
       kind: v.kind,
       name: v.name.slice(0, 120),
       mime: v.mime.slice(0, 100),
-      size: Math.max(0, Math.min(10 * 1024 * 1024, v.size)),
+      size: Math.max(0, Math.min(50 * 1024 * 1024, v.size)),
       ...(typeof v.dur === 'number' ? { dur: v.dur } : {}),
+      ...(typeof v.thumb === 'string' && v.thumb.startsWith('data:image/') && v.thumb.length < 60_000
+        ? { thumb: v.thumb }
+        : {}),
     };
   }
   if (
@@ -443,6 +461,15 @@ function sanitizeAttachment(v: unknown): Attachment | undefined {
       h: Math.max(1, Math.min(4000, v.h)),
     };
   }
+  if (v.t === 'sticker' && typeof v.pack === 'string' && typeof v.id === 'string') {
+    return {
+      t: 'sticker',
+      pack: v.pack.slice(0, 64),
+      id: v.id.slice(0, 64),
+      ...(typeof v.url === 'string' && v.url.length < 500 ? { url: v.url } : {}),
+      ...(typeof v.emoji === 'string' ? { emoji: v.emoji.slice(0, 8) } : {}),
+    };
+  }
   if (
     v.t === 'location' &&
     typeof v.lat === 'number' &&
@@ -450,7 +477,13 @@ function sanitizeAttachment(v: unknown): Attachment | undefined {
     Math.abs(v.lat) <= 90 &&
     Math.abs(v.lon) <= 180
   )
-    return { t: 'location', lat: v.lat, lon: v.lon };
+    return {
+      t: 'location',
+      lat: v.lat,
+      lon: v.lon,
+      ...(v.live === true ? { live: true } : {}),
+      ...(typeof v.until === 'number' && Number.isFinite(v.until) ? { until: v.until } : {}),
+    };
   if (
     v.t === 'contact' &&
     typeof v.name === 'string' &&
@@ -481,17 +514,35 @@ function sanitizeAttachment(v: unknown): Attachment | undefined {
             .slice(0, opts.length);
           if (picks.length) votes[who] = picks;
         }
-      return { t: 'poll', q: v.q.slice(0, 200), opts, multi: v.multi === true, votes };
+      return {
+        t: 'poll',
+        q: v.q.slice(0, 200),
+        opts,
+        multi: v.multi === true,
+        votes,
+        ...(v.anonymous === true ? { anonymous: true } : {}),
+      };
     }
   }
-  if (v.t === 'event' && typeof v.title === 'string' && typeof v.start === 'number')
+  if (v.t === 'event' && typeof v.title === 'string' && typeof v.start === 'number') {
+    const rsvp: Record<string, 'yes' | 'no' | 'maybe'> = {};
+    if (isObj(v.rsvp)) {
+      for (const [k, val] of Object.entries(v.rsvp).slice(0, 200)) {
+        if (ID.test(k) && (val === 'yes' || val === 'no' || val === 'maybe')) rsvp[k] = val;
+      }
+    }
     return {
       t: 'event',
       title: v.title.slice(0, 120),
       start: v.start,
       ...(typeof v.place === 'string' ? { place: v.place.slice(0, 120) } : {}),
       ...(typeof v.note === 'string' ? { note: v.note.slice(0, 300) } : {}),
+      ...(Object.keys(rsvp).length ? { rsvp } : {}),
+      ...(typeof v.reminderAt === 'number' && Number.isFinite(v.reminderAt)
+        ? { reminderAt: v.reminderAt }
+        : {}),
     };
+  }
   return undefined;
 }
 

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'rea
 import { KeyRound, Loader2 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import * as vault from '@/lib/vault';
+import * as db from '@/lib/db';
 import { cn } from '@/lib/cn';
 import { clipShape } from './Badges';
 import { btn, field } from './Connect';
@@ -18,6 +19,7 @@ export function LockScreen({ onUnlock }: { onUnlock: () => void }) {
   const [err, setErr] = useState('');
   const [fails, setFails] = useState(0);
   const [cool, setCool] = useState(0);
+  const totalFails = useRef(0);
   const ref = useRef<HTMLInputElement>(null);
   useEffect(() => {
     void vault.getVault().then(v => setHasTotp(!!v?.totp));
@@ -28,9 +30,29 @@ export function LockScreen({ onUnlock }: { onUnlock: () => void }) {
     const iv = setInterval(() => setCool(c => Math.max(0, c - 1)), 1000);
     return () => clearInterval(iv);
   }, [cool]);
+  const panicSettings = () => {
+    try {
+      const raw = localStorage.getItem('q7.settings');
+      const s = raw ? (JSON.parse(raw) as { panicWipeAfter?: number; panicCode?: string }) : {};
+      return { after: Number(s.panicWipeAfter) || 0, code: typeof s.panicCode === 'string' ? s.panicCode : '' };
+    } catch {
+      return { after: 0, code: '' };
+    }
+  };
+  const wipeAllLocal = async () => {
+    try { await db.wipeAll(); } catch {}
+    try { localStorage.clear(); } catch {}
+    try { sessionStorage.clear(); } catch {}
+    location.reload();
+  };
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (busy || cool > 0) return;
+    const { after, code: panicCode } = panicSettings();
+    if (panicCode && pw && pw === panicCode) {
+      await wipeAllLocal();
+      return;
+    }
     setBusy(true);
     setErr('');
     try {
@@ -48,6 +70,11 @@ export function LockScreen({ onUnlock }: { onUnlock: () => void }) {
       setErr(tk(ex instanceof Error ? ex.message : 'lock.wrong'));
       const n = fails + 1;
       setFails(n);
+      totalFails.current += 1;
+      if (after > 0 && totalFails.current >= after) {
+        await wipeAllLocal();
+        return;
+      }
       if (n >= 3) {
         setCool(10);
         setFails(0);

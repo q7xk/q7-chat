@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from 'react';
 import type { Attachment, Conversation, LinkMeta, Message, Settings, Space } from './types';
-import { LIFETIME_MS } from './time';
+import { LIFETIME_MS, lifetimeFor } from './time';
 import { applyAccent } from './theme';
 import * as db from './db';
 import * as backup from './backup';
@@ -112,7 +112,8 @@ const mk = (
   body: string,
   link?: LinkMeta,
   replyToId?: string,
-  att?: Attachment
+  att?: Attachment,
+  lifetimeMs = LIFETIME_MS
 ): Message => {
   const createdAt = Date.now();
   return {
@@ -120,7 +121,7 @@ const mk = (
     conversationId,
     body,
     createdAt,
-    expiresAt: createdAt + LIFETIME_MS,
+    expiresAt: createdAt + lifetimeMs,
     link,
     replyToId,
     att,
@@ -286,7 +287,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       db.purgeExpired(t).catch(() => {});
       db.purgeBlobs(t).catch(() => {});
     };
-    const h = setInterval(tick, 30_000);
+    const h = setInterval(tick, 5_000);
     const vis = () => {
       if (document.visibilityState === 'visible') tick();
     };
@@ -355,7 +356,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       att?: Attachment,
       blob?: Blob
     ) => {
-      const m = mk(cid, body, link, replyToId, att);
+      const conv = convRef.current.find(c => c.id === cid);
+      const m = mk(cid, body, link, replyToId, att, lifetimeFor(conv?.disappear));
       setNow(Date.now());
       msgRef.current = [...msgRef.current, m];
       setMessages(msgRef.current);

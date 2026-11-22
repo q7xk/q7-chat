@@ -1,7 +1,7 @@
 import * as db from '../db';
 import type { Attachment, Contact, Conversation, LinkedDevice, LinkMeta, Message } from '../types';
 import { CHUNK, cleanAtt, validAvatar, validVote } from '../attach';
-import { LIFETIME_MS } from '../time';
+import { LIFETIME_MS, lifetimeFor } from '../time';
 import { isDirectImageUrl, parseHttpsUrl } from '../links';
 import {
   checkEnvelope,
@@ -1716,12 +1716,14 @@ export class P2PManager {
     if (!contact) return;
     const convId = this.host.ensureConversation(contactId, contact.name),
       createdAt = Date.now();
+    const conv = this.host.getConversations().find(c => c.id === convId);
+    const life = lifetimeFor((conv as unknown as { disappear?: string } | undefined)?.disappear);
     const m: Message = {
       id: randomHex(16),
       conversationId: convId,
       body,
       createdAt,
-      expiresAt: createdAt + LIFETIME_MS,
+      expiresAt: createdAt + life,
       link,
       replyToId,
       att,
@@ -1779,6 +1781,7 @@ export class P2PManager {
       k: 'msg',
       id: m.id,
       ts: m.createdAt,
+      exp: m.expiresAt,
       body: m.body,
       link: m.link,
       replyTo: m.replyToId,
@@ -2036,12 +2039,13 @@ export class P2PManager {
     const conv = this.groupConv(convId);
     if (!conv) return;
     const createdAt = Date.now();
+    const life = lifetimeFor((conv as unknown as { disappear?: string }).disappear);
     const m: Message = {
       id: randomHex(16),
       conversationId: convId,
       body,
       createdAt,
-      expiresAt: createdAt + LIFETIME_MS,
+      expiresAt: createdAt + life,
       link,
       replyToId,
       att,
@@ -2058,6 +2062,7 @@ export class P2PManager {
       from: this.snap.fp,
       id: m.id,
       ts: m.createdAt,
+      exp: m.expiresAt,
       body: m.body,
       link: m.link,
       replyTo: m.replyToId,
@@ -2393,8 +2398,14 @@ export class P2PManager {
     const att = o.att === undefined ? undefined : await cleanAtt(o.att);
     if ((o.att !== undefined && !att) || (!o.body && !meta && !att)) return;
     const now = Date.now(),
-      createdAt = Math.min(o.ts, now),
-      expiresAt = createdAt + LIFETIME_MS; // never trust the sender's clock beyond "now"
+      createdAt = Math.min(o.ts, now);
+    const senderExp =
+      typeof (o as Record<string, unknown>).exp === 'number' &&
+      Number.isFinite((o as Record<string, unknown>).exp as number)
+        ? ((o as Record<string, unknown>).exp as number)
+        : createdAt + LIFETIME_MS;
+    const convLife = lifetimeFor((conv as unknown as { disappear?: string }).disappear);
+    const expiresAt = Math.min(createdAt + LIFETIME_MS, Math.max(createdAt + 1000, senderExp), createdAt + convLife); // never extend beyond 72h or our conv policy
     if (expiresAt <= now) {
       ack(o.id);
       return;
@@ -2429,7 +2440,7 @@ export class P2PManager {
           void db.putBlob({
             id: o.id,
             blob: new Blob([bytes as unknown as BlobPart], { type: att.mime }),
-            expiresAt: createdAt + LIFETIME_MS,
+            expiresAt,
           });
           this.host.blobReady();
           ack(o.id);

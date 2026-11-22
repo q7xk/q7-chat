@@ -28,6 +28,8 @@ import { SettingsPanel } from './Settings';
 import { Thread } from './Thread';
 import { TopBar } from './TopBar';
 import { InstallPrompt } from './InstallPrompt';
+import { useCaptureWarn } from '@/lib/useCaptureWarn';
+import { useTabLock } from '@/lib/useTabLock';
 
 /** Rail order, used for the direction-aware view transition. */
 const ORDER: View[] = [
@@ -116,7 +118,7 @@ function useNotifier() {
 export function Shell() {
   const { t } = useI18n();
   const { snap } = useP2P();
-  const { conversations, messages, spaces } = useStore();
+  const { conversations, messages, spaces, settings } = useStore();
   const [view, setView] = useState<View>('chats');
   const [activeId, setActiveId] = useState<string | null>(null);
   const [pin, setPin] = useState(false); // hamburger: keep the rail expanded
@@ -142,6 +144,8 @@ export function Shell() {
   );
   const clearSection = useCallback(() => setSection(null), []);
   useNotifier();
+  const captureWarn = useCaptureWarn(settings.captureWarnings !== false);
+  const tabConflict = useTabLock();
   const chat = view === 'chats';
   const pane = 'md:rounded-[28px] md:overflow-hidden';
   const paneScroll = 'md:rounded-[28px]';
@@ -223,6 +227,16 @@ export function Shell() {
         Skip to content
       </a>
       <ShapeDefs />
+      {captureWarn && (
+        <div className='fixed top-4 left-1/2 z-[60] -translate-x-1/2 rounded-full bg-danger px-4 py-2 text-sm font-medium text-bg shadow-lg'>
+          {t('capture.warn')}
+        </div>
+      )}
+      {tabConflict && (
+        <div className='fixed inset-x-0 top-0 z-[55] bg-amber-500/95 px-4 py-2 text-center text-sm font-medium text-black'>
+          {t('tab.conflict')}
+        </div>
+      )}
       <TopBar
         railOpen={pin}
         onRail={() => setPin(v => !v)}

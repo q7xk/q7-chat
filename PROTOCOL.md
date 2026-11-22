@@ -22,7 +22,7 @@ Kod tabanı: `lib/p2p/` — `crypto.ts` (kimlik + zarf + oturum), `q7rp.ts` (rel
 | Kimlik doğrulama           | Tüm zarflar ve frame'ler cihazın kalıcı imza anahtarıyla imzalı (ECDSA P-256)                                                               |
 | MITM koruması              | 12 haneli adres kodu fingerprint'e bağlı yalnız adres; 30 haneli safety number ile görsel doğrulama                                         |
 | Offline teslim             | Mailbox: broker'da retained kopyalar, karşı taraf dönünce akar                                                                              |
-| Kayıt ömrü                 | Mesajlar 72 saat yaşar (API katmanı expiresAt'i yeniden hesaplar; ihlal edilemez)                                                           |
+| Kayıt ömrü                 | Mesajlar varsayılan 72 saat yaşar; sohbet başına 10sn/1dk/1saat/72saat modları seçilebilir. API katmanı expiresAt'i 72 saati aşmayacak şekilde yeniden hesaplar; ihlal edilemez. |
 | Simetrik NAT / UDP engelli | Doğrudan WebRTC başarısız olursa konuşma relay moduna düşer (Tox'un TCP relay'ine denk gelen Q7RP fallback)                                 |
 | Sunucusuz statik uygulama  | Uygulama kabuksuz statik dosyadır (PWA); herhangi bir statik host'tan servis edilebilir                                                     |
 

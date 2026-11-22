@@ -1,8 +1,8 @@
 # Q7 Chat
 
-Modern PWA-ready, end-to-end encrypted messaging with 72-hour message expiry, multi-device sync, voice messages, and 32 languages.
+Modern PWA-ready, end-to-end encrypted messaging with disappearing messages (10s to 72h), multi-device sync, voice/video messages, and 32 languages.
 
-**Private, serverless messaging that disappears after 72 hours.**
+**Private, serverless messaging that disappears on your terms.**
 
 Q7 Chat is a browser-based, end-to-end encrypted messenger built with Next.js, TypeScript and Tailwind CSS. It has no account system, no application server and no message database in the cloud: identity keys, conversations and attachments live in the browser's IndexedDB, while messages travel directly between devices or through public MQTT relays as sealed envelopes.
 
@@ -50,7 +50,7 @@ Most messengers ask you to trust a server. Q7 Chat is built around a different d
 - **No account, no sign-up, no email.** Your identity is a key pair generated on your device. Your public address is a 12-digit Q7 code.
 - **No application server.** Public MQTT brokers are used only as dumb, encrypted relays. They see hashed topics and ciphertext, never plaintext.
 - **Local-first storage.** Conversations, contacts, settings and file blobs stay in IndexedDB on your devices. Linked devices exchange sealed snapshots and tombstones through the relays; there is no server that can read or hold plaintext history.
-- **72-hour messages.** Every message gets an expiry timestamp at creation. Expired messages are filtered in the UI and purged from IndexedDB.
+- **Disappearing messages.** Each conversation can use 10 seconds, 1 minute, 1 hour, or 72 hours. Expired messages are filtered in the UI and purged from IndexedDB.
 - **Works offline-ish.** Devices talk peer-to-peer over WebRTC when possible. If that fails, encrypted frames fall back to a relay mailbox so messages can arrive later.
 - **Open source under Apache 2.0.** You can inspect, modify and self-host it.
 
@@ -62,13 +62,14 @@ Most messengers ask you to trust a server. Q7 Chat is built around a different d
 - **1:1 P2P chats** — end-to-end encrypted conversations with contacts.
 - **Group conversations** — create a group from your contacts, invite members and exchange encrypted messages.
 - **Spaces** — local-only contact groups for organising your sidebar. They are not sent over the network.
-- **Rich messages** — replies, emoji reactions, edits, retractions, message search, mentions and starred conversations.
-- **Attachments** — images, documents and voice notes up to **10 MB**; large transfers are chunked device-to-device in 16 KB encrypted pieces.
+- **Rich messages** — replies, emoji reactions, edits, retractions, message search, mentions, starred conversations, and per-chat statistics.
+- **Attachments** — images, documents, voice notes and video messages up to **50 MB**; large transfers are chunked device-to-device in 16 KB encrypted pieces.
 - **Metadata stripping** — still images are re-encoded to JPEG before sending, dropping EXIF and GPS data.
 - **Extras** — polls, events, location sharing, contact cards and GIFs.
 - **Link previews** — privacy-controlled: ask, block or allow external image previews.
 - **Chat controls** — pin, mute, archive, clear, delete, wallpapers, unread counts and 72-hour expiry.
 - **Notifications** — optional system notifications, sound and previews when the tab is in the background.
+- **Voice playback speed** — 1x / 1.5x / 2x for voice messages.
 
 ### Identity and connection
 
@@ -83,11 +84,14 @@ Most messengers ask you to trust a server. Q7 Chat is built around a different d
 
 - **Local vault** — optional password lock using PBKDF2-SHA256 (310,000 iterations), AES-GCM and an optional TOTP authenticator code. The identity keys are sealed at rest; the password never leaves the device.
 - **Idle lock** — automatically locks the vault after a configurable idle period.
+- **Panic wipe** — optional emergency wipe via failed-attempt threshold or panic code on the lock screen.
+- **Screenshot/screen recording warning** — best-effort browser signal (not a security boundary).
+- **Multi-tab conflict warning** — warns when another Q7 Chat tab is open to reduce local data races.
 - **Encrypted local backup** — a password-protected `.q7b` archive (PBKDF2-SHA256 600k + AES-256-GCM) containing the identity or sealed vault, conversations, contacts, settings and metadata. Attachments are not included. Legacy plaintext exports can still be imported once.
 - **Multi-device sync** — linked devices share P2P and group messages, edits, reactions, deletions and contacts automatically through sealed, retained relay snapshots. Local Mode notes stay on the device that created them. Merging is last-writer-wins with 72-hour deletion tombstones.
 - **Self-hosted relay** — a Docker Compose stack with Mosquitto and Caddy for users who need relay continuity they control.
 - **Reduce motion, text scale, themes, accents** — accessibility and appearance controls.
-- **17 languages** with right-to-left support for Arabic.
+- **32 languages** with right-to-left support for Arabic and Persian.
 - **Strict Content Security Policy** in `next.config.mjs` (with a documented `unsafe-inline` caveat for Next.js bootstrap scripts).
 
 ## How it works
@@ -112,7 +116,7 @@ Most messengers ask you to trust a server. Q7 Chat is built around a different d
 3. **Direct transport.** WebRTC DataChannels carry live traffic and chunked file transfers using an ephemeral ECDH session with forward secrecy.
 4. **Relay fallback.** When a direct channel is unavailable, frames are sealed with the pairwise key, signed with ECDSA and published to public MQTT brokers. Retained mailbox copies let the recipient catch up later.
 5. **Acknowledgements.** The receiver sends a signed delivery receipt; the sender clears retained copies from the brokers.
-6. **Expiry.** Every message receives `expiresAt = createdAt + 72h`. Expired records and blobs are purged from IndexedDB on startup and on a timer.
+6. **Expiry.** Every message receives an expiry timestamp based on the conversation disappearing mode (10s/1m/1h/72h), capped at 72h. Expired records and blobs are purged from IndexedDB on startup and on a timer.
 
 The full wire format, topic layout, replay window, mailbox flow and threat model are documented in [PROTOCOL.md](PROTOCOL.md). A deeper code-oriented overview is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 

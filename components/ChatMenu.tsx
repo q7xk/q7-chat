@@ -20,12 +20,14 @@ import {
   PinOff,
   Star,
   StarOff,
+  Timer,
   Trash2,
   User as UserIcon,
   UserMinus,
   UserPlus,
   Users,
   Download,
+  BarChart3,
 } from 'lucide-react';
 import type { Conversation, Contact, LinkMeta, Message } from '@/lib/types';
 import { useStore } from '@/lib/store';
@@ -119,7 +121,7 @@ export function ChatMenu({
   const [open, setOpen] = useState(false);
   const [more, setMore] = useState(false);
   const [panel, setPanel] = useState<
-    null | 'info' | 'media' | 'theme' | 'clear' | 'members' | 'rename' | 'leave'
+    null | 'info' | 'media' | 'theme' | 'clear' | 'members' | 'rename' | 'leave' | 'disappear' | 'stats'
   >(null);
   const [toast] = useState('');
   const root = useRef<HTMLDivElement>(null);
@@ -290,6 +292,17 @@ export function ChatMenu({
             <Palette size={18} />
             {t('menu.theme')}
           </button>
+          <button
+            role='menuitem'
+            onClick={() => {
+              setOpen(false);
+              setPanel('disappear');
+            }}
+            className={item}
+          >
+            <Timer size={18} />
+            {t('menu.disappear')}
+          </button>
           {p2p && (
             <button
               role='menuitem'
@@ -335,6 +348,17 @@ export function ChatMenu({
               >
                 <Download size={18} />
                 {t('menu.export')}
+              </button>
+              <button
+                role='menuitem'
+                onClick={() => {
+                  setOpen(false);
+                  setPanel('stats');
+                }}
+                className={item}
+              >
+                <BarChart3 size={18} />
+                {t('menu.stats')}
               </button>
               <button role='menuitem' onClick={togglePin} className={item}>
                 {conv.pinned ? <PinOff size={18} /> : <Pin size={18} />}
@@ -448,6 +472,35 @@ export function ChatMenu({
           </div>
         </Sheet>
       )}
+      {panel === 'disappear' && (
+        <Sheet title={t('menu.disappear')} onClose={() => setPanel(null)}>
+          <p className='mb-4 text-sm leading-relaxed text-muted'>{t('disappear.hint')}</p>
+          <div className='space-y-2'>
+            {([
+              ['72h', t('disappear.72h')],
+              ['1h', t('disappear.1h')],
+              ['1m', t('disappear.1m')],
+              ['10s', t('disappear.10s')],
+            ] as const).map(([id, label]) => (
+              <button
+                key={id}
+                onClick={() => {
+                  update(conv.id, { disappear: id } as Partial<Conversation>);
+                  setPanel(null);
+                }}
+                className={cn(
+                  'm3-press flex w-full items-center justify-between rounded-2xl px-4 py-3 text-sm',
+                  (conv.disappear ?? '72h') === id ? 'bg-accent/15 text-accent' : 'bg-container hover:bg-raised'
+                )}
+              >
+                <span>{label}</span>
+                {(conv.disappear ?? '72h') === id && <span className='text-xs'>✓</span>}
+              </button>
+            ))}
+          </div>
+        </Sheet>
+      )}
+      {panel === 'stats' && <StatsSheet conv={conv} msgs={msgs} onClose={() => setPanel(null)} />}
     </div>
   );
 }
@@ -803,5 +856,49 @@ function RenameForm({ conv, onDone }: { conv: Conversation; onDone: () => void }
         </button>
       </div>
     </div>
+  );
+}
+
+function StatsSheet({ conv, msgs, onClose }: { conv: Conversation; msgs: Message[]; onClose: () => void }) {
+  const { t } = useI18n();
+  const total = msgs.length;
+  const mine = msgs.filter(m => m.direction !== 'in').length;
+  const theirs = total - mine;
+  const media = msgs.filter(m => m.att?.t === 'file' || m.att?.t === 'gif').length;
+  const links = msgs.filter(m => !!m.link).length;
+  const first = msgs[0]?.createdAt;
+  const last = msgs[msgs.length - 1]?.createdAt;
+  const byHour = new Array(24).fill(0);
+  for (const m of msgs) byHour[new Date(m.createdAt).getHours()]++;
+  const peakHour = byHour.indexOf(Math.max(...byHour));
+  const avgDay = first ? (total / Math.max(1, (Date.now() - first) / 86400000)).toFixed(1) : '0';
+  const Row = ({ k, v }: { k: string; v: string | number }) => (
+    <div className='flex items-center justify-between rounded-2xl bg-container px-4 py-3 text-sm'>
+      <span className='text-muted'>{k}</span>
+      <span className='font-medium tabular-nums'>{v}</span>
+    </div>
+  );
+  return (
+    <Sheet title={t('menu.stats')} onClose={onClose}>
+      <div className='space-y-2'>
+        <Row k={t('stats.total')} v={total} />
+        <Row k={t('stats.mine')} v={mine} />
+        <Row k={t('stats.theirs')} v={theirs} />
+        <Row k={t('stats.media')} v={media} />
+        <Row k={t('stats.links')} v={links} />
+        <Row k={t('stats.avgDay')} v={avgDay} />
+        <Row k={t('stats.peakHour')} v={`${String(peakHour).padStart(2, '0')}:00`} />
+        {first && <Row k={t('stats.first')} v={new Date(first).toLocaleDateString()} />}
+        {last && <Row k={t('stats.last')} v={new Date(last).toLocaleDateString()} />}
+      </div>
+      <div className='mt-4'>
+        <p className='mb-2 text-xs text-muted'>{t('stats.activity')}</p>
+        <div className='flex items-end gap-1 h-20'>
+          {byHour.map((n, i) => (
+            <div key={i} className='flex-1 rounded-t bg-accent/60' style={{ height: `${Math.max(4, (n / Math.max(1, Math.max(...byHour))) * 100)}%` }} title={`${i}:00`} />
+          ))}
+        </div>
+      </div>
+    </Sheet>
   );
 }

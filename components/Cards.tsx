@@ -69,23 +69,34 @@ function ics(title: string, start: number, place?: string, note?: string) {
 
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
-/** Voice bubble: play/pause with a live progress bar and total duration. */
+/** Voice bubble: play/pause with a live progress bar, duration and playback speed. */
 function VoiceBubble({ url, dur }: { url: string; dur: number }) {
   const ref = useRef<HTMLAudioElement>(null);
+  const { settings } = useStore();
   const [playing, setPlaying] = useState(false);
   const [at, setAt] = useState(0);
+  const speeds = [1, 1.5, 2] as const;
+  const [speed, setSpeed] = useState<(typeof speeds)[number]>(settings.voiceSpeed ?? 1);
   useEffect(() => {
     setPlaying(false);
     setAt(0);
   }, [url]);
+  useEffect(() => {
+    if (ref.current) ref.current.playbackRate = speed;
+  }, [speed, url]);
   const toggle = () => {
     const a = ref.current;
     if (!a) return;
+    a.playbackRate = speed;
     if (playing) {
       a.pause();
       return;
     }
     void a.play().catch(() => {});
+  };
+  const cycleSpeed = () => {
+    const i = speeds.indexOf(speed);
+    setSpeed(speeds[(i + 1) % speeds.length]);
   };
   return (
     <div className='flex min-w-52 items-center gap-3 py-1'>
@@ -100,6 +111,14 @@ function VoiceBubble({ url, dur }: { url: string; dur: number }) {
         <div className='flex items-center gap-2'>
           <Mic size={14} className='shrink-0 opacity-70' aria-hidden />
           <span className='text-xs tabular-nums opacity-90'>{mmss(dur)}</span>
+          <button
+            onClick={cycleSpeed}
+            className='ms-auto rounded-full bg-black/10 px-2 py-0.5 text-[11px] font-medium tabular-nums hover:bg-black/20'
+            aria-label='playback speed'
+            title='playback speed'
+          >
+            {speed}x
+          </button>
         </div>
         <audio
           ref={ref}
@@ -173,6 +192,12 @@ export function AttachmentView({
       </a>
     );
   }
+  if (a.t === 'sticker') {
+    if (a.url) {
+      return <img src={a.url} alt={a.emoji ?? 'sticker'} className='h-28 w-28 object-contain' loading='lazy' />;
+    }
+    return <div className='text-5xl leading-none'>{a.emoji ?? '🎟️'}</div>;
+  }
   if (a.t === 'file') {
     if (!file)
       return (
@@ -184,6 +209,25 @@ export function AttachmentView({
     if (a.kind === 'image')
       return (
         <img src={file.url} alt={a.name} className='max-h-72 w-full rounded-2xl object-contain' />
+      );
+    if (a.kind === 'video')
+      return (
+        <div className='space-y-2'>
+          <video
+            src={file.url}
+            controls
+            playsInline
+            preload='metadata'
+            poster={a.thumb}
+            className='max-h-72 w-full rounded-2xl bg-black/20'
+          />
+          <div className='flex items-center justify-between text-xs opacity-80'>
+            <span className='truncate'>{a.name}</span>
+            <button onClick={() => save(file.url, a.name)} className={chip}>
+              <Download size={14} /> {t('c.save')}
+            </button>
+          </div>
+        </div>
       );
     return (
       <div className='flex items-center gap-3'>

@@ -232,7 +232,7 @@ describe('attachments from peers', () => {
   });
   it('sanitises names and rejects oversized or empty documents', () => {
     expect(safeName('a/b\\c:d')).toBe('a_b_c_d');
-    expect(() => prepareDocument(new File([new Uint8Array(11 * 1024 * 1024)], 'x.bin'))).toThrow(
+    expect(() => prepareDocument(new File([new Uint8Array(51 * 1024 * 1024)], 'x.bin'))).toThrow(
       'attach.tooBig'
     );
     expect(() => prepareDocument(new File([], 'empty'))).toThrow();

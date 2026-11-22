@@ -12,11 +12,12 @@ import {
   Smile,
   Trash2,
   User,
+  Video,
   X,
   BarChart3,
 } from 'lucide-react';
 import type { Attachment, Message } from '@/lib/types';
-import { pickVoiceMime, prepareDocument, prepareImage, prepareVoice } from '@/lib/attach';
+import { pickVoiceMime, prepareDocument, prepareImage, prepareVideo, prepareVoice } from '@/lib/attach';
 import { useI18n, type K } from '@/lib/i18n';
 import { useP2P } from '@/lib/p2p/context';
 import { formatCode } from '@/lib/p2p/crypto';
@@ -85,7 +86,8 @@ export function Composer({
   const ref = useRef<HTMLTextAreaElement>(null);
   const gal = useRef<HTMLInputElement>(null),
     cam = useRef<HTMLInputElement>(null),
-    doc = useRef<HTMLInputElement>(null);
+    doc = useRef<HTMLInputElement>(null),
+    vid = useRef<HTMLInputElement>(null);
 
   const mentionList =
     mention !== null
@@ -126,10 +128,17 @@ export function Composer({
       setPanel(null);
     }
   };
-  const files = async (list: FileList | null, kind: 'image' | 'document') => {
+  const files = async (list: FileList | null, kind: 'image' | 'document' | 'video') => {
     for (const f of Array.from(list ?? []).slice(0, 10)) {
       try {
-        const r = kind === 'image' ? await prepareImage(f) : prepareDocument(f);
+        const r =
+          kind === 'video'
+            ? await prepareVideo(f)
+            : kind === 'image'
+              ? f.type.startsWith('video/')
+                ? await prepareVideo(f)
+                : await prepareImage(f)
+              : prepareDocument(f);
         done(r.att, r.blob);
       } catch (e) {
         setErr(tk(e instanceof Error ? e.message : 'err.generic'));
@@ -192,6 +201,7 @@ export function Composer({
   const items: { icon: typeof Camera; label: K; run: () => void }[] = [
     { icon: ImageIcon, label: 'attach.gallery', run: () => gal.current?.click() },
     { icon: Camera, label: 'attach.camera', run: () => cam.current?.click() },
+    { icon: Video, label: 'attach.video', run: () => vid.current?.click() },
     { icon: MapPin, label: 'attach.location', run: locate },
     { icon: User, label: 'attach.contact', run: () => setPanel('contact') },
     { icon: FileText, label: 'attach.document', run: () => doc.current?.click() },
@@ -421,7 +431,7 @@ export function Composer({
       <input
         ref={gal}
         type='file'
-        accept='image/*'
+        accept='image/*,video/*'
         multiple
         hidden
         onChange={e => {
@@ -437,6 +447,17 @@ export function Composer({
         hidden
         onChange={e => {
           void files(e.target.files, 'image');
+          e.target.value = '';
+        }}
+      />
+      <input
+        ref={vid}
+        type='file'
+        accept='video/*'
+        multiple
+        hidden
+        onChange={e => {
+          void files(e.target.files, 'video');
           e.target.value = '';
         }}
       />
