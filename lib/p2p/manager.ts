@@ -36,6 +36,7 @@ import {
 import { packEnvelope, unpackEnvelope } from './pack';
 import { PeerLink } from './rtc';
 import { RelayClient, type RelayStatus } from './mqtt';
+import { DiscoveryClient, type DiscoveryPeer } from './discovery';
 import { getVault, takeRuntimeIdentity, VAULT_FLAG, VAULT_ID_FLAG, type Vault } from '../vault';
 import {
   ackRoot,
@@ -84,6 +85,8 @@ export interface P2PSettings {
   turn?: { urls: string; username?: string; credential?: string };
   giphy?: string;
   onlyContacts?: boolean;
+  discoveryEnabled?: boolean;
+  discoveryUrls?: string[];
 }
 export type PairingState =
   | { kind: 'idle' }
@@ -123,6 +126,7 @@ export interface Snapshot {
   relay: { enabled: boolean; connected: number; total: number; relays?: RelayStatus[] };
   pairing: PairingState;
   devicePairing: DevicePairingState;
+  nearby: DiscoveryPeer[];
 }
 export interface Host {
   getConversations(): Conversation[];
@@ -206,9 +210,11 @@ export class P2PManager {
     relay: { enabled: true, connected: 0, total: 0 },
     pairing: IDLE,
     devicePairing: { kind: 'idle' },
+    nearby: [],
   };
   private id?: Identity;
   private relay?: RelayClient;
+  private discovery?: DiscoveryClient;
   private started = false;
   private links = new Map<string, Link>();
   private knocks = new Map<string, Knock>();
@@ -341,6 +347,10 @@ export class P2PManager {
         photo: saved.photo,
         giphy: saved.giphy,
         onlyContacts: saved.onlyContacts === true,
+        discoveryEnabled: saved.discoveryEnabled === true,
+        discoveryUrls: Array.isArray(saved.discoveryUrls)
+          ? saved.discoveryUrls.filter((u): u is string => typeof u === 'string').slice(0, 5)
+          : [],
       };
       this.set({
         ready: true,
@@ -352,6 +362,7 @@ export class P2PManager {
         fresh: (await db.getFlag(ONBOARD_FLAG)) === true,
       });
       await this.startRelay();
+      this.startDiscovery();
       this.tick = setInterval(() => this.reconnectAll(), 45_000);
       this.hbTimer = setInterval(() => this.hbTick(), 10_000); // heartbeats are checked every 10 s, sent every 30 s per contact
       document.addEventListener('visibilitychange', this.vis);
@@ -376,6 +387,7 @@ export class P2PManager {
     clearInterval(this.tick);
     clearInterval(this.outTickTimer);
     clearInterval(this.hbTimer);
+    this.discovery?.stop();
     if (this.pairWindow) {
       this.relay?.unsubscribe(this.pairWindow.topicD);
       clearTimeout(this.pairWindow.timer);
@@ -455,6 +467,30 @@ export class P2PManager {
     void this.outTick();
     void this.startSync();
     setTimeout(() => this.relayBroadcastProfile(), 1500); // freshly (re)connected contacts learn our name/photo without a direct link
+  }
+
+  private startDiscovery() {
+    const { discoveryEnabled, discoveryUrls } = this.snap.settings;
+    if (!discoveryEnabled || !this.id) {
+      this.discovery?.stop();
+      this.discovery = undefined;
+      this.set({ nearby: [] });
+      return;
+    }
+    const urls = [...(discoveryUrls ?? [])].filter(u => /^wss?:\/\/[^\s]+$/.test(u)).slice(0, 5);
+    if (!urls.length && typeof location !== 'undefined' && /^https?:$/.test(location.protocol)) {
+      const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      urls.push(`${proto}//${location.host}/discovery`);
+    }
+    if (!urls.length) { this.set({ nearby: [] }); return; }
+    if (!this.discovery) {
+      this.discovery = new DiscoveryClient({
+        getId: () => this.id,
+        getName: () => this.snap.settings.name || 'Q7',
+        onChange: () => this.set({ nearby: this.discovery?.list() ?? [] }),
+      });
+    }
+    this.discovery.start(urls);
   }
 
   /* ---------- multi-device sync ----------
@@ -578,6 +614,20 @@ export class P2PManager {
   }
   setOnlyContacts(v: boolean) {
     return this.saveSettings({ onlyContacts: v });
+  }
+  async setDiscoveryEnabled(v: boolean) {
+    await this.saveSettings({ discoveryEnabled: v });
+    this.startDiscovery();
+  }
+  async setDiscoveryUrls(urls: string[]) {
+    await this.saveSettings({ discoveryUrls: urls.filter(u => /^wss?:\/\/[^\s]+$/.test(u)).slice(0, 5) });
+    this.startDiscovery();
+  }
+  async connectNearby(pub: string) {
+    const p = this.snap.nearby.find(n => n.pub === pub);
+    if (!p) return;
+    const code = await codeOfPub(p.pub);
+    await this.connectByCode(code);
   }
 
   /* ---------- links (direct WebRTC transport) ---------- */

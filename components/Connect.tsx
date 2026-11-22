@@ -218,6 +218,43 @@ export function ConnectPanel({ onOpenChat }: { onOpenChat: (convId: string) => v
         </Box>
       )}
       <Box className='space-y-3'>
+        <div className='flex items-center justify-between gap-3'>
+          <div>
+            <p className='text-sm font-medium'>{t('connect.nearby')}</p>
+            <p className='text-xs text-muted'>{t('connect.nearbyNote')}</p>
+          </div>
+          <label className='flex items-center gap-2 text-sm'>
+            <input
+              type='checkbox'
+              checked={snap.settings.discoveryEnabled === true}
+              onChange={e => void mgr.setDiscoveryEnabled(e.target.checked)}
+              className='accent-[rgb(var(--accent))]'
+            />
+            {t('connect.nearbyOn')}
+          </label>
+        </div>
+        {snap.settings.discoveryEnabled && (
+          <div className='space-y-2'>
+            {snap.nearby.length === 0 ? (
+              <p className='text-sm text-muted'>{t('connect.nearbyEmpty')}</p>
+            ) : (
+              snap.nearby.map(p => (
+                <div key={p.pub} className='flex items-center gap-3 rounded-2xl bg-container p-3'>
+                  <Avatar title={p.name} mode='p2p' size={36} shape='clover4' />
+                  <div className='min-w-0 flex-1'>
+                    <p className='truncate text-sm font-medium'>{p.name}</p>
+                    <p className='text-xs text-muted'>{t('connect.nearbyPeer')}</p>
+                  </div>
+                  <button onClick={() => void mgr.connectNearby(p.pub)} className={cn(btn, 'bg-sc text-onsc')}>
+                    <UserPlus size={15} /> {t('c.connect')}
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+      </Box>
+      <Box className='space-y-3'>
         <p className='text-sm font-medium'>{t('connect.byCode')}</p>
         <div className='flex flex-wrap gap-2'>
           <input
